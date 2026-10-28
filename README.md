@@ -171,6 +171,13 @@ installer environment. Making it public is the documented path.
   first boot still need to be confirmed on the target PC.
 - Do not switch the firmware to UEFI-only after a BIOS install unless you
   reinstall or repair the bootloader.
+- The installer pulls the image from GHCR, so the target PC needs working
+  network access during installation (or a locally preloaded payload).
+- Upstream documents a known Anaconda-installed bootc issue where
+  `systemd-remount-fs.service` reports a failure on the installed system
+  (fedora atomic-desktops tracker #72, RHBZ 2332319). Check
+  `systemctl --failed` after first boot; it is an upstream limitation, not
+  specific to this image.
 
 ---
 
