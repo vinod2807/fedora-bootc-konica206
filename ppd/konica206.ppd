@@ -1,0 +1,154 @@
+*PPD-Adobe: "4.3"
+*FormatVersion: "4.3"
+*FileVersion: "1.0"
+*LanguageVersion: English
+*LanguageEncoding: ISOLatin1
+*PSVersion: "(3010.000) 0"
+*LanguageLevel: "3"
+*FileSystem: False
+*PCFileName: "k206.ppd"
+*Manufacturer: "KONICA MINOLTA"
+*ModelName: "bizhub 206"
+*Product: "(bizhub 206)"
+*NickName: "KONICA MINOLTA bizhub 206 (A4 default, real media sizes)"
+*ShortNickName: "bizhub 206"
+*ColorDevice: False
+*cupsVersion: 2.4
+*cupsSNMPSupplies: False
+*cupsLanguages: "en_US"
+*cupsBackSide: Normal
+*APSupplies: "http://127.0.0.1:8001/konica206/"
+*cupsFilter2: "image/jpeg image/jpeg 0 -"
+*cupsFilter2: "image/png image/png 0 -"
+*cupsFilter2: "application/vnd.cups-pdf application/pdf 10 -"
+*cupsFilter2: "image/urf image/urf 100 -"
+*cupsUrfSupported: "V1.5,W8,PQ3-4-5,DM1,FN3,IS20-19,MT1,OB10,RS300-600"
+
+*% ---------------------------------------------------------------------------
+*% Page sizes are the ten real sizes the PAPPL application advertises
+*% (iso_a3/a4/a5/a6, iso_b4/b5, na_letter/legal/executive/invoice) with the
+*% hardware margins of the bizhub 206 (about 4.2 mm on every edge).
+*% CUPS' auto-generated "everywhere" PPD appends ".Borderless" to every entry
+*% because the application reports zero margins, which is wrong for this
+*% device and confusing in print dialogs. This PPD uses the plain names.
+*% ---------------------------------------------------------------------------
+*OpenUI *PageSize: PickOne
+*OrderDependency: 10 AnySetup *PageSize
+*en_US.Translation PageSize/Media Size: ""
+*DefaultPageSize: A4
+*PageSize A3: "<</PageSize[841.89 1190.55]>>setpagedevice"
+*en_US.PageSize A3/A3 (297 x 420 mm): ""
+*PageSize A4: "<</PageSize[595.28 841.89]>>setpagedevice"
+*en_US.PageSize A4/A4 (210 x 297 mm): ""
+*PageSize A5: "<</PageSize[419.53 595.28]>>setpagedevice"
+*en_US.PageSize A5/A5 (148 x 210 mm): ""
+*PageSize A6: "<</PageSize[297.64 419.53]>>setpagedevice"
+*en_US.PageSize A6/A6 (105 x 148 mm): ""
+*PageSize ISOB4: "<</PageSize[708.66 1000.63]>>setpagedevice"
+*en_US.PageSize ISOB4/ISO B4 (250 x 353 mm): ""
+*PageSize ISOB5: "<</PageSize[498.90 708.66]>>setpagedevice"
+*en_US.PageSize ISOB5/ISO B5 (176 x 250 mm): ""
+*PageSize Letter: "<</PageSize[612 792]>>setpagedevice"
+*en_US.PageSize Letter/Letter (8.5 x 11 in): ""
+*PageSize Legal: "<</PageSize[612 1008]>>setpagedevice"
+*en_US.PageSize Legal/Legal (8.5 x 14 in): ""
+*PageSize Executive: "<</PageSize[522 756]>>setpagedevice"
+*en_US.PageSize Executive/Executive (7.25 x 10.5 in): ""
+*PageSize Statement: "<</PageSize[396 612]>>setpagedevice"
+*en_US.PageSize Statement/Statement (5.5 x 8.5 in): ""
+*CloseUI: *PageSize
+
+*OpenUI *PageRegion: PickOne
+*OrderDependency: 10 AnySetup *PageRegion
+*DefaultPageRegion: A4
+*PageRegion A3: "<</PageSize[841.89 1190.55]>>setpagedevice"
+*PageRegion A4: "<</PageSize[595.28 841.89]>>setpagedevice"
+*PageRegion A5: "<</PageSize[419.53 595.28]>>setpagedevice"
+*PageRegion A6: "<</PageSize[297.64 419.53]>>setpagedevice"
+*PageRegion ISOB4: "<</PageSize[708.66 1000.63]>>setpagedevice"
+*PageRegion ISOB5: "<</PageSize[498.90 708.66]>>setpagedevice"
+*PageRegion Letter: "<</PageSize[612 792]>>setpagedevice"
+*PageRegion Legal: "<</PageSize[612 1008]>>setpagedevice"
+*PageRegion Executive: "<</PageSize[522 756]>>setpagedevice"
+*PageRegion Statement: "<</PageSize[396 612]>>setpagedevice"
+*CloseUI: *PageRegion
+
+*DefaultImageableArea: A4
+*DefaultPaperDimension: A4
+*ImageableArea A3: "12 12 829.89 1178.55"
+*PaperDimension A3: "841.89 1190.55"
+*ImageableArea A4: "12 12 583.28 829.89"
+*PaperDimension A4: "595.28 841.89"
+*ImageableArea A5: "12 12 407.53 583.28"
+*PaperDimension A5: "419.53 595.28"
+*ImageableArea A6: "12 12 285.64 407.53"
+*PaperDimension A6: "297.64 419.53"
+*ImageableArea ISOB4: "12 12 696.66 988.63"
+*PaperDimension ISOB4: "708.66 1000.63"
+*ImageableArea ISOB5: "12 12 486.90 696.66"
+*PaperDimension ISOB5: "498.90 708.66"
+*ImageableArea Letter: "12 12 600 780"
+*PaperDimension Letter: "612 792"
+*ImageableArea Legal: "12 12 600 996"
+*PaperDimension Legal: "612 1008"
+*ImageableArea Executive: "12 12 510 744"
+*PaperDimension Executive: "522 756"
+*ImageableArea Statement: "12 12 384 600"
+*PaperDimension Statement: "396 612"
+
+*OpenUI *InputSlot: PickOne
+*OrderDependency: 10 AnySetup *InputSlot
+*en_US.Translation InputSlot/Media Source: ""
+*DefaultInputSlot: Auto
+*InputSlot Tray1: "<</MediaPosition 20>>setpagedevice"
+*en_US.InputSlot Tray1/Tray 1: ""
+*InputSlot ByPassTray: "<</MediaPosition 19>>setpagedevice"
+*en_US.InputSlot ByPassTray/By-pass Tray: ""
+*InputSlot Auto: "<</MediaPosition 0>>setpagedevice"
+*en_US.InputSlot Auto/Automatic: ""
+*CloseUI: *InputSlot
+
+*% The device supports long-edge and short-edge duplex. Simplex is the default.
+*OpenUI *Duplex: PickOne
+*OrderDependency: 10 AnySetup *Duplex
+*en_US.Translation Duplex/2-Sided Printing: ""
+*DefaultDuplex: None
+*Duplex None: "<</Duplex false>>setpagedevice"
+*en_US.Duplex None/Off (1-Sided): ""
+*Duplex DuplexNoTumble: "<</Duplex true/Tumble false>>setpagedevice"
+*en_US.Duplex DuplexNoTumble/Long-Edge (Portrait): ""
+*Duplex DuplexTumble: "<</Duplex true/Tumble true>>setpagedevice"
+*en_US.Duplex DuplexTumble/Short-Edge (Landscape): ""
+*CloseUI: *Duplex
+
+*OpenUI *cupsPrintQuality: PickOne
+*OrderDependency: 10 AnySetup *cupsPrintQuality
+*en_US.Translation cupsPrintQuality/Print Quality: ""
+*DefaultcupsPrintQuality: Normal
+*cupsPrintQuality Draft: "<</HWResolution[300 150]>>setpagedevice"
+*en_US.cupsPrintQuality Draft/Draft: ""
+*cupsPrintQuality Normal: "<</HWResolution[300 300]>>setpagedevice"
+*en_US.cupsPrintQuality Normal/Normal: ""
+*cupsPrintQuality High: "<</HWResolution[600 600]>>setpagedevice"
+*en_US.cupsPrintQuality High/High: ""
+*CloseUI: *cupsPrintQuality
+
+*OpenUI *ColorModel: PickOne
+*OrderDependency: 10 AnySetup *ColorModel
+*en_US.Translation ColorModel/Color Mode: ""
+*DefaultColorModel: Gray
+*ColorModel Gray: "<</cupsColorSpace 18/cupsBitsPerColor 8/cupsColorOrder 0/cupsCompression 0>>setpagedevice"
+*en_US.ColorModel Gray/Grayscale: ""
+*CloseUI: *ColorModel
+
+*OpenUI *OutputBin: PickOne
+*OrderDependency: 10 AnySetup *OutputBin
+*en_US.Translation OutputBin/Output Bin: ""
+*DefaultOutputBin: FaceDown
+*DefaultOutputOrder: Normal
+*OutputBin FaceDown: ""
+*en_US.OutputBin FaceDown/Face Down: ""
+*PageStackOrder FaceDown: Normal
+*CloseUI: *OutputBin
+
+*cupsSingleFile: true

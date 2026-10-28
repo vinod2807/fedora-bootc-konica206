@@ -24,6 +24,30 @@
       <action name="Execute" command="evince" />
     </item>
     <separator />
+    <menu id="office" label="Office">
+      <item label="LibreOffice Writer">
+        <action name="Execute" command="libreoffice --writer" />
+      </item>
+      <item label="LibreOffice Calc">
+        <action name="Execute" command="libreoffice --calc" />
+      </item>
+      <item label="LibreOffice Impress">
+        <action name="Execute" command="libreoffice --impress" />
+      </item>
+      <separator />
+      <item label="ONLYOFFICE Desktop Editors">
+        <action name="Execute" command="onlyoffice-desktopeditors" />
+      </item>
+    </menu>
+    <menu id="scan" label="Scanning">
+      <item label="Simple Scan">
+        <action name="Execute" command="simple-scan" />
+      </item>
+      <item label="NAPS2">
+        <action name="Execute" command="naps2" />
+      </item>
+    </menu>
+    <separator />
     <item label="Volume control">
       <action name="Execute" command="pavucontrol" />
     </item>

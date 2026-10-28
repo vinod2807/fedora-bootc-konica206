@@ -7,6 +7,10 @@ A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
 - **Labwc** Wayland compositor, **Waybar** panel, **Foot** terminal
 - A desktop with **pcmanfm**, **gthumb**, **evince**, **mousepad**,
   **xarchiver**, **pavucontrol**, GVFS/udisks2, and a right-click menu
+- **LibreOffice** (full suite) and **ONLYOFFICE Desktop Editors** (official
+  vendor repository)
+- **NAPS2** scanning front-end plus **simple-scan**, with **sane-airscan** for
+  driverless (eSCL/AirScan) network scanners
 - **Flatpak** with the **Flathub** remote preinstalled (xdg-desktop-portal
   GTK/wlr portals for file choosers and screen sharing)
 - A real graphical login path: **greetd** on VT1 → **tuigreet** → **labwc**
@@ -46,9 +50,11 @@ The installed machine tracks that reference and updates with `bootc upgrade`.
 | `greetd/config.toml` | tuigreet → labwc login session |
 | `desktop/` | labwc autostart/environment and Waybar config/style |
 | `scripts/install-vendor-data` | Post-install installer for the licensed Konica runtime data |
-| `scripts/ensure-queue` | Creates the PAPPL queue when the printer is plugged in |
+| `scripts/ensure-queue` | Creates the PAPPL queue and the local CUPS queue with the PPD shim |
 | `scripts/ensure-epson-queue` | Creates the driverless Epson L3260 network queue |
 | `scripts/preflight` | Read-only diagnostic (`sudo konica206-preflight`) |
+| `ppd/konica206.ppd` | Hand-written PPD shim: real media sizes, duplex, A4/simplex defaults |
+| `local-rpms/` | Vendor RPMs that cannot be downloaded automatically (Epson Printer Utility) |
 | `bootc/`, `modprobe.d/` | i5 650 C-state/audio crash fixes |
 | `docs/PRINTER.md`, `docs/CRASH-FIXES.md` | Detailed notes |
 
@@ -223,14 +229,20 @@ internet (it pulls the image, roughly 1 GiB compressed, from GHCR).
   **Menu** button (application launcher), a **Files** button, workspaces, a
   taskbar, clock, volume, network, battery and tray.
 - **Desktop menu:** right-click the desktop for Files, Terminal, Image viewer,
-  Text editor, Archive manager, Document viewer, Volume, Network and Session
-  actions (`/etc/xdg/labwc/menu.xml`).
+  Text editor, Archive manager, Document viewer, an **Office** submenu
+  (LibreOffice Writer/Calc/Impress, ONLYOFFICE), a **Scanning** submenu, Volume,
+  Network and Session actions (`/etc/xdg/labwc/menu.xml`).
 - **Application launcher:** the **Menu** button on Waybar runs `fuzzel`, which
   lists every installed application (including Flatpak apps) plus
   **Reboot** and **Shut Down** actions.
 - **Applications:** `pcmanfm` (files, with GVFS/udisks2 automount),
   `gthumb` (images), `evince` (PDF), `mousepad` (text), `xarchiver`,
-  `pavucontrol`, `nm-connection-editor`, `foot` (terminal).
+  `pavucontrol`, `nm-connection-editor`, `foot` (terminal),
+  **LibreOffice** (Writer/Calc/Impress/Draw/Base/Math) and
+  **ONLYOFFICE Desktop Editors** (installed from ONLYOFFICE's own repository).
+- **Scanning:** `simple-scan` and **NAPS2**, both backed by `sane-airscan` for
+  driverless eSCL/AirScan devices (the Epson L3260 scanner and most modern
+  network MFPs).
 - **Flatpak:** `flatpak` and the Flathub remote are ready; install apps with
   `flatpak install flathub <app-id>` and run them from the launcher.
 - **Text fallback:** `Ctrl+Alt+F2` gives a text login. From there, run `labwc`
@@ -403,13 +415,29 @@ compiled into the application. No vendor PPD is installed or redistributed.
 
 ### Test print
 
+A CUPS queue named **`konica206`** is created automatically (by
+`konica206-queue.service`) once the PAPPL queue exists. It points at
+`ipp://127.0.0.1:8001/ipp/print/konica206` and uses the shipped PPD shim
+`/usr/share/ppd/konica206/konica206.ppd`, which lists the ten real media sizes
+(A3, A4, A5, A6, ISO B4, ISO B5, Letter, Legal, Executive, Statement) with the
+device's ~4.2 mm hardware margins — CUPS' auto-generated "everywhere" PPD
+labels every size `*.Borderless`, which this printer does not support.
+
+Defaults are **A4 and simplex** (`PageSize=A4`, `Duplex=None`) and are re-applied
+on every boot. Duplex is available per job:
+
 ```bash
-# Optional CUPS proxy queue (CUPS is installed but not enabled by default)
-sudo systemctl enable --now cups.service
-sudo lpadmin -p konica206-ipp -E \
-  -v ipp://127.0.0.1:8001/ipp/print/konica206 -m everywhere
-sudo lpadmin -p konica206-ipp -o printer-error-policy=retry-job
-lp -d konica206-ipp /path/to/test.pdf
+lp -d konica206 /path/to/test.pdf                          # A4, 1-sided
+lp -d konica206 -o PageSize=A3 file.pdf                    # A3
+lp -d konica206 -o Duplex=DuplexNoTumble file.pdf          # long-edge duplex
+lp -d konica206 -o Duplex=DuplexTumble file.pdf            # short-edge duplex
+```
+
+Change the persistent defaults:
+
+```bash
+sudo lpadmin -p konica206 -o PageSize=Letter -o Duplex=DuplexNoTumble
+lpoptions -p konica206 -l          # list every option and its current default
 ```
 
 Print a **PDF**, not PostScript (the driver deliberately does not advertise
@@ -485,6 +513,40 @@ Make it the default printer (optional — the Konica stays the default otherwise
 ```bash
 lpadmin -d EPSON_L3260
 ```
+
+### Scanner (L3260 and other network MFPs)
+
+`sane-airscan` talks to the scanner over eSCL/AirScan without a vendor driver;
+`simple-scan` and NAPS2 are the front-ends. The L3260 exposes scanning on the
+same host as printing:
+
+```bash
+scanimage -L                  # should list eSCL/AirScan devices
+simple-scan                   # or launch NAPS2 from the menu
+```
+
+If nothing is listed, check that `avahi-daemon` is running (mDNS discovery) and
+that the printer is on the same L2 network; `scanimage --test` then verifies a
+single page.
+
+### Epson Printer Utility (vendor RPM, optional)
+
+Epson ships *Epson Printer Utility for Linux* (ink levels, head cleaning,
+nozzle check) only through
+<https://download-center.epson.com/> → **L3260 Series** → **Linux RPM(x64)**.
+That site (and its API) answers automated clients with **HTTP 403**, so the
+image cannot download it at build time. To include it:
+
+```bash
+# 1. download epson-printer-utility-1.2.3-1.x86_64.rpm in a browser
+# 2. put it in the repository
+cp epson-printer-utility-1.2.3-1.x86_64.rpm local-rpms/
+git add local-rpms/*.rpm && git commit -m "vendor: Epson Printer Utility"
+git push        # weekly-image build installs it
+```
+
+Everything in `local-rpms/*.rpm` is installed during the build. Printing and
+scanning do not depend on the utility — the queue is driverless.
 
 Different address or name, without rebuilding the image:
 

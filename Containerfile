@@ -134,6 +134,7 @@ RUN set -eux; \
         gvfs-smb \
         hicolor-icon-theme \
         labwc \
+        libreoffice \
         libusb1 \
         mate-polkit \
         mesa-dri-drivers \
@@ -148,7 +149,9 @@ RUN set -eux; \
         pipewire \
         pipewire-pulseaudio \
         polkit \
+        sane-airscan \
         shared-mime-info \
+        simple-scan \
         slurp \
         sudo \
         swaybg \
@@ -168,6 +171,33 @@ RUN set -eux; \
         xorg-x11-server-Xwayland \
         zip \
     && dnf clean all
+
+# Third-party desktop applications, from their vendor repository / official
+# release assets. Kept in their own layer so a failure is isolated:
+#   - ONLYOFFICE Desktop Editors: official repo RPM (it also installs its own
+#     GPG key at /etc/pki/rpm-gpg/RPM-GPG-KEY-ONLYOFFICE).
+#   - NAPS2: official GitHub release asset, pinned to an exact version.
+RUN set -eux; \
+    dnf install -y --nogpgcheck \
+        https://download.onlyoffice.com/repo/centos/main/noarch/onlyoffice-repo.noarch.rpm; \
+    dnf install -y onlyoffice-desktopeditors; \
+    dnf install -y \
+        https://github.com/cyanfish/naps2/releases/download/v8.6.0/naps2-8.6.0-linux-x64.rpm; \
+    dnf clean all
+
+# Epson Printer Utility for Linux is only distributed through Epson's download
+# centre, which answers automated requests with HTTP 403 (Akamai). The RPM is
+# therefore not downloaded at build time: drop it into local-rpms/ and it is
+# installed here. See local-rpms/README.md.
+COPY local-rpms/ /tmp/local-rpms/
+RUN set -eux; \
+    if compgen -G '/tmp/local-rpms/*.rpm' >/dev/null; then \
+        dnf install -y /tmp/local-rpms/*.rpm; \
+    else \
+        echo 'no vendor RPM in local-rpms/, skipping'; \
+    fi; \
+    rm -rf /tmp/local-rpms; \
+    dnf clean all
 
 # Dedicated unprivileged account for the printer application. USB access comes
 # from the udev rule (group lp, mode 0660), not from running as root.
@@ -213,6 +243,7 @@ COPY scripts/install-vendor-data      /usr/libexec/konica206/install-vendor-data
 COPY scripts/ensure-queue             /usr/libexec/konica206/ensure-queue
 COPY scripts/preflight                /usr/libexec/konica206/preflight
 COPY scripts/ensure-epson-queue       /usr/libexec/epson-l3260/ensure-queue
+COPY ppd/konica206.ppd                /usr/share/ppd/konica206/konica206.ppd
 
 RUN set -eux; \
     chmod 0755 /usr/bin/konica206-native /usr/bin/konica-send /usr/bin/konica-render /usr/bin/konica-native; \
@@ -228,7 +259,8 @@ RUN set -eux; \
         /usr/lib/udev/rules.d/70-konica206.rules \
         /etc/xdg/labwc/menu.xml \
         /usr/share/applications/konica206-reboot.desktop \
-        /usr/share/applications/konica206-poweroff.desktop; \
+        /usr/share/applications/konica206-poweroff.desktop \
+        /usr/share/ppd/konica206/konica206.ppd; \
     chmod 0755 /etc/xdg/labwc/autostart; \
     ln -sf /usr/libexec/konica206/install-vendor-data /usr/bin/konica206-install-vendor-data; \
     ln -sf /usr/libexec/konica206/preflight /usr/bin/konica206-preflight; \

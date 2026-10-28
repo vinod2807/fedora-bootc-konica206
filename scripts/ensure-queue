@@ -13,6 +13,38 @@ URI_BASE="ipp://localhost:${PORT}"
 
 log() { printf 'konica206-queue: %s\n' "$*"; }
 
+# CUPS queue for desktop applications. The PAPPL application is an IPP server,
+# but CUPS needs a local queue with a PPD before anything can print through it.
+# The shipped PPD is a shim: it declares the ten real page sizes of the device
+# (no CUPS-generated ".Borderless" entries) and offers simplex and duplex.
+# Defaults are forced to A4 and one-sided on every run.
+CUPS_QUEUE=${KONICA_CUPS_QUEUE:-konica206}
+PPD=/usr/share/ppd/konica206/konica206.ppd
+
+ensure_cups_queue() {
+    [ -r "$PPD" ] || { log "no PPD at $PPD; skipping CUPS queue"; return 0; }
+
+    systemctl start cups.socket >/dev/null 2>&1 || true
+
+    if lpstat -p "$CUPS_QUEUE" >/dev/null 2>&1; then
+        lpadmin -p "$CUPS_QUEUE" -P "$PPD" >/dev/null 2>&1 \
+            && log "CUPS queue '$CUPS_QUEUE' refreshed with $PPD"
+    else
+        lpadmin -p "$CUPS_QUEUE" -E \
+            -v "ipp://127.0.0.1:${PORT}/ipp/print/${QUEUE}" \
+            -P "$PPD" \
+            -D "KONICA MINOLTA bizhub 206" -L "Local USB" \
+            -o printer-error-policy=retry-job >/dev/null 2>&1 \
+            && log "CUPS queue '$CUPS_QUEUE' created (A4, simplex)" \
+            || { log "could not create CUPS queue '$CUPS_QUEUE'"; return 0; }
+    fi
+
+    # Persisted defaults: A4 paper, one-sided. Both can still be overridden
+    # per job (-o PageSize=A3, -o Duplex=DuplexNoTumble) or in the print dialog.
+    lpadmin -p "$CUPS_QUEUE" -o PageSize=A4 -o Duplex=None >/dev/null 2>&1 \
+        && log "defaults applied: PageSize=A4 Duplex=None"
+}
+
 # Wait briefly for the PAPPL server socket after boot.
 ready=0
 for _ in $(seq 1 30); do
@@ -61,6 +93,7 @@ queue_present() {
 
 if queue_present; then
     log "queue '$QUEUE' already exists"
+    ensure_cups_queue
     exit 0
 fi
 
@@ -75,6 +108,7 @@ if ! out=$(/usr/bin/konica206-native add \
         -v "konica://KONICA%20MINOLTA/206?serial=${serial}" 2>&1); then
     if printf '%s\n' "$out" | grep -qi 'already exists'; then
         log "queue '$QUEUE' already exists"
+        ensure_cups_queue
         exit 0
     fi
     printf '%s\n' "$out" >&2
@@ -82,3 +116,4 @@ if ! out=$(/usr/bin/konica206-native add \
 fi
 
 log "queue created: ${URI_BASE}/ipp/print/${QUEUE}"
+ensure_cups_queue

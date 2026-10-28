@@ -70,7 +70,9 @@ when the device is plugged in. It:
 2. reads the printer serial from sysfs (`/sys/bus/usb/devices/*/serial`) for
    `132b:232b`;
 3. creates the `konica206` queue if it does not already exist;
-4. exits 0 when no printer is attached.
+4. creates (or refreshes) the local CUPS queue `konica206` with the shipped
+   PPD shim and forces `PageSize=A4`, `Duplex=None`;
+5. exits 0 when no printer is attached.
 
 Manual:
 
@@ -148,9 +150,16 @@ or `{Halftones,Profiles}`, or a `.tar`, `.tar.gz`, `.tgz`, `.tar.xz`, `.zip`
 archive. The script copies only the required three files plus optional extra
 `.icm` profiles and the 1200×600 screen. It prints file names, never contents.
 
-The PPD is optional. Page geometry, the tray map and the duplex back-side rule
-are compiled into the application. This repository does **not** install or
-redistribute a vendor PPD.
+The PPD is optional for the PAPPL side. Page geometry, the tray map and the
+duplex back-side rule are compiled into the application, and this repository
+does **not** install or redistribute a vendor PPD.
+
+For the CUPS queue the image ships its **own** hand-written PPD
+(`/usr/share/ppd/konica206/konica206.ppd`). It contains no Konica data: it
+describes the ten media sizes the application itself advertises (A3, A4, A5,
+A6, ISO B4, ISO B5, Letter, Legal, Executive, Statement) with realistic
+4.2 mm margins, and simplex + long-edge/short-edge duplex. The alternatives are
+the CUPS-generated `*.Borderless` names, which the hardware does not support.
 
 If the runtime data is missing:
 
@@ -166,22 +175,32 @@ The printer feature is therefore **not fully baked in out of the box**.
 A real print is the only proof. Prepare a PDF and use either PAPPL’s IPP
 endpoint directly or a CUPS proxy queue.
 
-### Optional CUPS proxy
+### CUPS queue (created automatically)
 
-CUPS is installed but not enabled by default. Enable it only if you want a
-local `lp` queue:
+`konica206-queue.service` creates a local queue named `konica206` that relays to
+the PAPPL endpoint above, using the image's own PPD shim:
 
 ```bash
-sudo systemctl enable --now cups.service
-sudo lpadmin -p konica206-ipp -E \
+lpstat -v konica206
+lpoptions -p konica206 -l        # ten real page sizes, duplex options
+lp -d konica206 /path/to/test.pdf                 # A4, simplex (defaults)
+lp -d konica206 -o Duplex=DuplexNoTumble file.pdf # long-edge duplex
+lp -d konica206 -o PageSize=A3 file.pdf
+```
+
+Create or repair it by hand:
+
+```bash
+sudo systemctl start konica206-queue
+sudo lpadmin -p konica206 -E \
   -v ipp://127.0.0.1:8001/ipp/print/konica206 \
-  -m everywhere
-sudo lpadmin -p konica206-ipp -o printer-error-policy=retry-job
-lp -d konica206-ipp /path/to/test.pdf
+  -P /usr/share/ppd/konica206/konica206.ppd \
+  -o printer-error-policy=retry-job
+sudo lpadmin -p konica206 -o PageSize=A4 -o Duplex=None
 ```
 
 Print PDF, not PostScript. The application deliberately does not advertise
-`application/postscript`; direct IPP PS jobs are rejected, while the CUPS proxy
+`application/postscript`; direct IPP PS jobs are rejected, while the CUPS queue
 converts PS to PDF before relaying.
 
 ### Direct IPP check
