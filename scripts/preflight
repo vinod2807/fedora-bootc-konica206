@@ -2,13 +2,33 @@
 # Read-only preflight for the Konica 206 feature. Never prints file contents.
 set -euo pipefail
 
+# The vendor runtime data lives under /var/lib/konica206, which is mode 0750
+# owner konica. A normal user cannot traverse that directory, so every data
+# file would look missing. Re-run ourselves under sudo when that is possible
+# (interactive terminal); otherwise fall back to a reduced, read-only report
+# that clearly marks the checks it had to skip.
+if [[ ${EUID} -ne 0 && ${KONICA_PREFLIGHT_ELEVATED:-0} != 1 ]] \
+        && command -v sudo >/dev/null 2>&1 && [[ -t 0 ]]; then
+    KONICA_PREFLIGHT_ELEVATED=1 exec sudo -- "$0" "$@"
+fi
+
+AS_ROOT=0
+[[ ${EUID} -eq 0 ]] && AS_ROOT=1
+
 DEST=/usr/local/lib/konica/KonicaMinolta/245igdi
 HFT=$DEST/Halftones/COPA.DEFAULT.600x600.hft
 SRGB=$DEST/Profiles/sRGB.icm
 GRAY=$DEST/Profiles/sGrayInv.icm
 rc=0
+skipped=0
 
 section() { printf '\n== %s ==\n' "$*"; }
+
+if (( ! AS_ROOT )); then
+    printf 'NOTE running as %s; /var/lib/konica206 is mode 0750 (owner konica),\n' "$(id -un)"
+    printf '     so the runtime-data checks cannot see the files. Re-run with:\n'
+    printf '         sudo konica206-preflight\n'
+fi
 
 section "binaries"
 for b in /usr/bin/konica206-native /usr/bin/konica-native /usr/bin/konica-send; do
@@ -29,6 +49,9 @@ fi
 for f in "$HFT" "$SRGB" "$GRAY"; do
     if [[ -s $f ]]; then
         printf 'OK   %s\n' "$f"
+    elif (( ! AS_ROOT )); then
+        printf 'SKIP %s (needs root to read; run: sudo konica206-preflight)\n' "$f"
+        skipped=1
     else
         printf 'MISS %s\n' "$f"
         rc=1
@@ -63,10 +86,13 @@ else
 fi
 
 printf '\n'
-if ((rc == 0)); then
+if ((rc != 0 )); then
+    echo "Preflight: required components are missing (see MISS/FAIL above)."
+elif ((skipped)); then
+    echo "Preflight: incomplete - some checks were skipped because they need root."
+    echo "Re-run: sudo konica206-preflight"
+else
     echo "Preflight: required components present."
     echo "Paper output is NOT tested by this check; a real USB print is still required."
-else
-    echo "Preflight: required components are missing (see MISS/FAIL above)."
 fi
 exit "$rc"

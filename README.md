@@ -45,7 +45,7 @@ The installed machine tracks that reference and updates with `bootc upgrade`.
 | `desktop/` | labwc autostart/environment and Waybar config/style |
 | `scripts/install-vendor-data` | Post-install installer for the licensed Konica runtime data |
 | `scripts/ensure-queue` | Creates the PAPPL queue when the printer is plugged in |
-| `scripts/preflight` | Read-only diagnostic (`konica206-preflight`) |
+| `scripts/preflight` | Read-only diagnostic (`sudo konica206-preflight`) |
 | `bootc/`, `modprobe.d/` | i5 650 C-state/audio crash fixes |
 | `docs/PRINTER.md`, `docs/CRASH-FIXES.md` | Detailed notes |
 
@@ -189,7 +189,7 @@ internet (it pulls the image, roughly 1 GiB compressed, from GHCR).
 7. **Post-install:** verify the crash fixes (`cat /proc/cmdline`), then install
    the licensed printer runtime data
    (`sudo konica206-install-vendor-data <path>`) and run
-   `konica206-preflight`.
+   `sudo konica206-preflight`.
 
 ### BIOS installation notes
 
@@ -418,7 +418,7 @@ Troubleshooting:
 ```bash
 journalctl -u konica206-native -b
 systemctl status konica206-native konica206-queue
-konica206-preflight
+sudo konica206-preflight
 lsusb -d 132b:232b
 konica206-native printers -u ipp://localhost:8001
 ```

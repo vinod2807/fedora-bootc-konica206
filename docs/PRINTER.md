@@ -24,7 +24,7 @@ application still uses libcups’ raster API and libusb, both from Fedora RPMs.
 | systemd service | `/usr/lib/systemd/system/konica206-native.service` |
 | queue helper | `/usr/libexec/konica206/ensure-queue` |
 | vendor data installer | `/usr/bin/konica206-install-vendor-data` |
-| preflight | `/usr/bin/konica206-preflight` |
+| preflight | `sudo /usr/bin/konica206-preflight` |
 | udev rule | `/usr/lib/udev/rules.d/70-konica206.rules` |
 | build commit stamps | `/usr/share/konica206/app-commit`, `/usr/share/konica206/native-commit` |
 
@@ -208,7 +208,7 @@ the filter produces a PJL/JBIG stream. It does not prove the printer accepts it.
 ```bash
 systemctl status konica206-native konica206-queue
 journalctl -u konica206-native -b --no-pager
-konica206-preflight
+sudo konica206-preflight
 lsusb -d 132b:232b
 lsusb -d 132b:232b -v | grep -i serial
 konica206-native printers -u ipp://localhost:8001
@@ -217,7 +217,7 @@ konica206-native printers -u ipp://localhost:8001
 | Symptom | Check |
 |---|---|
 | Queue missing | printer attached? `systemctl start konica206-queue`; serial visible? |
-| Job aborts, no paper | `konica206-preflight`; install vendor runtime data |
+| Job aborts, no paper | `sudo konica206-preflight`; install vendor runtime data |
 | “permission denied” on USB | udev rule loaded (`udevadm control --reload-rules`), `konica` in `lp`, replug |
 | `Unable to claim USB interface: Resource busy` | `usblp` grabbed the device; the image blacklists it (`/etc/modprobe.d/90-konica206-usblp.conf`) — reboot or `rmmod usblp` |
 | `konica206-queue` failed: “Printer name already exists” | udev re-trigger race; fixed by the idempotent `ensure-queue` script, safe to `systemctl restart` |
