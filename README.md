@@ -447,13 +447,13 @@ machine. It is updated after workflow runs.
 
 | Check | Status |
 |---|---|
-| Containerfile builds `linux/amd64` | Requires GitHub Actions run |
-| Upstream printer `make check` / `make check-native` | Requires GitHub Actions run |
-| `konica-native` vendor-free test suite | Requires GitHub Actions run |
-| Container smoke test (packages, units, binary versions, no vendor files) | Requires GitHub Actions run |
-| Weekly push to GHCR + traceable tags | Requires GitHub Actions run |
-| ISO El Torito BIOS metadata | Requires GitHub Actions run |
-| ISO boots under QEMU SeaBIOS to Linux userspace | Requires GitHub Actions run |
+| Containerfile builds `linux/amd64` | **Passed** — `weekly-image` run [40684026498](https://github.com/vinod2807/fedora-bootc-konica206/actions/runs/40684026498) |
+| Upstream printer `make check` / `make check-native` | **Passed** — same run (builder stage) |
+| `konica-native` vendor-free test suite | **Passed** — same run (builder stage) |
+| Container smoke test (packages, units, binary versions, no vendor files, `/usr/local` symlink, `pdftoraster`) | **Passed** — same run, before the push |
+| Weekly push to GHCR + traceable tags | **Passed** — tags `latest`, `main`, `sha-ff563ecb6e91280d01cf3bf0412c588468319837`; all resolve to `sha256:73dee69ab2a2756636a8d680c7941cef0f4516da12fa44e8f473d84ecb325ae9`. Anonymous pull works (public package). |
+| ISO El Torito BIOS metadata | Requires `build-iso` run |
+| ISO boots under QEMU SeaBIOS to Linux userspace | Requires `build-iso` run |
 | Full BIOS installation on real hardware | **Not tested** — physical PC required |
 | Graphical login (greetd → labwc → Waybar) on real hardware | **Not tested** — physical/QEMU desktop test required |
 | Real USB printing on bizhub 206 | **Not tested** — printer + licensed runtime data required |
@@ -472,10 +472,12 @@ After the first push/build:
 2. **Workflow permissions:** Settings → Actions → General → Workflow
    permissions → **Read and write permissions** (the workflows also declare
    least-privilege `permissions:` blocks; image push needs `packages: write`).
-3. **GHCR package visibility:** Packages → `fedora-bootc-konica206` → Package
-   settings → Change visibility → **Public**. This is required for the ISO
-   installer and the installed PC to pull anonymously. Alternatively keep it
-   private and configure registry authentication deliberately.
+3. **GHCR package visibility:** the first push is already anonymously
+   pullable (verified with an anonymous registry token), which is what the ISO
+   installer and the installed PC need. If it ever reverts to private:
+   Packages → `fedora-bootc-konica206` → Package settings → Change visibility →
+   **Public**. Alternatively keep it private and configure registry
+   authentication deliberately.
 4. **Package linking:** the first push links the package to this repository
    automatically. If not, link it in the package settings.
 5. **Artifact retention:** the ISO workflow uses 30 days; adjust in the
@@ -490,16 +492,18 @@ gh run download <run-id> --repo vinod2807/fedora-bootc-konica206
 ```
 
 To make the package public with a token that has package administration
-permission:
+permission (the GitHub CLI keyring token used here does **not** have
+`write:packages`, so `gh auth refresh -s write:packages` or the web UI is
+required):
 
 ```bash
 gh api --method PATCH \
-  /user/packages/container/fedora-bootc-konica206/visibility \
+  /user/packages/container/fedora-bootc-konica206 \
   -f visibility=public
 ```
 
-The workflow’s `GITHUB_TOKEN` may not have permission to change package
-visibility; the web UI step is the reliable path.
+The workflow’s `GITHUB_TOKEN` cannot change package visibility; the web UI step
+is the reliable path.
 
 ---
 
