@@ -1,0 +1,14 @@
+[Unit]
+Description=Stage a Fedora bootc update (does not reboot)
+Documentation=https://github.com/vinod2807/fedora-bootc-konica206#automatic-updates-optional
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/run/ostree-booted
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bootc upgrade
+Nice=10
+IOSchedulingClass=idle
+# Deliberately no reboot. Reboot is a separate, explicit step.
+TimeoutStartSec=30min

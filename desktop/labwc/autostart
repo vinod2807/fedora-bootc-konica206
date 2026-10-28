@@ -1,0 +1,10 @@
+#!/bin/sh
+# Started by labwc at the beginning of every session.
+
+# Panel
+waybar &
+
+# Solid background (no wallpaper asset shipped). Optional; harmless if absent.
+if command -v swaybg >/dev/null 2>&1; then
+    swaybg -c '#1e1e2e' &
+fi

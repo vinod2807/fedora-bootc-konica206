@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# Read-only preflight for the Konica 206 feature. Never prints file contents.
+set -euo pipefail
+
+DEST=/usr/local/lib/konica/KonicaMinolta/245igdi
+HFT=$DEST/Halftones/COPA.DEFAULT.600x600.hft
+SRGB=$DEST/Profiles/sRGB.icm
+GRAY=$DEST/Profiles/sGrayInv.icm
+rc=0
+
+section() { printf '\n== %s ==\n' "$*"; }
+
+section "binaries"
+for b in /usr/bin/konica206-native /usr/bin/konica-native /usr/bin/konica-send; do
+    if [[ -x $b ]]; then
+        printf 'OK   %s\n' "$b"
+    else
+        printf 'FAIL %s missing\n' "$b"
+        rc=1
+    fi
+done
+
+section "runtime data (vendor-owned; not shipped in the image)"
+if [[ -L /usr/local/lib/konica ]]; then
+    printf 'OK   /usr/local/lib/konica -> %s\n' "$(readlink /usr/local/lib/konica)"
+else
+    printf 'WARN /usr/local/lib/konica is not the expected symlink to persistent storage\n'
+fi
+for f in "$HFT" "$SRGB" "$GRAY"; do
+    if [[ -s $f ]]; then
+        printf 'OK   %s\n' "$f"
+    else
+        printf 'MISS %s\n' "$f"
+        rc=1
+    fi
+done
+
+section "service"
+if systemctl is-enabled --quiet konica206-native.service 2>/dev/null; then
+    printf 'OK   konica206-native.service is enabled\n'
+else
+    printf 'FAIL konica206-native.service is not enabled\n'
+    rc=1
+fi
+if systemctl is-active --quiet konica206-native.service 2>/dev/null; then
+    printf 'OK   konica206-native.service is running\n'
+else
+    printf 'WARN konica206-native.service is not running\n'
+fi
+
+section "USB device"
+if lsusb -d 132b:232b >/dev/null 2>&1 && [[ -n $(lsusb -d 132b:232b 2>/dev/null) ]]; then
+    lsusb -d 132b:232b
+else
+    printf 'WARN bizhub 206 (132b:232b) not found on USB\n'
+fi
+
+section "queues"
+if /usr/bin/konica206-native printers -u ipp://localhost:8001 2>/dev/null; then
+    :
+else
+    printf 'WARN PAPPL server is not answering on localhost:8001\n'
+fi
+
+printf '\n'
+if ((rc == 0)); then
+    echo "Preflight: required components present."
+    echo "Paper output is NOT tested by this check; a real USB print is still required."
+else
+    echo "Preflight: required components are missing (see MISS/FAIL above)."
+fi
+exit "$rc"

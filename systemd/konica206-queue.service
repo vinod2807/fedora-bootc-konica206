@@ -1,0 +1,15 @@
+[Unit]
+Description=Create the Konica bizhub 206 PAPPL queue when the printer is present
+Documentation=https://github.com/vinod2807/fedora-bootc-konica206/blob/main/docs/PRINTER.md
+After=konica206-native.service
+Wants=konica206-native.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/konica206/ensure-queue
+# No printer attached is a normal condition, not a service failure.
+SuccessExitStatus=0
+TimeoutStartSec=90s
+
+[Install]
+WantedBy=multi-user.target

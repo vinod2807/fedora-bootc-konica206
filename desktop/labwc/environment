@@ -1,0 +1,8 @@
+# Read by labwc for every session.
+XDG_CURRENT_DESKTOP=labwc
+XDG_SESSION_DESKTOP=labwc
+XDG_SESSION_TYPE=wayland
+XCURSOR_THEME=Adwaita
+XCURSOR_SIZE=24
+QT_QPA_PLATFORM=wayland
+MOZ_ENABLE_WAYLAND=1

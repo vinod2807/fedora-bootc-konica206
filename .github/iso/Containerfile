@@ -1,0 +1,81 @@
+# Anaconda installer container for the one-time bootc ISO.
+#
+# image-builder's "bootc-generic-iso" turns this container into a live
+# Anaconda environment. The interactive default kickstart below tells Anaconda
+# to install the published bootc image from GHCR.
+#
+# SOURCE_IMAGE is pinned to a digest by the workflow; TARGET_IMAGE is the
+# rolling tag the installed system will track for `bootc upgrade`.
+ARG INSTALLER_BASE=quay.io/fedora/fedora-bootc:44
+FROM ${INSTALLER_BASE}
+
+ARG SOURCE_IMAGE
+ARG TARGET_IMAGE
+
+RUN test -n "$SOURCE_IMAGE" && test -n "$TARGET_IMAGE"
+
+# Installer UI and the tools required by the image-builder ISO contract.
+RUN dnf install -y \
+        anaconda \
+        anaconda-dracut \
+        anaconda-install-img-deps \
+        anaconda-webui \
+        firefox \
+        dracut-config-generic \
+        dracut-live \
+        dracut-network \
+        grub2-common \
+        grub2-efi-x64-cdboot \
+        grub2-pc-modules \
+        grub2-tools-extra \
+        isomd5sum \
+        jq \
+        net-tools \
+        plymouth \
+        squashfs-tools \
+        xorriso \
+        default-fonts-core-sans \
+        default-fonts-other-sans \
+        google-noto-sans-cjk-fonts \
+    && dnf clean all
+
+RUN mkdir -p /boot/efi && cp -ra /usr/lib/efi/*/*/EFI /boot/efi/
+
+COPY iso.yaml /usr/lib/image-builder/bootc/iso.yaml
+
+# Anaconda's interactive defaults: install the exact source image, then make
+# the installed system track the rolling target reference.
+RUN printf 'bootc --source-imgref registry:%s --target-imgref %s\n' \
+        "$SOURCE_IMAGE" "$TARGET_IMAGE" \
+        > /usr/share/anaconda/interactive-defaults.ks \
+    && cat /usr/share/anaconda/interactive-defaults.ks
+
+# Minimal lorax-equivalent setup so Anaconda can run from this container.
+RUN set -eux; \
+    echo "install:x:0:0:root:/root:/usr/libexec/anaconda/run-anaconda" >> /etc/passwd; \
+    echo "install::14438:0:99999:7:::" >> /etc/shadow; \
+    passwd -d root; \
+    mv /usr/share/anaconda/list-harddrives-stub /usr/bin/list-harddrives; \
+    mv /etc/yum.repos.d /etc/anaconda.repos.d; \
+    ln -sf /lib/systemd/system/anaconda.target /etc/systemd/system/default.target; \
+    rm -f /usr/lib/systemd/system-generators/systemd-gpt-auto-generator; \
+    ln -sf /usr/lib/systemd/system/anaconda-shell@.service /usr/lib/systemd/system/autovt@.service
+
+RUN mkdir -p /usr/lib/systemd/logind.conf.d && \
+    printf '[Login]\nReserveVT=2\n' > /usr/lib/systemd/logind.conf.d/anaconda-shell.conf
+
+RUN mkdir -p /usr/lib/dracut/dracut.conf.d && \
+    printf 'add_dracutmodules+=" dmsquash-live anaconda "\ncompress="zstd"\n' \
+        > /usr/lib/dracut/dracut.conf.d/40-iso.conf
+
+RUN set -eux; \
+    mkdir -p "$(realpath /root)"; \
+    kernel=$(kernel-install list --json pretty 2>/dev/null | jq -r '.[] | select(.has_kernel == true) | .version' | head -1 || true); \
+    if [ -z "$kernel" ]; then kernel=$(ls -1 /usr/lib/modules | head -1); fi; \
+    test -n "$kernel"; \
+    DRACUT_NO_XATTR=1 dracut --force -v --zstd --reproducible --no-hostonly \
+        "/usr/lib/modules/${kernel}/initramfs.img" "$kernel"
+
+RUN mkdir -p /etc/systemd/user/pipewire.service.d /etc/systemd/user/pipewire.socket.d && \
+    printf '[Unit]\nConditionUser=\n' > /etc/systemd/user/pipewire.service.d/allowroot.conf && \
+    printf '[Unit]\nConditionUser=\n' > /etc/systemd/user/pipewire.socket.d/allowroot.conf

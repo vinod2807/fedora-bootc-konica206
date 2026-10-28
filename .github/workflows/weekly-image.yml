@@ -1,0 +1,169 @@
+name: weekly-image
+
+# Builds and publishes the bootc image every Sunday at 03:00 UTC, and on
+# demand. This workflow NEVER builds an installation ISO.
+
+on:
+  schedule:
+    - cron: "0 3 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: weekly-image-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+
+jobs:
+  build:
+    name: Build and push linux/amd64 bootc image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Resolve upstream printer commit SHAs
+        id: refs
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=$(git ls-remote https://github.com/vinod2807/konica206-native-alpine.git refs/heads/main | awk '{print $1}')
+          native=$(git ls-remote https://github.com/vinod2807/konica-native-musl.git refs/heads/main | awk '{print $1}')
+          for ref in "$app" "$native"; do
+            if [[ ! $ref =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::Could not resolve an upstream commit SHA from git ls-remote"
+              exit 1
+            fi
+          done
+          {
+            echo "app=$app"
+            echo "native=$native"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### Printer sources"
+            echo "- konica206-native-alpine: \`$app\`"
+            echo "- konica-native-musl: \`$native\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Set lower-case image name
+        shell: bash
+        run: echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=long,prefix=sha-
+            type=ref,event=branch
+          labels: |
+            org.opencontainers.image.title=Fedora bootc 44 - Labwc + Konica bizhub 206
+            org.opencontainers.image.description=Fedora bootc 44 linux/amd64 with Labwc, Waybar, Foot and the Konica Minolta bizhub 206 printer application
+            org.vinod2807.konica.app-ref=${{ steps.refs.outputs.app }}
+            org.vinod2807.konica.native-ref=${{ steps.refs.outputs.native }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to GHCR
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build locally first so the image can be smoke-tested before anything is
+      # pushed. The second build below reuses this cache.
+      - name: Build image for smoke test
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: ./Containerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: localhost/fedora-bootc-konica206:smoke
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            KONICA_APP_REF=${{ steps.refs.outputs.app }}
+            KONICA_NATIVE_REF=${{ steps.refs.outputs.native }}
+          cache-from: type=gha,scope=bootc-image
+          cache-to: type=gha,mode=max,scope=bootc-image
+
+      - name: Smoke-test the image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint /bin/bash localhost/fedora-bootc-konica206:smoke -euo pipefail -c '
+            rpm -q labwc waybar foot greetd tuigreet NetworkManager pappl cups ghostscript >/dev/null
+            for b in /usr/bin/konica206-native /usr/bin/konica-native /usr/bin/konica-send /usr/bin/labwc /usr/bin/waybar /usr/bin/foot /usr/bin/tuigreet; do
+              test -x "$b"
+            done
+            /usr/bin/konica206-native --version
+            /usr/bin/konica-native --help >/dev/null 2>&1 || true
+            /usr/bin/labwc --version
+            /usr/bin/foot --version
+            /usr/bin/waybar --version
+            /usr/bin/tuigreet --version
+            test -f /etc/greetd/config.toml
+            grep -q "tuigreet --time --remember --cmd /usr/bin/labwc" /etc/greetd/config.toml
+            test -f /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
+            grep -q "intel_idle.max_cstate=1" /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
+            systemctl is-enabled greetd.service NetworkManager.service konica206-native.service konica206-queue.service
+            systemd-analyze verify /usr/lib/systemd/system/konica206-native.service \
+                                   /usr/lib/systemd/system/konica206-queue.service \
+                                   /usr/lib/systemd/system/bootc-upgrade.service \
+                                   /usr/lib/systemd/system/bootc-upgrade.timer
+            # Vendor-owned runtime data must never be baked into the public image.
+            # The encoder fixed /usr/local path must point at writable state.
+            test "$(readlink -f /usr/local/lib/konica)" = "/var/lib/konica206/vendor"
+            test -d /var/lib/konica206/vendor
+            test ! -e /usr/local/lib/konica/KonicaMinolta/245igdi/Halftones/COPA.DEFAULT.600x600.hft
+            test ! -e /var/lib/konica206/vendor/KonicaMinolta/245igdi/Halftones/COPA.DEFAULT.600x600.hft
+            test ! -e /usr/local/lib/konica/KonicaMinolta/245igdi/Profiles/sRGB.icm
+            test ! -e /usr/local/lib/konica/KonicaMinolta/245igdi/Profiles/sGrayInv.icm
+            # Raster jobs use the CUPS pdftoraster filter; PDF jobs use builtin rendering.
+            test -x /usr/lib/cups/filter/pdftoraster
+            echo "smoke test: OK"
+          '
+
+      - name: Build and push image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: ./Containerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            KONICA_APP_REF=${{ steps.refs.outputs.app }}
+            KONICA_NATIVE_REF=${{ steps.refs.outputs.native }}
+          cache-from: type=gha,scope=bootc-image
+          provenance: mode=max
+          sbom: true
+
+      - name: Report image references
+        shell: bash
+        run: |
+          {
+            echo "### Published image"
+            echo ""
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo '```'
+            echo ""
+            echo "Printer commit SHAs: app \`${{ steps.refs.outputs.app }}\`, native \`${{ steps.refs.outputs.native }}\`"
+            echo ""
+            echo "This workflow does not build an ISO. Use the **build-iso** workflow."
+          } >> "$GITHUB_STEP_SUMMARY"

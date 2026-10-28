@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+# Install the Konica Minolta 245igdi runtime data that the native encoder needs.
+#
+# The three files are Konica Minolta property and are NOT redistributed with
+# this image or repository. You must supply them from your own licensed copy of
+# the bizhub 206 driver. Nothing here prints file contents.
+#
+# The encoder resolves this data at a compiled-in path:
+#   /usr/local/lib/konica/KonicaMinolta/245igdi/...
+# which is a symlink to the persistent, writable location used below:
+#   /var/lib/konica206/vendor/KonicaMinolta/245igdi/...
+#
+# Usage:
+#   sudo konica206-install-vendor-data /path/to/dir-or-tarball
+#   sudo konica206-install-vendor-data --check
+#   sudo konica206-install-vendor-data --no-restart /path/to/dir-or-tarball
+#
+# Accepted source layouts (the installer searches for these):
+#   <src>/KonicaMinolta/245igdi/{Halftones,Profiles}/...
+#   <src>/245igdi/{Halftones,Profiles}/...
+#   <src>/{Halftones,Profiles}/...
+# A .tar, .tar.gz, .tgz, .tar.xz or .zip archive is also accepted.
+set -euo pipefail
+
+DEST=/var/lib/konica206/vendor/KonicaMinolta/245igdi
+HFT=COPA.DEFAULT.600x600.hft
+SRGB=sRGB.icm
+GRAY=sGrayInv.icm
+RESTART=1
+MODE=install
+SOURCE=
+
+usage() {
+    sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+while (($#)); do
+    case "$1" in
+        --check) MODE=check ;;
+        --no-restart) RESTART=0 ;;
+        -h|--help) usage; exit 0 ;;
+        -*) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
+        *) SOURCE=$1 ;;
+    esac
+    shift
+done
+
+missing_paths() {
+    local root=$1
+    local f
+    for f in "Halftones/$HFT" "Profiles/$SRGB" "Profiles/$GRAY"; do
+        [[ -s "$root/$f" ]] || return 1
+    done
+}
+
+find_root() {
+    local base=$1
+    local candidate
+    for candidate in \
+        "$base/KonicaMinolta/245igdi" \
+        "$base/245igdi" \
+        "$base"; do
+        if missing_paths "$candidate"; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+if [[ $MODE == check ]]; then
+    rc=0
+    for f in "Halftones/$HFT" "Profiles/$SRGB" "Profiles/$GRAY"; do
+        if [[ -s "$DEST/$f" ]]; then
+            printf 'OK   %s\n' "$DEST/$f"
+        else
+            printf 'MISS %s\n' "$DEST/$f"
+            rc=1
+        fi
+    done
+    if ((rc == 0)); then
+        echo "Printer runtime data is installed."
+    else
+        echo "Printer runtime data is incomplete; jobs will fail before sending anything." >&2
+        echo "Supply your licensed 245igdi files, then run: sudo konica206-install-vendor-data <dir>" >&2
+    fi
+    exit "$rc"
+fi
+
+if [[ -z $SOURCE ]]; then
+    echo "usage: sudo $0 <path-to-245igdi-dir-or-archive>" >&2
+    exit 2
+fi
+if [[ ! -e $SOURCE ]]; then
+    echo "source does not exist: $SOURCE" >&2
+    exit 2
+fi
+if [[ $(id -u) -ne 0 ]]; then
+    echo "must run as root (the destination is $DEST)" >&2
+    exit 1
+fi
+
+WORK=$(mktemp -d /var/tmp/konica-vendor.XXXXXX)
+trap 'rm -rf "$WORK"' EXIT
+
+SRC=$SOURCE
+case "$SOURCE" in
+    *.tar|*.tar.gz|*.tgz|*.tar.xz|*.txz)
+        tar -xf "$SOURCE" -C "$WORK"
+        SRC=$WORK
+        ;;
+    *.zip)
+        if ! command -v unzip >/dev/null 2>&1; then
+            echo "unzip is required to read $SOURCE" >&2
+            exit 1
+        fi
+        unzip -q "$SOURCE" -d "$WORK"
+        SRC=$WORK
+        ;;
+esac
+
+ROOT=$(find_root "$SRC" || true)
+if [[ -z $ROOT ]]; then
+    echo "Could not find the required files under $SOURCE." >&2
+    echo "Expected Halftones/$HFT, Profiles/$SRGB and Profiles/$GRAY." >&2
+    exit 1
+fi
+
+install -d -m 0755 "$DEST/Halftones" "$DEST/Profiles"
+install -m 0644 "$ROOT/Halftones/$HFT" "$DEST/Halftones/$HFT"
+install -m 0644 "$ROOT/Profiles/$SRGB" "$DEST/Profiles/$SRGB"
+install -m 0644 "$ROOT/Profiles/$GRAY" "$DEST/Profiles/$GRAY"
+
+# The 1200x600 screen and the other profiles are optional for the native
+# encoder; copy them only when the user supplied them.
+if [[ -s "$ROOT/Halftones/COPA.DEFAULT.1200x600.hft" ]]; then
+    install -m 0644 "$ROOT/Halftones/COPA.DEFAULT.1200x600.hft" "$DEST/Halftones/"
+fi
+for p in "$ROOT"/Profiles/*.icm; do
+    [[ -e $p ]] || continue
+    install -m 0644 "$p" "$DEST/Profiles/"
+done
+
+missing=False
+for f in "Halftones/$HFT" "Profiles/$SRGB" "Profiles/$GRAY"; do
+    [[ -s "$DEST/$f" ]] || missing=True
+done
+if [[ $missing == True ]]; then
+    echo "installation failed validation" >&2
+    exit 1
+fi
+
+echo "Installed Konica 245igdi runtime data under $DEST"
+if ((RESTART)); then
+    if systemctl is-enabled --quiet konica206-native.service 2>/dev/null; then
+        systemctl restart konica206-native.service
+        # Creates the queue if the printer is plugged in; harmless otherwise.
+        systemctl start konica206-queue.service || true
+        echo "Restarted konica206-native.service and checked for the printer."
+    else
+        echo "konica206-native.service is not enabled; not restarting it."
+    fi
+fi

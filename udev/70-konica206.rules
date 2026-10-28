@@ -1,0 +1,5 @@
+# Konica Minolta bizhub 206 (USB ID 132b:232b)
+# The printer application runs as the unprivileged "konica" service user, which
+# is a member of the "lp" group. uaccess additionally gives the logged-in
+# desktop user access for diagnostics (lsusb, konica-send).
+SUBSYSTEM=="usb", ATTR{idVendor}=="132b", ATTR{idProduct}=="232b", MODE="0660", GROUP="lp", TAG+="uaccess", TAG+="systemd", ENV{SYSTEMD_WANTS}+="konica206-queue.service"

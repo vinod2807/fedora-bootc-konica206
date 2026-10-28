@@ -1,0 +1,41 @@
+[Unit]
+Description=Konica Minolta bizhub 206 PAPPL printer application
+Documentation=https://github.com/vinod2807/fedora-bootc-konica206/blob/main/docs/PRINTER.md
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=konica
+Group=konica
+SupplementaryGroups=lp
+Environment=HOME=/var/lib/konica206
+Environment=KONICA_VENDOR_FILTER=/usr/bin/konica-native
+Environment=KONICA_PDF_RENDERER=builtin
+Environment=KONICA_LISTEN=localhost
+Environment=KONICA_SPOOLDIR=/var/tmp
+ExecStart=/usr/bin/konica206-native server -o server-port=8001
+Restart=on-failure
+RestartSec=5s
+UMask=0022
+
+# Writable state: PAPPL keeps its queues/state under $HOME.
+StateDirectory=konica206
+StateDirectoryMode=0750
+RuntimeDirectory=konica206
+RuntimeDirectoryMode=0750
+
+# Local spool files only; no shell, no home, no kernel/control-group access.
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+RestrictNamespaces=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

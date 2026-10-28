@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Create the PAPPL queue for the Konica bizhub 206 if the USB device is present.
+#
+# Safe to run at every boot and from udev: it exits 0 when no printer is
+# attached or the queue already exists. No paper is used.
+set -euo pipefail
+
+QUEUE=${KONICA_QUEUE:-konica206}
+PORT=${KONICA_PORT:-8001}
+VENDOR=132b
+PRODUCT=232b
+URI_BASE="ipp://localhost:${PORT}"
+
+log() { printf 'konica206-queue: %s\n' "$*"; }
+
+# Wait briefly for the PAPPL server socket after boot.
+ready=0
+for _ in $(seq 1 30); do
+    if /usr/bin/konica206-native printers -u "$URI_BASE" >/dev/null 2>&1; then
+        ready=1
+        break
+    fi
+    sleep 1
+done
+if ((ready == 0)); then
+    log "PAPPL server at $URI_BASE is not responding; leaving queue creation to the next trigger"
+    exit 0
+fi
+
+serial=${KONICA_SERIAL:-}
+if [[ -z $serial ]]; then
+    for dev in /sys/bus/usb/devices/*; do
+        [[ -r "$dev/idVendor" && -r "$dev/idProduct" ]] || continue
+        [[ $(<"$dev/idVendor") == "$VENDOR" ]] || continue
+        [[ $(<"$dev/idProduct") == "$PRODUCT" ]] || continue
+        if [[ -r "$dev/serial" ]]; then
+            serial=$(<"$dev/serial")
+            break
+        fi
+    done
+fi
+
+if [[ -z $serial ]]; then
+    log "no bizhub 206 ($VENDOR:$PRODUCT) on USB; no queue created"
+    exit 0
+fi
+
+# The serial is embedded in an IPP device URI. Only accept the character set
+# real devices use, so a malformed sysfs value cannot inject URI syntax.
+if [[ ! $serial =~ ^[A-Za-z0-9._-]+$ ]]; then
+    log "refusing unexpected USB serial format: $serial"
+    exit 1
+fi
+
+if /usr/bin/konica206-native printers -u "$URI_BASE" 2>/dev/null | grep -Fxq "$QUEUE"; then
+    log "queue '$QUEUE' already exists"
+    exit 0
+fi
+
+log "creating queue '$QUEUE' for serial $serial"
+/usr/bin/konica206-native add \
+    -d "$QUEUE" \
+    -u "$URI_BASE" \
+    -m konica-bizhub-206 \
+    -v "konica://KONICA%20MINOLTA/206?serial=${serial}"
+
+log "queue created: ${URI_BASE}/ipp/print/${QUEUE}"

@@ -1,0 +1,10 @@
+[terminal]
+# greetd takes VT1; getty@tty1 is conflicted out by the packaged unit.
+# Ctrl+Alt+F2 still gives a text login for troubleshooting.
+vt = 1
+
+[default_session]
+# tuigreet is a console greeter; it authenticates via PAM and then execs labwc
+# as the logged-in user. No password or user is baked into this image.
+command = "tuigreet --time --remember --cmd /usr/bin/labwc"
+user = "greetd"

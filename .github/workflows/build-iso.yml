@@ -1,0 +1,218 @@
+name: build-iso
+
+# Manual-only: build a one-time USB installer ISO for the published bootc image.
+# This workflow is deliberately NOT triggered by the weekly image build.
+#
+# The ISO uses the current image-builder "bootc-generic-iso" path with an
+# Anaconda installer payload. Anaconda supports both legacy BIOS and UEFI; the
+# workflow verifies the El Torito BIOS entry and boots the ISO under QEMU with
+# SeaBIOS.
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Published bootc image tag to install (e.g. latest or sha-<commit>)"
+        required: true
+        default: "latest"
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: build-iso
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+  BUILDER_IMAGE: ghcr.io/osbuild/image-builder-cli@sha256:fa5ccb71144125572ccbec809188b57d7703b51a9605fe5980d1803efacda27c
+
+jobs:
+  iso:
+    name: Build installer ISO and BIOS-boot-test it
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Free disk space
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/boost
+          sudo rm -rf "${AGENT_TOOLSDIRECTORY:-/opt/hostedtoolcache}/CodeQL"
+          sudo apt-get clean
+          df -h /
+
+      - name: Install podman, QEMU and ISO tools
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            podman qemu-system-x86 qemu-utils xorriso
+          sudo podman version
+          qemu-system-x86_64 --version
+          xorriso --version | head -1
+
+      - name: Set lower-case image name
+        shell: bash
+        run: echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Log in to GHCR (for pulling the image)
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | sudo podman login ghcr.io \
+            --username "${{ github.actor }}" --password-stdin
+
+      - name: Pull image and resolve its digest
+        id: image
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="${IMAGE_NAME}:${{ inputs.image_tag }}"
+          sudo podman pull "$image"
+          digest=$(sudo podman image inspect --format '{{.Digest}}' "$image")
+          if [[ ! $digest =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::Could not resolve a digest for $image (got '$digest')"
+            exit 1
+          fi
+          {
+            echo "digest=$digest"
+            echo "source=${image}@${digest}"
+            echo "image=$image"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### Installer source image"
+            echo ""
+            echo "- Reference: \`$image\`"
+            echo "- Digest: \`$digest\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build the Anaconda installer container
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo podman build \
+            --build-arg SOURCE_IMAGE='${{ steps.image.outputs.source }}' \
+            --build-arg TARGET_IMAGE='${{ steps.image.outputs.image }}' \
+            -t localhost/konica206-installer:latest \
+            -f .github/iso/Containerfile \
+            .github/iso
+
+      - name: Build bootc-generic-iso
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          sudo podman run --rm --privileged \
+            -v "$PWD/output:/output" \
+            -v /var/lib/containers/storage:/var/lib/containers/storage \
+            "$BUILDER_IMAGE" build \
+              --output-dir /output \
+              --bootc-ref localhost/konica206-installer:latest \
+              --bootc-default-fs ext4 \
+              --arch x86_64 \
+              --with-sbom \
+              bootc-generic-iso
+          sudo chown -R "$(id -u):$(id -g)" output
+
+      - name: Locate and stage the ISO
+        id: iso
+        shell: bash
+        run: |
+          set -euo pipefail
+          iso=$(find output -type f -name '*.iso' -print -quit)
+          if [[ -z $iso ]]; then
+            echo "::error::image-builder finished but produced no .iso file"
+            find output -maxdepth 3 -type f -ls || true
+            exit 1
+          fi
+          mkdir -p artifacts
+          base="konica206-bootc-${GITHUB_RUN_NUMBER}-x86_64"
+          cp "$iso" "artifacts/${base}.iso"
+          echo "path=artifacts/${base}.iso" >> "$GITHUB_OUTPUT"
+          echo "name=${base}" >> "$GITHUB_OUTPUT"
+          ls -lh "artifacts/${base}.iso"
+
+      - name: Verify El Torito BIOS boot metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          iso='${{ steps.iso.outputs.path }}'
+          xorriso -indev "$iso" -report_el_torito as_mkisofs > artifacts/eltorito.txt 2>&1
+          xorriso -indev "$iso" -report_system_area plain > artifacts/system-area.txt 2>&1 || true
+          cat artifacts/eltorito.txt
+          grep -Eq -- '-eltorito-boot[[:space:]]' artifacts/eltorito.txt
+          # grub2 BIOS (generic-iso) or isolinux both qualify as a legacy BIOS path.
+          grep -Eq -- '-eltorito-boot[[:space:]]+(images/eltorito\.img|isolinux/isolinux\.bin|isolinux\.bin)' artifacts/eltorito.txt
+          echo "BIOS El Torito boot entry present."
+
+      - name: Boot ISO in QEMU with SeaBIOS
+        shell: bash
+        run: |
+          set -uo pipefail
+          iso='${{ steps.iso.outputs.path }}'
+          log="$PWD/artifacts/qemu-seabios-serial.log"
+          : > "$log"
+          # Explicitly use QEMU's default x86 firmware (SeaBIOS), no UEFI/OVMF.
+          timeout 420 qemu-system-x86_64 \
+            -machine pc,accel=tcg \
+            -m 4096 -smp 2 \
+            -cdrom "$iso" -boot d \
+            -nic none \
+            -vga std -display none \
+            -serial "file:$log" \
+            -monitor none -no-reboot || true
+          echo "--- serial log tail ---"
+          tail -n 80 "$log" || true
+          grep -q "Linux version" "$log"
+          grep -Eq "Reached target|systemd\\[1\\]|Starting Anaconda|anaconda" "$log"
+          echo "QEMU SeaBIOS boot reached Linux userspace."
+
+      - name: Write checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifacts
+          sha256sum ./*.iso > SHA256SUMS
+          sha512sum ./*.iso > SHA512SUMS
+          cat SHA256SUMS SHA512SUMS
+
+      - name: Upload ISO, checksums and diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.iso.outputs.name || format('konica206-bootc-{0}', github.run_number) }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Report result
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### ISO result"
+            echo ""
+            if [[ -f '${{ steps.iso.outputs.path }}' ]]; then
+              echo "- ISO: \`${{ steps.iso.outputs.path }}\`"
+              echo "- SHA256: \`$(cut -d' ' -f1 artifacts/SHA256SUMS 2>/dev/null || echo unavailable)\`"
+            else
+              echo "- **ISO was not produced.** See the build log."
+            fi
+            echo "- Source image: \`${{ steps.image.outputs.image }}@${{ steps.image.outputs.digest }}\`"
+            echo "- El Torito BIOS metadata check: see \`eltorito.txt\` artifact."
+            echo "- QEMU SeaBIOS boot test: see \`qemu-seabios-serial.log\` artifact."
+            echo ""
+            echo "An ISO file existing is not by itself proof of a working BIOS install;"
+            echo "a physical-PC install is still required."
+          } >> "$GITHUB_STEP_SUMMARY"

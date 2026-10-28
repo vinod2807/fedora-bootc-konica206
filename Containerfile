@@ -1,0 +1,210 @@
+# syntax=docker/dockerfile:1.7
+#
+# Fedora bootc 44 image with:
+#   - Labwc / Waybar / Foot Wayland desktop + greetd/tuigreet login
+#   - Konica Minolta bizhub 206 PAPPL printer application
+#   - konica-native (C11) device-stream encoder
+#
+# Vendor-owned runtime data (halftone screen + ICC profiles) is deliberately
+# NOT copied into this image. See docs/PRINTER.md and scripts/install-vendor-data.
+#
+# Build:
+#   podman build --platform linux/amd64 -t localhost/fedora-bootc-konica206 .
+#
+# The two printer source refs default to the upstream default branches. The
+# weekly GitHub workflow resolves each branch to a commit SHA and passes the
+# SHAs as build args, so every published image is traceable while the next
+# weekly run still picks up new upstream commits.
+
+ARG BASE_IMAGE=quay.io/fedora/fedora-bootc:44
+ARG BUILDER_IMAGE=quay.io/fedora/fedora:44
+
+ARG KONICA_APP_REPO=https://github.com/vinod2807/konica206-native-alpine.git
+ARG KONICA_NATIVE_REPO=https://github.com/vinod2807/konica-native-musl.git
+ARG KONICA_APP_REF=main
+ARG KONICA_NATIVE_REF=main
+
+# ---------------------------------------------------------------------------
+# Build the printer application and the native encoder.
+# ---------------------------------------------------------------------------
+FROM ${BUILDER_IMAGE} AS printer-builder
+
+ARG KONICA_APP_REPO
+ARG KONICA_NATIVE_REPO
+ARG KONICA_APP_REF
+ARG KONICA_NATIVE_REF
+
+ENV LANG=C.UTF-8
+
+RUN dnf install -y --setopt=install_weak_deps=False \
+        ca-certificates \
+        cups-devel \
+        gcc \
+        ghostscript \
+        git \
+        libusb1-devel \
+        make \
+        pappl-devel \
+        pkgconf-pkg-config \
+        findutils \
+        diffutils \
+        python3 \
+    && dnf clean all
+
+WORKDIR /src
+
+RUN set -eux; \
+    git clone --depth 1 "${KONICA_APP_REPO}" app; \
+    git -C app fetch --depth 1 origin "${KONICA_APP_REF}"; \
+    git -C app checkout --detach FETCH_HEAD; \
+    git -C app rev-parse HEAD > /src/app-commit
+
+RUN set -eux; \
+    git clone --depth 1 "${KONICA_NATIVE_REPO}" native; \
+    git -C native fetch --depth 1 origin "${KONICA_NATIVE_REF}"; \
+    git -C native checkout --detach FETCH_HEAD; \
+    git -C native rev-parse HEAD > /src/native-commit
+
+# Upstream tests that need no printer, no USB device and no vendor runtime data.
+# make check        -> chunking + PPD parser regression
+# make check-native -> full PAPPL job path against a stand-in filter
+RUN set -eux; \
+    make -C /src/app -j"$(nproc)"; \
+    make -C /src/app check
+
+# check-native must not run as root (root would use the real service's PAPPL
+# state file), so run that one test as an unprivileged builder user.
+RUN set -eux; \
+    useradd --create-home --shell /bin/bash tester; \
+    runuser -u tester -- env HOME=/home/tester make -C /src/app check-native
+
+# konica-native: reader/CMM/geometry/mediatype/failure-mode tests are vendor-free.
+RUN set -eux; \
+    make -C /src/native -j"$(nproc)"; \
+    make -C /src/native check
+
+# Collect only the binaries. The upstream clone (which contains a vendor/
+# directory in the public source tree) is never copied into the final image.
+RUN set -eux; \
+    install -D -m 0755 /src/app/konica206-native /out/usr/bin/konica206-native; \
+    install -D -m 0755 /src/app/konica-send     /out/usr/bin/konica-send; \
+    install -D -m 0755 /src/app/konica-render   /out/usr/bin/konica-render; \
+    install -D -m 0755 /src/native/konica-native /out/usr/bin/konica-native
+
+# ---------------------------------------------------------------------------
+# Final bootc image.
+# ---------------------------------------------------------------------------
+FROM ${BASE_IMAGE}
+
+ARG KONICA_APP_REF=main
+ARG KONICA_NATIVE_REF=main
+
+LABEL org.opencontainers.image.title="Fedora bootc 44 - Labwc + Konica bizhub 206" \
+      org.opencontainers.image.description="Fedora bootc 44, Linux/amd64, Labwc/Waybar/Foot desktop, PAPPL printer application with the konica-native C11 encoder" \
+      org.opencontainers.image.source="https://github.com/vinod2807/fedora-bootc-konica206" \
+      org.opencontainers.image.licenses="NOASSERTION" \
+      org.vinod2807.konica.app-ref="${KONICA_APP_REF}" \
+      org.vinod2807.konica.native-ref="${KONICA_NATIVE_REF}"
+
+# Weekly builds update the base packages as well as the two printer sources.
+RUN set -eux; \
+    dnf -y upgrade --refresh; \
+    dnf install -y --setopt=install_weak_deps=False \
+        adwaita-cursor-theme \
+        cups \
+        cups-filters \
+        dbus-daemon \
+        default-fonts \
+        foot \
+        ghostscript \
+        greetd \
+        grim \
+        labwc \
+        libusb1 \
+        mesa-dri-drivers \
+        mesa-libEGL \
+        NetworkManager \
+        NetworkManager-wifi \
+        pappl \
+        pipewire \
+        pipewire-pulseaudio \
+        polkit \
+        slurp \
+        sudo \
+        swaybg \
+        tuigreet \
+        usbutils \
+        waybar \
+        wl-clipboard \
+        wpa_supplicant \
+        xdg-desktop-portal \
+        xdg-desktop-portal-wlr \
+        xorg-x11-server-Xwayland \
+    && dnf clean all
+
+# Dedicated unprivileged account for the printer application. USB access comes
+# from the udev rule (group lp, mode 0660), not from running as root.
+RUN set -eux; \
+    useradd --system --user-group --no-create-home \
+            --home-dir /var/lib/konica206 --shell /usr/sbin/nologin konica; \
+    usermod -aG lp konica
+
+# The encoder looks for its Konica-owned runtime data at a fixed absolute path
+# under /usr/local/lib.  On bootc /usr is immutable, so that path is a symlink
+# into persistent writable state: the licensed files are installed after the
+# fact by konica206-install-vendor-data, never baked into the image.
+RUN set -eux; \
+    install -d -m 0755 /var/lib/konica206/vendor; \
+    install -d -m 0755 /usr/local/lib; \
+    ln -sTf /var/lib/konica206/vendor /usr/local/lib/konica
+
+COPY --from=printer-builder /out/usr/bin/konica206-native /usr/bin/konica206-native
+COPY --from=printer-builder /out/usr/bin/konica-send     /usr/bin/konica-send
+COPY --from=printer-builder /out/usr/bin/konica-render   /usr/bin/konica-render
+COPY --from=printer-builder /out/usr/bin/konica-native   /usr/bin/konica-native
+COPY --from=printer-builder /src/app-commit              /usr/share/konica206/app-commit
+COPY --from=printer-builder /src/native-commit           /usr/share/konica206/native-commit
+
+COPY bootc/90-linux-pc-crash-fixes.toml /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
+COPY modprobe.d/90-linux-pc-crash-fixes.conf /etc/modprobe.d/90-linux-pc-crash-fixes.conf
+COPY systemd/konica206-native.service /usr/lib/systemd/system/konica206-native.service
+COPY systemd/konica206-queue.service  /usr/lib/systemd/system/konica206-queue.service
+COPY systemd/bootc-upgrade.service    /usr/lib/systemd/system/bootc-upgrade.service
+COPY systemd/bootc-upgrade.timer      /usr/lib/systemd/system/bootc-upgrade.timer
+COPY udev/70-konica206.rules          /usr/lib/udev/rules.d/70-konica206.rules
+COPY greetd/config.toml               /etc/greetd/config.toml
+COPY desktop/labwc/autostart          /etc/xdg/labwc/autostart
+COPY desktop/labwc/environment        /etc/xdg/labwc/environment
+COPY desktop/waybar/config            /etc/xdg/waybar/config
+COPY desktop/waybar/style.css         /etc/xdg/waybar/style.css
+COPY scripts/install-vendor-data      /usr/libexec/konica206/install-vendor-data
+COPY scripts/ensure-queue             /usr/libexec/konica206/ensure-queue
+COPY scripts/preflight                /usr/libexec/konica206/preflight
+
+RUN set -eux; \
+    chmod 0755 /usr/bin/konica206-native /usr/bin/konica-send /usr/bin/konica-render /usr/bin/konica-native; \
+    chmod 0755 /usr/libexec/konica206/install-vendor-data /usr/libexec/konica206/ensure-queue /usr/libexec/konica206/preflight; \
+    chmod 0644 /etc/greetd/config.toml \
+        /usr/lib/systemd/system/konica206-native.service \
+        /usr/lib/systemd/system/konica206-queue.service \
+        /usr/lib/systemd/system/bootc-upgrade.service \
+        /usr/lib/systemd/system/bootc-upgrade.timer \
+        /usr/lib/udev/rules.d/70-konica206.rules; \
+    chmod 0755 /etc/xdg/labwc/autostart; \
+    ln -sf /usr/libexec/konica206/install-vendor-data /usr/bin/konica206-install-vendor-data; \
+    ln -sf /usr/libexec/konica206/preflight /usr/bin/konica206-preflight; \
+    install -d -m 0755 /usr/share/konica206
+
+# Graphical login by default (greetd on VT1 -> tuigreet -> labwc).
+# The bootc-upgrade.timer is installed but NOT enabled: automatic updates are
+# opt-in (see README "Automatic updates").
+RUN set -eux; \
+    systemctl set-default graphical.target; \
+    systemctl enable NetworkManager.service; \
+    systemctl enable greetd.service; \
+    systemctl enable konica206-native.service; \
+    systemctl enable konica206-queue.service; \
+    systemctl --global enable pipewire.service pipewire-pulse.service wireplumber.service
+
+# bootc's own image sanity checks (must be last: it inspects the filesystem).
+RUN bootc container lint

@@ -1,0 +1,13 @@
+.git
+.github
+output
+artifacts
+*.iso
+*.tar
+*.tar.gz
+*.tgz
+*.tar.xz
+*.zip
+vendor
+*.icm
+*.hft

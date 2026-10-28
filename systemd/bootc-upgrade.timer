@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly check for a new Fedora bootc image (stages only)
+Documentation=https://github.com/vinod2807/fedora-bootc-konica206#automatic-updates-optional
+
+[Timer]
+OnCalendar=weekly
+RandomizedDelaySec=6h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

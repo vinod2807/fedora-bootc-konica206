@@ -1,0 +1,17 @@
+# Build output and ISO artifacts are never committed.
+output/
+artifacts/
+*.iso
+*.ISO
+*.tar
+*.tar.gz
+*.tgz
+*.tar.xz
+*.zip
+
+# Vendor-owned Konica Minolta runtime data: never commit.
+vendor/
+*.icm
+*.hft
+
+.DS_Store

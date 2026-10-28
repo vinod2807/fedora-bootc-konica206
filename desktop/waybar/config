@@ -1,0 +1,39 @@
+{
+  "layer": "top",
+  "position": "top",
+  "height": 30,
+  "spacing": 6,
+  "modules-left": ["wlr/workspaces"],
+  "modules-center": ["clock"],
+  "modules-right": ["pulseaudio", "network", "battery", "tray"],
+  "wlr/workspaces": {
+    "format": "{name}",
+    "on-click": "activate"
+  },
+  "clock": {
+    "format": "{:%a %d %b  %H:%M}",
+    "tooltip-format": "{:%Y-%m-%d %H:%M:%S}"
+  },
+  "network": {
+    "format-wifi": "WIFI {essid}",
+    "format-ethernet": "NET {ifname}",
+    "format-disconnected": "NET OFF",
+    "tooltip-format": "{ifname}: {ipaddr}/{cidr}"
+  },
+  "pulseaudio": {
+    "format": "VOL {volume}%",
+    "format-muted": "MUTE"
+  },
+  "battery": {
+    "format": "BAT {capacity}%",
+    "states": {
+      "warning": 20,
+      "critical": 10
+    },
+    "format-warning": "BAT {capacity}% LOW",
+    "format-critical": "BAT {capacity}% CRIT"
+  },
+  "tray": {
+    "spacing": 8
+  }
+}
