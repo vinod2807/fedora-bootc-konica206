@@ -479,8 +479,8 @@ machine. It is updated after workflow runs.
 | `konica-native` vendor-free test suite | **Passed** — same run (builder stage) |
 | Container smoke test (packages, units, binary versions, no vendor files, `/usr/local` symlink, `pdftoraster`) | **Passed** — same run, before the push |
 | Weekly push to GHCR + traceable tags | **Passed** — tags `latest`, `main`, `sha-ff563ecb6e91280d01cf3bf0412c588468319837`; all resolve to `sha256:73dee69ab2a2756636a8d680c7941cef0f4516da12fa44e8f473d84ecb325ae9`. Anonymous pull works (public package). |
-| ISO El Torito BIOS metadata | Requires `build-iso` run |
-| ISO boots under QEMU SeaBIOS to Linux userspace | Requires `build-iso` run |
+| ISO El Torito BIOS metadata | **Passed** — `build-iso` run [40688027094](https://github.com/vinod2807/fedora-bootc-konica206/actions/runs/40688027094): `-b '/images/eltorito.img'`, `Boot record: El Torito, grub2-mbr, GPT` |
+| ISO boots under QEMU SeaBIOS to Linux userspace | **Passed** — same run; serial log reaches the Anaconda installer UI |
 | Full BIOS installation on real hardware | **Not tested** — physical PC required |
 | Graphical login (greetd → labwc → Waybar) on real hardware | **Not tested** — physical/QEMU desktop test required |
 | Real USB printing on bizhub 206 | **Not tested** — printer + licensed runtime data required |
