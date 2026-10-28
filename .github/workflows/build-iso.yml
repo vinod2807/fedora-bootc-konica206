@@ -164,7 +164,7 @@ jobs:
           log="$PWD/artifacts/qemu-seabios-serial.log"
           : > "$log"
           # Explicitly use QEMU's default x86 firmware (SeaBIOS), no UEFI/OVMF.
-          timeout 420 qemu-system-x86_64 \
+          timeout 600 qemu-system-x86_64 \
             -machine pc,accel=tcg \
             -m 4096 -smp 2 \
             -cdrom "$iso" -boot d \

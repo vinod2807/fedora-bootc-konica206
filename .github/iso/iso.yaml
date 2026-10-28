@@ -3,5 +3,7 @@ grub2:
   timeout: 10
   entries:
     - name: "Install Fedora bootc (Konica bizhub 206 image)"
-      linux: "/images/pxeboot/vmlinuz inst.stage2=hd:LABEL=KONICA206-BOOTC inst.graphical console=tty0 console=ttyS0,115200n8 selinux=0 rhgb quiet"
+      # No rhgb/quiet: the CI boot test reads the serial console and needs the
+      # kernel banner plus systemd/Anaconda progress there.
+      linux: "/images/pxeboot/vmlinuz inst.stage2=hd:LABEL=KONICA206-BOOTC inst.graphical console=tty0 console=ttyS0,115200n8 selinux=0 loglevel=7"
       initrd: "/images/pxeboot/initrd.img"
