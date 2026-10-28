@@ -219,10 +219,12 @@ konica206-native printers -u ipp://localhost:8001
 | Queue missing | printer attached? `systemctl start konica206-queue`; serial visible? |
 | Job aborts, no paper | `konica206-preflight`; install vendor runtime data |
 | “permission denied” on USB | udev rule loaded (`udevadm control --reload-rules`), `konica` in `lp`, replug |
+| `Unable to claim USB interface: Resource busy` | `usblp` grabbed the device; the image blacklists it (`/etc/modprobe.d/90-konica206-usblp.conf`) — reboot or `rmmod usblp` |
+| `konica206-queue` failed: “Printer name already exists” | udev re-trigger race; fixed by the idempotent `ensure-queue` script, safe to `systemctl restart` |
 | App starts but no queue | `konica206-native printers -u ipp://localhost:8001` |
 | CUPS queue disabled | re-create with `lpadmin -E`; check `cupsaccept` |
 | Duplex wrong | app uses compiled-in `cupsBackSide: Rotated`; file a test case |
-| Service restarts | `journalctl`; check state dir ownership (`/var/lib/konica206`) |
+| Service restarts | expected: `Restart=always`; check `journalctl` and state dir ownership (`/var/lib/konica206`) |
 
 After changing the udev rule:
 

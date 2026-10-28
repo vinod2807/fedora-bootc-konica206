@@ -8,3 +8,27 @@ waybar &
 if command -v swaybg >/dev/null 2>&1; then
     swaybg -c '#1e1e2e' &
 fi
+
+# Make WAYLAND_DISPLAY / XDG_CURRENT_DESKTOP visible to D-Bus activated
+# services, which is what xdg-desktop-portal needs for Flatpak apps.
+if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+    dbus-update-activation-environment --systemd \
+        WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP
+fi
+
+# Secret service for Flatpak apps / browsers.
+if command -v gnome-keyring-daemon >/dev/null 2>&1; then
+    gnome-keyring-daemon --start --components=secrets >/dev/null 2>&1 || true
+fi
+
+# PolicyKit agent: GUI authentication for udisks2 mounts, Flatpak installs and
+# other privileged actions. Fedora 44 no longer ships polkit-gnome, so this is
+# the MATE agent (/usr/libexec/polkit-mate-authentication-agent-1).
+if [ -x /usr/libexec/polkit-mate-authentication-agent-1 ]; then
+    /usr/libexec/polkit-mate-authentication-agent-1 &
+fi
+
+# Create/refresh ~/Desktop, ~/Documents, ~/Downloads, ... from the locale.
+if command -v xdg-user-dirs-update >/dev/null 2>&1; then
+    xdg-user-dirs-update || true
+fi

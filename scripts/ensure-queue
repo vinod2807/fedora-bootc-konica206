@@ -52,16 +52,33 @@ if [[ ! $serial =~ ^[A-Za-z0-9._-]+$ ]]; then
     exit 1
 fi
 
-if /usr/bin/konica206-native printers -u "$URI_BASE" 2>/dev/null | grep -Fxq "$QUEUE"; then
+# The client lists one printer per line; match the first field so both a bare
+# name and a decorated line ("konica206 (KONICA ...)") count as present.
+queue_present() {
+    /usr/bin/konica206-native printers -u "$URI_BASE" 2>/dev/null \
+        | awk '{print $1}' | grep -Fxq "$QUEUE"
+}
+
+if queue_present; then
     log "queue '$QUEUE' already exists"
     exit 0
 fi
 
 log "creating queue '$QUEUE' for serial $serial"
-/usr/bin/konica206-native add \
-    -d "$QUEUE" \
-    -u "$URI_BASE" \
-    -m konica-bizhub-206 \
-    -v "konica://KONICA%20MINOLTA/206?serial=${serial}"
+# udev re-triggers this unit whenever the USB device is re-enumerated, and the
+# server may already have the queue by the time we get here. Treat the
+# resulting "already exists" as success instead of failing the unit.
+if ! out=$(/usr/bin/konica206-native add \
+        -d "$QUEUE" \
+        -u "$URI_BASE" \
+        -m konica-bizhub-206 \
+        -v "konica://KONICA%20MINOLTA/206?serial=${serial}" 2>&1); then
+    if printf '%s\n' "$out" | grep -qi 'already exists'; then
+        log "queue '$QUEUE' already exists"
+        exit 0
+    fi
+    printf '%s\n' "$out" >&2
+    exit 1
+fi
 
 log "queue created: ${URI_BASE}/ipp/print/${QUEUE}"

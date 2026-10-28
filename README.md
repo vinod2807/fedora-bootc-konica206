@@ -5,6 +5,10 @@ A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
 
 - **Fedora bootc 44**, `linux/amd64`
 - **Labwc** Wayland compositor, **Waybar** panel, **Foot** terminal
+- A desktop with **pcmanfm**, **gthumb**, **evince**, **mousepad**,
+  **xarchiver**, **pavucontrol**, GVFS/udisks2, and a right-click menu
+- **Flatpak** with the **Flathub** remote preinstalled (xdg-desktop-portal
+  GTK/wlr portals for file choosers and screen sharing)
 - A real graphical login path: **greetd** on VT1 → **tuigreet** → **labwc**
 - NetworkManager, PipeWire/WirePlumber, portals, polkit, XWayland
 - The **Konica Minolta bizhub 206** PAPPL printer application
@@ -212,10 +216,20 @@ internet (it pulls the image, roughly 1 GiB compressed, from GHCR).
 
 - **Graphical:** greetd starts on VT1, tuigreet asks for the user/password you
   created during installation, then launches `labwc`.
-- **Panel:** Waybar autostarts at the top (`/etc/xdg/waybar/config`).
-- **Terminal:** `foot` is installed. Labwc’s default keybindings/menu are
-  available; if your build of labwc has no terminal binding, open a terminal
-  from the desktop menu or press `Super+Enter` (labwc default where configured).
+- **Panel:** Waybar autostarts at the top (`/etc/xdg/waybar/config`): a
+  **Menu** button (application launcher), a **Files** button, workspaces, a
+  taskbar, clock, volume, network, battery and tray.
+- **Desktop menu:** right-click the desktop for Files, Terminal, Image viewer,
+  Text editor, Archive manager, Document viewer, Volume, Network and Session
+  actions (`/etc/xdg/labwc/menu.xml`).
+- **Application launcher:** the **Menu** button on Waybar runs `fuzzel`, which
+  lists every installed application (including Flatpak apps) plus
+  **Reboot** and **Shut Down** actions.
+- **Applications:** `pcmanfm` (files, with GVFS/udisks2 automount),
+  `gthumb` (images), `evince` (PDF), `mousepad` (text), `xarchiver`,
+  `pavucontrol`, `nm-connection-editor`, `foot` (terminal).
+- **Flatpak:** `flatpak` and the Flathub remote are ready; install apps with
+  `flatpak install flathub <app-id>` and run them from the launcher.
 - **Text fallback:** `Ctrl+Alt+F2` gives a text login. From there, run `labwc`
   to start the Wayland session manually.
 - **Audio:** PipeWire, WirePlumber and `pipewire-pulseaudio` are enabled for
@@ -223,6 +237,10 @@ internet (it pulls the image, roughly 1 GiB compressed, from GHCR).
 - **Networking:** NetworkManager is enabled. Use `nmcli device status` and
   `nmcli connection up <name>`; Wi-Fi needs `NetworkManager-wifi` +
   `wpa_supplicant`, both installed.
+- **Printer:** `konica206-native.service` is enabled and restarts on failure;
+  `konica206-queue.service` creates the CUPS queue when the printer is
+  attached. Install the licensed runtime data with
+  `sudo konica206-install-vendor-data <path>`.
 
 No SSH server is installed by default. No default password, SSH key, or
 credential is embedded in the image.

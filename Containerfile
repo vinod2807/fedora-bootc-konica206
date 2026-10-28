@@ -110,36 +110,63 @@ LABEL org.opencontainers.image.title="Fedora bootc 44 - Labwc + Konica bizhub 20
 RUN set -eux; \
     dnf -y upgrade --refresh; \
     dnf install -y --setopt=install_weak_deps=False \
+        7zip \
         adwaita-cursor-theme \
+        adwaita-icon-theme \
         cups \
         cups-filters \
         dbus-daemon \
         default-fonts \
+        desktop-file-utils \
+        evince \
+        flatpak \
         foot \
+        fuzzel \
         ghostscript \
+        gnome-keyring \
         greetd \
         grim \
+        gthumb \
+        gvfs \
+        gvfs-fuse \
+        gvfs-gphoto2 \
+        gvfs-mtp \
+        gvfs-smb \
+        hicolor-icon-theme \
         labwc \
         libusb1 \
+        mate-polkit \
         mesa-dri-drivers \
         mesa-libEGL \
+        mousepad \
         NetworkManager \
         NetworkManager-wifi \
+        nm-connection-editor \
         pappl \
+        pavucontrol \
+        pcmanfm \
         pipewire \
         pipewire-pulseaudio \
         polkit \
+        shared-mime-info \
         slurp \
         sudo \
         swaybg \
         tuigreet \
+        udisks2 \
+        unzip \
         usbutils \
         waybar \
         wl-clipboard \
         wpa_supplicant \
+        xarchiver \
         xdg-desktop-portal \
+        xdg-desktop-portal-gtk \
         xdg-desktop-portal-wlr \
+        xdg-user-dirs \
+        xdg-utils \
         xorg-x11-server-Xwayland \
+        zip \
     && dnf clean all
 
 # Dedicated unprivileged account for the printer application. USB access comes
@@ -167,6 +194,7 @@ COPY --from=printer-builder /src/native-commit           /usr/share/konica206/na
 
 COPY bootc/90-linux-pc-crash-fixes.toml /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
 COPY modprobe.d/90-linux-pc-crash-fixes.conf /etc/modprobe.d/90-linux-pc-crash-fixes.conf
+COPY modprobe.d/90-konica206-usblp.conf      /etc/modprobe.d/90-konica206-usblp.conf
 COPY systemd/konica206-native.service /usr/lib/systemd/system/konica206-native.service
 COPY systemd/konica206-queue.service  /usr/lib/systemd/system/konica206-queue.service
 COPY systemd/bootc-upgrade.service    /usr/lib/systemd/system/bootc-upgrade.service
@@ -175,6 +203,9 @@ COPY udev/70-konica206.rules          /usr/lib/udev/rules.d/70-konica206.rules
 COPY greetd/config.toml               /etc/greetd/config.toml
 COPY desktop/labwc/autostart          /etc/xdg/labwc/autostart
 COPY desktop/labwc/environment        /etc/xdg/labwc/environment
+COPY desktop/labwc/menu.xml           /etc/xdg/labwc/menu.xml
+COPY desktop/applications/konica206-reboot.desktop   /usr/share/applications/konica206-reboot.desktop
+COPY desktop/applications/konica206-poweroff.desktop /usr/share/applications/konica206-poweroff.desktop
 COPY desktop/waybar/config            /etc/xdg/waybar/config
 COPY desktop/waybar/style.css         /etc/xdg/waybar/style.css
 COPY scripts/install-vendor-data      /usr/libexec/konica206/install-vendor-data
@@ -185,15 +216,28 @@ RUN set -eux; \
     chmod 0755 /usr/bin/konica206-native /usr/bin/konica-send /usr/bin/konica-render /usr/bin/konica-native; \
     chmod 0755 /usr/libexec/konica206/install-vendor-data /usr/libexec/konica206/ensure-queue /usr/libexec/konica206/preflight; \
     chmod 0644 /etc/greetd/config.toml \
+        /etc/modprobe.d/90-konica206-usblp.conf \
         /usr/lib/systemd/system/konica206-native.service \
         /usr/lib/systemd/system/konica206-queue.service \
         /usr/lib/systemd/system/bootc-upgrade.service \
         /usr/lib/systemd/system/bootc-upgrade.timer \
-        /usr/lib/udev/rules.d/70-konica206.rules; \
+        /usr/lib/udev/rules.d/70-konica206.rules \
+        /etc/xdg/labwc/menu.xml \
+        /usr/share/applications/konica206-reboot.desktop \
+        /usr/share/applications/konica206-poweroff.desktop; \
     chmod 0755 /etc/xdg/labwc/autostart; \
     ln -sf /usr/libexec/konica206/install-vendor-data /usr/bin/konica206-install-vendor-data; \
     ln -sf /usr/libexec/konica206/preflight /usr/bin/konica206-preflight; \
     install -d -m 0755 /usr/share/konica206
+
+# Flathub is a system remote out of the box. flatpak imports entries from
+# /etc/flatpak/remotes.d into /var/lib/flatpak the first time it runs, so no
+# manual "flatpak remote-add" is needed on the installed system.
+RUN set -eux; \
+    install -d -m 0755 /etc/flatpak/remotes.d; \
+    curl --retry 3 --retry-delay 5 -fsSL \
+        -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
+        https://dl.flathub.org/repo/flathub.flatpakrepo
 
 # Graphical login by default (greetd on VT1 -> tuigreet -> labwc).
 # The bootc-upgrade.timer is installed but NOT enabled: automatic updates are

@@ -3,12 +3,32 @@
   "position": "top",
   "height": 30,
   "spacing": 6,
-  "modules-left": ["wlr/workspaces"],
+  "modules-left": ["custom/menu", "custom/files", "wlr/workspaces", "wlr/taskbar"],
   "modules-center": ["clock"],
   "modules-right": ["pulseaudio", "network", "battery", "tray"],
+  "custom/menu": {
+    "format": "Menu",
+    "tooltip": "Applications (fuzzel)",
+    "on-click": "fuzzel"
+  },
+  "custom/files": {
+    "format": "Files",
+    "tooltip": "Open pcmanfm",
+    "on-click": "pcmanfm"
+  },
   "wlr/workspaces": {
     "format": "{name}",
     "on-click": "activate"
+  },
+  "wlr/taskbar": {
+    "format": "{icon}",
+    "icon-size": 16,
+    "icon-theme": "Adwaita",
+    "tooltip-format": "{title}",
+    "tooltip": true,
+    "on-click": "activate",
+    "on-click-middle": "close",
+    "on-click-right": "fullscreen"
   },
   "clock": {
     "format": "{:%a %d %b  %H:%M}",

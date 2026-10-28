@@ -1,8 +1,11 @@
 [Unit]
 Description=Konica Minolta bizhub 206 PAPPL printer application
 Documentation=https://github.com/vinod2807/fedora-bootc-konica206/blob/main/docs/PRINTER.md
-After=network.target
-Wants=network.target
+After=network.target avahi-daemon.service
+Wants=network.target avahi-daemon.service
+# A permanent failure (e.g. no vendor data) should not spin forever.
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -15,7 +18,9 @@ Environment=KONICA_PDF_RENDERER=builtin
 Environment=KONICA_LISTEN=localhost
 Environment=KONICA_SPOOLDIR=/var/tmp
 ExecStart=/usr/bin/konica206-native server -o server-port=8001
-Restart=on-failure
+# Always: PAPPL exits cleanly when its Avahi connection goes away, and a clean
+# exit would otherwise leave the printer offline until the next boot.
+Restart=always
 RestartSec=5s
 UMask=0022
 
