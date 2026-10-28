@@ -151,9 +151,17 @@ jobs:
           xorriso -indev "$iso" -report_el_torito as_mkisofs > artifacts/eltorito.txt 2>&1
           xorriso -indev "$iso" -report_system_area plain > artifacts/system-area.txt 2>&1 || true
           cat artifacts/eltorito.txt
-          grep -Eq -- '-eltorito-boot[[:space:]]' artifacts/eltorito.txt
-          # grub2 BIOS (generic-iso) or isolinux both qualify as a legacy BIOS path.
-          grep -Eq -- '-eltorito-boot[[:space:]]+(images/eltorito\.img|isolinux/isolinux\.bin|isolinux\.bin)' artifacts/eltorito.txt
+          grep -q "El Torito" artifacts/eltorito.txt
+          # xorriso's as_mkisofs form prints the legacy BIOS image as
+          #   -b '/images/eltorito.img'
+          # for the grub2 generic-iso path (isolinux variants are also
+          # accepted). This is the entry SeaBIOS uses; the second (-e) entry is
+          # the EFI image.
+          if ! grep -Eq -- "^-b[[:space:]]+'?/?(images/eltorito\.img|isolinux/isolinux\.bin|isolinux\.bin)'?[[:space:]]*$" artifacts/eltorito.txt \
+             && ! grep -Eq -- "^-eltorito-boot[[:space:]]+'?/?(images/eltorito\.img|isolinux/isolinux\.bin|isolinux\.bin)'?[[:space:]]*$" artifacts/eltorito.txt; then
+            echo "::error::No legacy BIOS El Torito boot image found in the ISO"
+            exit 1
+          fi
           echo "BIOS El Torito boot entry present."
 
       - name: Boot ISO in QEMU with SeaBIOS
@@ -179,6 +187,7 @@ jobs:
           echo "QEMU SeaBIOS boot reached Linux userspace."
 
       - name: Write checksums
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
