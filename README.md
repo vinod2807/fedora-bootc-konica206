@@ -152,13 +152,40 @@ podman build --platform linux/amd64 -t localhost/fedora-bootc-konica206 .
    The ISO is hybrid (BIOS + UEFI), but the firmware mode used to boot Anaconda
    is the mode it installs.
 5. Anaconda installs the bootc image referenced by the ISO. Create your own
-   user (admin/wheel) and set a password in the installer. **No user or password
-   is baked into the image.**
+   user (admin/wheel) and **set the root password** in the installer. **No user
+   or password is baked into the image.**
 6. Reboot. greetd/tuigreet appears on VT1; log in with the user you created.
 
 The installer pulls the image from GHCR. The GHCR package must be **public**
 for an unauthenticated install, or you must provide registry credentials in the
 installer environment. Making it public is the documented path.
+
+### Real-hardware checklist for this PC
+
+Before you start: the target disk will be erased, and the installer needs the
+internet (it pulls the image, roughly 1 GiB compressed, from GHCR).
+
+1. **Network:** use a **wired Ethernet** connection on the i5 650. Wi-Fi on this
+   generation is usually unsupported in the installer; wired avoids that.
+2. **Firmware:** legacy BIOS/CSM, USB-HDD as first boot device. Secure Boot is
+   not relevant in legacy mode.
+3. **Disk:** pick the whole disk (e.g. `/dev/sda`), not a partition. bootc
+   creates GPT with a BIOS boot partition.
+4. **Account:** in the Anaconda user spoke create your account, tick
+   *Make this user administrator*, and set **both** the user password and the
+   **root password**. Root is the fallback if the desktop does not start.
+5. **Install:** the payload is pulled by digest from
+   `ghcr.io/vinod2807/fedora-bootc-konica206`; the installed system tracks
+   `:latest` for `bootc upgrade`.
+6. **First boot:** log in at tuigreet (VT1) → labwc. Text fallback is
+   `Ctrl+Alt+F2` with the same user (or `root` + the root password you set).
+   If the user account is unexpectedly missing, log in as `root` on that text
+   console and run `useradd -m -G wheel -s /bin/bash <name>` then
+   `passwd <name>`.
+7. **Post-install:** verify the crash fixes (`cat /proc/cmdline`), then install
+   the licensed printer runtime data
+   (`sudo konica206-install-vendor-data <path>`) and run
+   `konica206-preflight`.
 
 ### BIOS installation notes
 
