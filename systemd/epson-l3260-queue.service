@@ -1,0 +1,15 @@
+[Unit]
+Description=Create the Epson L3260 network queue (IPP Everywhere)
+Documentation=https://github.com/vinod2807/fedora-bootc-konica206/blob/main/README.md
+After=network-online.target cups.socket
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/epson-l3260/ensure-queue
+# The printer being switched off at boot is normal, not a failure: the script
+# logs it and exits 0. Re-run it later with 'systemctl start epson-l3260-queue'.
+TimeoutStartSec=150s
+
+[Install]
+WantedBy=multi-user.target

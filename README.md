@@ -16,6 +16,8 @@ A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
   built for Fedora, with the
   [konica-native](https://github.com/vinod2807/konica-native-musl) C11
   device-stream encoder as the filter stage
+- A driverless **Epson L3260** network queue (`ipp://192.168.1.19/ipp/print`,
+  IPP Everywhere) created automatically at boot
 - The Intel i5 650 crash/freeze kernel arguments from
   [linux-pc-crash-fixes](https://github.com/vinod2807/linux-pc-crash-fixes)
 
@@ -39,12 +41,13 @@ The installed machine tracks that reference and updates with `bootc upgrade`.
 | `.github/workflows/build-iso.yml` | Manual-only Anaconda installer ISO build with El Torito and QEMU SeaBIOS checks |
 | `.github/iso/Containerfile` | Anaconda installer container consumed by image-builder `bootc-generic-iso` |
 | `.github/iso/iso.yaml` | GRUB/ISO label and kernel command line for the installer media |
-| `systemd/` | Printer app, queue creation, and opt-in bootc update units |
+| `systemd/` | Printer app, queue creation (Konica + Epson), and opt-in bootc update units |
 | `udev/70-konica206.rules` | USB permissions for `132b:232b` (group `lp`, `uaccess`) |
 | `greetd/config.toml` | tuigreet → labwc login session |
 | `desktop/` | labwc autostart/environment and Waybar config/style |
 | `scripts/install-vendor-data` | Post-install installer for the licensed Konica runtime data |
 | `scripts/ensure-queue` | Creates the PAPPL queue when the printer is plugged in |
+| `scripts/ensure-epson-queue` | Creates the driverless Epson L3260 network queue |
 | `scripts/preflight` | Read-only diagnostic (`sudo konica206-preflight`) |
 | `bootc/`, `modprobe.d/` | i5 650 C-state/audio crash fixes |
 | `docs/PRINTER.md`, `docs/CRASH-FIXES.md` | Detailed notes |
@@ -435,6 +438,67 @@ second legacy Konica queue against the same device.
   artifacts.
 - The image license metadata is `NOASSERTION`; review the upstream licenses
   before redistributing the image further.
+
+---
+
+## Epson L3260 (network printer)
+
+The Epson L3260 at **192.168.1.19** is configured as a **driverless
+(IPP Everywhere / Mopria 2.1)** queue. Nothing Epson-specific is installed: CUPS
+reads the printer's own IPP attributes and generates the PPD itself, exactly
+like AirPrint.
+
+```
+queue name   EPSON_L3260
+device URI   ipp://192.168.1.19/ipp/print
+model        IPP Everywhere (auto-generated PPD)
+```
+
+`epson-l3260-queue.service` (oneshot, enabled at boot) waits for the printer to
+answer on port 631 and then creates the queue. It is idempotent, and a printer
+that is switched off at boot is not treated as a failure — the unit logs it and
+exits successfully.
+
+### Manual setup / repair
+
+```bash
+sudo systemctl start epson-l3260-queue      # create it now
+lpstat -v EPSON_L3260                       # must show ipp://192.168.1.19/ipp/print
+```
+
+Or by hand:
+
+```bash
+sudo lpadmin -p EPSON_L3260 -E \
+  -v ipp://192.168.1.19/ipp/print -m everywhere \
+  -D "Epson L3260 Series" -L "Network"
+```
+
+Test print:
+
+```bash
+lp -d EPSON_L3260 /usr/share/cups/data/testprint
+```
+
+Make it the default printer (optional — the Konica stays the default otherwise):
+
+```bash
+lpadmin -d EPSON_L3260
+```
+
+Different address or name, without rebuilding the image:
+
+```bash
+sudo EPSON_HOST=192.168.1.50 EPSON_QUEUE=EPSON_L3260_2 \
+  /usr/libexec/epson-l3260/ensure-queue
+```
+
+The printer is colour, A4/legal, no duplex, and reports
+`marker-supply-low-warning` when ink is low. CUPS web UI: `http://localhost:631`
+(cups.socket is enabled, so cupsd starts on demand).
+
+Note: the queue lives in `/etc/cups/printers.conf`, which persists across
+`bootc upgrade`; if you ever delete it, the boot unit recreates it.
 
 ---
 

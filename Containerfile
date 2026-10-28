@@ -197,6 +197,7 @@ COPY modprobe.d/90-linux-pc-crash-fixes.conf /etc/modprobe.d/90-linux-pc-crash-f
 COPY modprobe.d/90-konica206-usblp.conf      /etc/modprobe.d/90-konica206-usblp.conf
 COPY systemd/konica206-native.service /usr/lib/systemd/system/konica206-native.service
 COPY systemd/konica206-queue.service  /usr/lib/systemd/system/konica206-queue.service
+COPY systemd/epson-l3260-queue.service /usr/lib/systemd/system/epson-l3260-queue.service
 COPY systemd/bootc-upgrade.service    /usr/lib/systemd/system/bootc-upgrade.service
 COPY systemd/bootc-upgrade.timer      /usr/lib/systemd/system/bootc-upgrade.timer
 COPY udev/70-konica206.rules          /usr/lib/udev/rules.d/70-konica206.rules
@@ -211,14 +212,17 @@ COPY desktop/waybar/style.css         /etc/xdg/waybar/style.css
 COPY scripts/install-vendor-data      /usr/libexec/konica206/install-vendor-data
 COPY scripts/ensure-queue             /usr/libexec/konica206/ensure-queue
 COPY scripts/preflight                /usr/libexec/konica206/preflight
+COPY scripts/ensure-epson-queue       /usr/libexec/epson-l3260/ensure-queue
 
 RUN set -eux; \
     chmod 0755 /usr/bin/konica206-native /usr/bin/konica-send /usr/bin/konica-render /usr/bin/konica-native; \
     chmod 0755 /usr/libexec/konica206/install-vendor-data /usr/libexec/konica206/ensure-queue /usr/libexec/konica206/preflight; \
+    chmod 0755 /usr/libexec/epson-l3260/ensure-queue; \
     chmod 0644 /etc/greetd/config.toml \
         /etc/modprobe.d/90-konica206-usblp.conf \
         /usr/lib/systemd/system/konica206-native.service \
         /usr/lib/systemd/system/konica206-queue.service \
+        /usr/lib/systemd/system/epson-l3260-queue.service \
         /usr/lib/systemd/system/bootc-upgrade.service \
         /usr/lib/systemd/system/bootc-upgrade.timer \
         /usr/lib/udev/rules.d/70-konica206.rules \
@@ -248,6 +252,7 @@ RUN set -eux; \
     systemctl enable greetd.service; \
     systemctl enable konica206-native.service; \
     systemctl enable konica206-queue.service; \
+    systemctl enable epson-l3260-queue.service; \
     systemctl --global enable pipewire.service pipewire-pulse.service wireplumber.service
 
 # bootc's own image sanity checks (must be last: it inspects the filesystem).

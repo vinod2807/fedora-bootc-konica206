@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Create the Epson L3260 network queue (IPP Everywhere / driverless) if absent.
+#
+# The printer is a LAN device, so nothing has to be installed for it: CUPS
+# generates the PPD from the printer's own IPP attributes ("-m everywhere").
+# This is idempotent and safe to re-run from a timer, a udev event or by hand:
+#
+#   sudo systemctl start epson-l3260-queue
+#   sudo /usr/libexec/epson-l3260/ensure-queue
+#
+# Override the defaults with EPSON_HOST / EPSON_QUEUE / EPSON_NAME.
+set -euo pipefail
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+
+QUEUE=${EPSON_QUEUE:-EPSON_L3260}
+HOST=${EPSON_HOST:-192.168.1.19}
+NAME=${EPSON_NAME:-Epson L3260 Series}
+URI="ipp://${HOST}/ipp/print"
+WAIT_SECONDS=${EPSON_WAIT_SECONDS:-90}
+
+log() { printf 'epson-l3260-queue: %s\n' "$*" >&2; }
+
+if lpstat -p "$QUEUE" >/dev/null 2>&1; then
+    log "queue '$QUEUE' already exists"
+    exit 0
+fi
+
+# cupsd is socket activated on Fedora; make sure the socket is up so lpadmin
+# has a server to talk to even when no print job has been submitted yet.
+systemctl start cups.socket >/dev/null 2>&1 || true
+
+# Wait for the printer to answer. A printer that is switched off is a normal
+# condition: log it and exit successfully so the boot is not marked degraded.
+log "waiting for $HOST:631 (up to ${WAIT_SECONDS}s)"
+deadline=$(( $(date +%s) + WAIT_SECONDS ))
+until (exec 3<>"/dev/tcp/${HOST}/631") 2>/dev/null; do
+    if (( $(date +%s) >= deadline )); then
+        log "printer $HOST:631 not reachable; queue not created"
+        log "turn the printer on, then: sudo systemctl start epson-l3260-queue"
+        exit 0
+    fi
+    sleep 3
+done
+exec 3>&- 2>/dev/null || true
+
+log "creating queue '$QUEUE' -> $URI"
+if ! out=$(lpadmin -p "$QUEUE" -E -v "$URI" -m everywhere \
+        -D "$NAME" -L "Network" 2>&1); then
+    printf '%s\n' "$out" >&2
+    log "lpadmin failed; check 'systemctl status cups' and retry later"
+    exit 0
+fi
+
+log "queue created: $URI"
+lpstat -v "$QUEUE" >&2 || true
