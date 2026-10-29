@@ -132,7 +132,8 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm --entrypoint /bin/bash localhost/fedora-bootc-konica206:smoke -euo pipefail -c '
-            rpm -q labwc waybar foot greetd tuigreet NetworkManager pappl cups ghostscript >/dev/null
+            rpm -q labwc waybar foot greetd tuigreet NetworkManager pappl cups ghostscript Thunar >/dev/null
+            ! rpm -q pcmanfm >/dev/null 2>&1
             rpm -q zapfast >/dev/null
             for b in /usr/bin/konica206-native /usr/bin/konica-native /usr/bin/konica-send /usr/bin/labwc /usr/bin/waybar /usr/bin/foot /usr/bin/tuigreet /usr/bin/zapfast; do
               test -x "$b"

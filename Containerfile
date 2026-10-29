@@ -167,7 +167,7 @@ RUN set -eux; \
         nm-connection-editor \
         pappl \
         pavucontrol \
-        pcmanfm \
+        Thunar \
         pipewire \
         pipewire-pulseaudio \
         polkit \
