@@ -149,6 +149,7 @@ RUN set -eux; \
         pipewire \
         pipewire-pulseaudio \
         polkit \
+        qt5-qtbase-gui \
         sane-airscan \
         shared-mime-info \
         simple-scan \
@@ -186,18 +187,32 @@ RUN set -eux; \
     dnf clean all
 
 # Epson Printer Utility for Linux is only distributed through Epson's download
-# centre, which answers automated requests with HTTP 403 (Akamai). The RPM is
-# therefore not downloaded at build time: drop it into local-rpms/ and it is
-# installed here. See local-rpms/README.md.
+# centre, which answers automated requests with HTTP 403 (Akamai), so it cannot
+# be fetched here. The vendor RPM is committed under local-rpms/ and installed
+# from there. See local-rpms/README.md.
+#
+# Scriptlets are skipped on purpose: the RPM's %post launches the ecbd daemon in
+# the foreground, which never returns inside a container build (the build would
+# hang). ecbd is only needed for USB-attached Epson printers; the network queue
+# and the utility itself work without it. Enable it by hand on such a machine:
+#   sudo systemctl enable --now ecbd.service
 COPY local-rpms/ /tmp/local-rpms/
 RUN set -eux; \
     if compgen -G '/tmp/local-rpms/*.rpm' >/dev/null; then \
-        dnf install -y /tmp/local-rpms/*.rpm; \
+        dnf install -y --setopt=tsflags=noscripts /tmp/local-rpms/*.rpm; \
     else \
         echo 'no vendor RPM in local-rpms/, skipping'; \
     fi; \
     rm -rf /tmp/local-rpms; \
     dnf clean all
+
+# The Epson RPM ships its menu entry inside /opt (and declares no dependency on
+# Qt5), so expose it to the launcher and make sure its toolkit is present.
+RUN set -eux; \
+    if [ -f /opt/epson-printer-utility/epson-printer-utility.desktop ]; then \
+        ln -sf /opt/epson-printer-utility/epson-printer-utility.desktop \
+               /usr/share/applications/epson-printer-utility.desktop; \
+    fi
 
 # Dedicated unprivileged account for the printer application. USB access comes
 # from the udev rule (group lp, mode 0660), not from running as root.

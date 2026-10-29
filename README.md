@@ -54,7 +54,7 @@ The installed machine tracks that reference and updates with `bootc upgrade`.
 | `scripts/ensure-epson-queue` | Creates the driverless Epson L3260 network queue |
 | `scripts/preflight` | Read-only diagnostic (`sudo konica206-preflight`) |
 | `ppd/konica206.ppd` | Hand-written PPD shim: real media sizes, duplex, A4/simplex defaults |
-| `local-rpms/` | Vendor RPMs that cannot be downloaded automatically (Epson Printer Utility) |
+| `local-rpms/` | Vendored vendor RPMs installed at build time (Epson Printer Utility) |
 | `bootc/`, `modprobe.d/` | i5 650 C-state/audio crash fixes |
 | `docs/PRINTER.md`, `docs/CRASH-FIXES.md` | Detailed notes |
 
@@ -529,24 +529,23 @@ If nothing is listed, check that `avahi-daemon` is running (mDNS discovery) and
 that the printer is on the same L2 network; `scanimage --test` then verifies a
 single page.
 
-### Epson Printer Utility (vendor RPM, optional)
+### Epson Printer Utility (vendor RPM)
 
 Epson ships *Epson Printer Utility for Linux* (ink levels, head cleaning,
 nozzle check) only through
 <https://download-center.epson.com/> → **L3260 Series** → **Linux RPM(x64)**.
 That site (and its API) answers automated clients with **HTTP 403**, so the
-image cannot download it at build time. To include it:
+image cannot download it at build time.
 
-```bash
-# 1. download epson-printer-utility-1.2.3-1.x86_64.rpm in a browser
-# 2. put it in the repository
-cp epson-printer-utility-1.2.3-1.x86_64.rpm local-rpms/
-git add local-rpms/*.rpm && git commit -m "vendor: Epson Printer Utility"
-git push        # weekly-image build installs it
-```
+The current vendor build — `epson-printer-utility-1.2.3-1.x86_64.rpm`, sha256
+`58f992ea…76d489` — is committed in `local-rpms/` and installed by every build.
+It appears as **Epson Printer Utility** in the application launcher. See
+[`local-rpms/README.md`](local-rpms/README.md) for what the build adds on top of
+the plain install (Qt5 toolkit, menu entry, skipped vendor scriptlets).
 
-Everything in `local-rpms/*.rpm` is installed during the build. Printing and
-scanning do not depend on the utility — the queue is driverless.
+To update it later, drop the newer file into `local-rpms/`, delete the old one,
+commit. Printing and scanning do not depend on the utility — the queue is
+driverless.
 
 Different address or name, without rebuilding the image:
 
