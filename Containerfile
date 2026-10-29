@@ -146,6 +146,7 @@ RUN set -eux; \
         fuzzel \
         ghostscript \
         gnome-keyring \
+        gnome-keyring-pam \
         greetd \
         grim \
         gthumb \
