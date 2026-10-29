@@ -279,9 +279,9 @@ sudo bootc upgrade                # downloads and stages the new deployment
 sudo systemctl reboot            # activates it
 ```
 
-`bootc upgrade` stages by default; it does **not** reboot. The automatic nightly
-update (below) is the one that uses `--apply`; if you run the command yourself,
-check `bootc upgrade --help` on the installed version before passing flags.
+`bootc upgrade` stages by default; it does **not** reboot, which is exactly how
+the automatic update below behaves. Passing `--apply` (not used here) would
+reboot immediately.
 
 To change the tracked image (for example to a frozen SHA tag):
 
@@ -300,55 +300,53 @@ sudo systemctl reboot
 The previous deployment remains available in the bootloader. Roll back if a
 new image does not boot, the desktop does not start, or printing regresses.
 
-### Automatic updates (nightly, on by default)
+### Automatic updates (download and stage only — never reboot)
 
-The Fedora bootc base image enables `bootc-fetch-apply-updates.timer`, which runs
-`bootc upgrade --apply`: it pulls the new image, deploys it and **reboots into
-it**. This repository keeps that timer enabled but gives it a nightly window so
-the reboot does not land in the middle of the day:
+Fedora's bootc base image enables `bootc-fetch-apply-updates.timer`, which runs
+`bootc upgrade --apply` and **reboots the machine into the new image**. This
+desktop must only reboot when you choose, so that timer is masked in the image:
 
-| Drop-in | Effect |
-|---|---|
-| `/etc/systemd/system/bootc-fetch-apply-updates.timer.d/10-schedule.conf` | `OnCalendar=*-*-* 04:00:00`, `RandomizedDelaySec=30m`, `Persistent=true` — replaces upstream's "1 h after boot, then every 8 h" |
-| `/etc/systemd/system/bootc-fetch-apply-updates.service.d/10-timeout.conf` | `Nice=10`, idle I/O class, `TimeoutStartSec=45min` |
+| Unit | State | What it does |
+|---|---|---|
+| `bootc-fetch-apply-updates.timer` | **masked** (`→ /dev/null`) | would pull, deploy and reboot unattended |
+| `bootc-upgrade.timer` | **enabled** | runs `bootc upgrade` — download + stage only, no reboot |
 
-In practice:
+`bootc-upgrade.timer` is scheduled with `OnCalendar=daily`, a 1 h random delay
+and `Persistent=true`. Because the machine is switched off overnight, a missed
+run executes at the next boot instead of being skipped: the update is staged,
+and nothing changes until you reboot.
 
-- a new image (the weekly Sunday 03:00 UTC build) is installed automatically and
-  the machine reboots itself, usually the following night;
-- **unsaved work is lost at that reboot** — that is why the window is 04:00;
-- if the machine is off at 04:00, `Persistent=true` runs the update at the next
-  boot instead of skipping it;
-- updates pull anonymously from GHCR, so the package must be public or the host
-  must be authenticated (see *Registry access* below).
-
-Check what happened:
+Reboot when it suits you:
 
 ```bash
-systemctl list-timers bootc-fetch-apply-updates.timer
-bootc status
-journalctl -u bootc-fetch-apply-updates.service
+bootc status                       # current + staged deployment
+sudo systemctl reboot             # activates the staged image
 ```
 
-Turn it off, or move the window:
+Check that staging happened:
 
 ```bash
-sudo systemctl disable --now bootc-fetch-apply-updates.timer
-sudo systemctl edit bootc-fetch-apply-updates.timer   # e.g. OnCalendar=*-*-* 02:30:00
-```
-
-**Stage-only alternative (no automatic reboot).** `bootc-upgrade.service` and
-`bootc-upgrade.timer` are also installed, but the timer is **disabled**. Enable
-it if you prefer to stage the update and reboot yourself:
-
-```bash
-sudo systemctl enable --now bootc-upgrade.timer
 systemctl list-timers bootc-upgrade.timer
 journalctl -u bootc-upgrade.service
 ```
 
-The timer runs weekly with a random delay and never reboots; the new image stays
-inactive until you run `sudo systemctl reboot`.
+Install updates right away instead of waiting for the timer:
+
+```bash
+sudo systemctl start bootc-upgrade.service
+```
+
+If you ever want fully unattended reboots, un-mask and enable the upstream timer
+(and accept that the machine restarts on its own):
+
+```bash
+sudo systemctl unmask bootc-fetch-apply-updates.timer
+sudo systemctl enable --now bootc-fetch-apply-updates.timer
+```
+
+Updates pull anonymously from GHCR, so the package must be public or the host
+authenticated (see *Registry access* below). A staged update that fails to boot
+can be rolled back from the bootloader or with `bootc rollback`.
 
 ### Registry access
 

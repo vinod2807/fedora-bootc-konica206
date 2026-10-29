@@ -1,10 +1,13 @@
 [Unit]
-Description=Weekly check for a new Fedora bootc image (stages only)
-Documentation=https://github.com/vinod2807/fedora-bootc-konica206#automatic-updates-optional
+Description=Download and stage Fedora bootc updates (never reboots)
+Documentation=https://github.com/vinod2807/fedora-bootc-konica206#automatic-updates
 
 [Timer]
-OnCalendar=weekly
-RandomizedDelaySec=6h
+# The machine is switched off overnight, so a fixed window would usually be
+# missed. Persistent=true runs the check at the next boot instead; the jitter
+# keeps many machines from hitting the registry at the same moment.
+OnCalendar=daily
+RandomizedDelaySec=1h
 Persistent=true
 
 [Install]
