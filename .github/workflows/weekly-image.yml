@@ -68,7 +68,7 @@ jobs:
             type=ref,event=branch
           labels: |
             org.opencontainers.image.title=Fedora bootc 44 - Labwc + Konica bizhub 206
-            org.opencontainers.image.description=Fedora bootc 44 linux/amd64 with Labwc, Waybar, Foot and the Konica Minolta bizhub 206 printer application
+            org.opencontainers.image.description=Fedora bootc 44 linux/amd64 with Labwc, sfwbar, Foot and the Konica Minolta bizhub 206 printer application
             org.vinod2807.konica.app-ref=${{ steps.refs.outputs.app }}
             org.vinod2807.konica.native-ref=${{ steps.refs.outputs.native }}
 
