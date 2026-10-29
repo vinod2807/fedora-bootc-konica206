@@ -31,6 +31,10 @@ ARG KONICA_NATIVE_REPO=https://github.com/vinod2807/konica-native-musl.git
 ARG KONICA_APP_REF=main
 ARG KONICA_NATIVE_REF=main
 
+# ZapFast version to install from GitHub releases. Bump for a new release; the
+# weekly workflow resolves the latest tag automatically.
+ARG ZAPFAST_VERSION=v0.20.1
+
 # ---------------------------------------------------------------------------
 # Build the printer application and the native encoder.
 # ---------------------------------------------------------------------------
@@ -105,6 +109,10 @@ FROM ${BASE_IMAGE}
 
 ARG KONICA_APP_REF=main
 ARG KONICA_NATIVE_REF=main
+
+# ZapFast version to install from GitHub releases. Bump for a new release; the
+# weekly workflow can resolve the latest tag automatically.
+ARG ZAPFAST_VERSION=v0.20.1
 
 # Buys a fresh resolution of the third-party app layer below (see the
 # "Third-party desktop applications" section). Bump it for a local rebuild that
@@ -193,6 +201,7 @@ RUN set -eux; \
 #   - ONLYOFFICE Desktop Editors: official repo RPM (it also installs its own
 #     GPG key at /etc/pki/rpm-gpg/RPM-GPG-KEY-ONLYOFFICE).
 #   - NAPS2: official GitHub release asset, pinned to an exact version.
+#   - ZapFast: official GitHub release asset, version from ZAPFAST_VERSION arg.
 #
 # This instruction never changes, so BuildKit would happily replay it from the
 # cache and keep whatever ONLYOFFICE version the cache was built with. BUILD_EPOCH
@@ -206,6 +215,8 @@ RUN set -eux; \
     dnf install -y --refresh onlyoffice-desktopeditors; \
     dnf install -y \
         https://github.com/cyanfish/naps2/releases/download/v8.6.0/naps2-8.6.0-linux-x64.rpm; \
+    dnf install -y \
+        https://github.com/crmne/zapfast/releases/download/${ZAPFAST_VERSION}/zapfast-${ZAPFAST_VERSION#v}-1.x86_64.rpm; \
     dnf clean all
 
 # Epson Printer Utility for Linux is only distributed through Epson's download

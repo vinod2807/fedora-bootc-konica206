@@ -15,6 +15,7 @@ A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
   vendor repository)
 - **NAPS2** scanning front-end plus **simple-scan**, with **sane-airscan** for
   driverless (eSCL/AirScan) network scanners
+- **ZapFast** native WhatsApp client (official GitHub release RPM)
 - **Flatpak** with the **Flathub** remote preinstalled (xdg-desktop-portal
   GTK/wlr portals for file choosers and screen sharing)
 - A real graphical login path: **greetd** on VT1 → **tuigreet** → **labwc**
@@ -180,10 +181,15 @@ podman build --platform linux/amd64 \
 NAPS2 is deliberately different: it is pinned to an exact release tag, so it
 only changes when that pin is edited in the `Containerfile`.
 
-On an installed system this is the *only* update path for ONLYOFFICE: `/` is
-read-only, so `dnf upgrade onlyoffice-desktopeditors` cannot change it. A new
-version arrives when a new image is published, is staged by
-`bootc-upgrade.timer`, and takes effect on the next reboot.
+ZapFast is tracked automatically: the weekly workflow resolves the latest
+GitHub release tag (`crmne/zapfast/releases/latest`) and passes it as
+`ZAPFAST_VERSION`. To pin a specific version, set the arg in `Containerfile`
+or override it in the workflow dispatch.
+
+On an installed system this is the *only* update path for ONLYOFFICE and
+ZapFast: `/` is read-only, so `dnf upgrade onlyoffice-desktopeditors zapfast`
+cannot change them. A new version arrives when a new image is published, is
+staged by `bootc-upgrade.timer`, and takes effect on the next reboot.
 
 ---
 
