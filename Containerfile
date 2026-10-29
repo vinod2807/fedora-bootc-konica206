@@ -99,6 +99,12 @@ FROM ${BASE_IMAGE}
 ARG KONICA_APP_REF=main
 ARG KONICA_NATIVE_REF=main
 
+# Buys a fresh resolution of the third-party app layer below (see the
+# "Third-party desktop applications" section). Bump it for a local rebuild that
+# must fetch the current ONLYOFFICE RPM; the weekly workflow passes a unique
+# value per run.
+ARG BUILD_EPOCH=local
+
 LABEL org.opencontainers.image.title="Fedora bootc 44 - Labwc + Konica bizhub 206" \
       org.opencontainers.image.description="Fedora bootc 44, Linux/amd64, Labwc/Waybar/Foot desktop, PAPPL printer application with the konica-native C11 encoder" \
       org.opencontainers.image.source="https://github.com/vinod2807/fedora-bootc-konica206" \
@@ -180,10 +186,17 @@ RUN set -eux; \
 #   - ONLYOFFICE Desktop Editors: official repo RPM (it also installs its own
 #     GPG key at /etc/pki/rpm-gpg/RPM-GPG-KEY-ONLYOFFICE).
 #   - NAPS2: official GitHub release asset, pinned to an exact version.
+#
+# This instruction never changes, so BuildKit would happily replay it from the
+# cache and keep whatever ONLYOFFICE version the cache was built with. BUILD_EPOCH
+# is only there to change the cache key: the weekly workflow passes the run id,
+# so the RPM is re-resolved from ONLYOFFICE's repo on every published image.
+# --refresh additionally expires any metadata that survived into a partial cache.
 RUN set -eux; \
+    echo "resolving third-party apps (cache epoch: ${BUILD_EPOCH})"; \
     dnf install -y --nogpgcheck \
         https://download.onlyoffice.com/repo/centos/main/noarch/onlyoffice-repo.noarch.rpm; \
-    dnf install -y onlyoffice-desktopeditors; \
+    dnf install -y --refresh onlyoffice-desktopeditors; \
     dnf install -y \
         https://github.com/cyanfish/naps2/releases/download/v8.6.0/naps2-8.6.0-linux-x64.rpm; \
     dnf clean all

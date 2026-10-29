@@ -143,6 +143,40 @@ cd fedora-bootc-konica206
 podman build --platform linux/amd64 -t localhost/fedora-bootc-konica206 .
 ```
 
+### Third-party app versions and the layer cache
+
+ONLYOFFICE Desktop Editors is installed from ONLYOFFICE's own repository, not
+from Fedora, so its version is whatever is current **when the image is built**.
+The instruction that installs it never changes, which means BuildKit would
+replay it from cache and keep the old RPM. To prevent that, the `Containerfile`
+takes a `BUILD_EPOCH` build arg that is only used to change this layer's cache
+key, and `weekly-image.yml` passes the workflow run id:
+
+```dockerfile
+ARG BUILD_EPOCH=local
+...
+RUN set -eux; \
+    echo "resolving third-party apps (cache epoch: ${BUILD_EPOCH})"; \
+    dnf install -y onlyoffice-desktopeditors; ...
+```
+
+For a local build that must fetch the current RPM instead of reusing your local
+cache, pass your own value (anything that differs from the previous build):
+
+```bash
+podman build --platform linux/amd64 \
+  --build-arg BUILD_EPOCH="$(date +%s)" \
+  -t localhost/fedora-bootc-konica206 .
+```
+
+NAPS2 is deliberately different: it is pinned to an exact release tag, so it
+only changes when that pin is edited in the `Containerfile`.
+
+On an installed system this is the *only* update path for ONLYOFFICE: `/` is
+read-only, so `dnf upgrade onlyoffice-desktopeditors` cannot change it. A new
+version arrives when a new image is published, is staged by
+`bootc-upgrade.timer`, and takes effect on the next reboot.
+
 ---
 
 ## One-time installation from the ISO

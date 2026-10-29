@@ -95,6 +95,7 @@ jobs:
           tags: localhost/fedora-bootc-konica206:smoke
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
+            BUILD_EPOCH=${{ github.run_id }}
             KONICA_APP_REF=${{ steps.refs.outputs.app }}
             KONICA_NATIVE_REF=${{ steps.refs.outputs.native }}
           cache-from: type=gha,scope=bootc-image
@@ -147,6 +148,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
+            BUILD_EPOCH=${{ github.run_id }}
             KONICA_APP_REF=${{ steps.refs.outputs.app }}
             KONICA_NATIVE_REF=${{ steps.refs.outputs.native }}
           cache-from: type=gha,scope=bootc-image
