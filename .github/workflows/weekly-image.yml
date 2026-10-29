@@ -151,7 +151,7 @@ jobs:
             grep -q "intel_idle.max_cstate=1" /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
             # GRUB menu must pause so an older deployment can be selected.
             grep -qx "set timeout=10" /usr/lib/bootupd/grub2-static/grub-static-pre.cfg
-            systemctl is-enabled greetd.service NetworkManager.service konica206-native.service konica206-queue.service
+            systemctl is-enabled greetd.service NetworkManager.service konica206-native.service konica206-queue.service ecbd.service
             systemd-analyze verify /usr/lib/systemd/system/konica206-native.service \
                                    /usr/lib/systemd/system/konica206-queue.service \
                                    /usr/lib/systemd/system/bootc-upgrade.service \

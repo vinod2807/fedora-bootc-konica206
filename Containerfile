@@ -234,6 +234,10 @@ COPY local-rpms/ /tmp/local-rpms/
 RUN set -eux; \
     if compgen -G '/tmp/local-rpms/*.rpm' >/dev/null; then \
         dnf install -y --setopt=tsflags=noscripts /tmp/local-rpms/*.rpm; \
+        if [ -f /usr/lib/epson-backend/ecbd.service ]; then \
+            install -D -m 0644 /usr/lib/epson-backend/ecbd.service \
+                /usr/lib/systemd/system/ecbd.service; \
+        fi; \
     else \
         echo 'no vendor RPM in local-rpms/, skipping'; \
     fi; \
@@ -366,6 +370,9 @@ RUN set -eux; \
     systemctl enable konica206-native.service; \
     systemctl enable konica206-queue.service; \
     systemctl enable epson-l3260-queue.service; \
+    if [ -e /usr/lib/systemd/system/ecbd.service ]; then \
+        systemctl enable ecbd.service; \
+    fi; \
     systemctl --global enable pipewire.service pipewire-pulse.service wireplumber.service
 
 # bootc's own image sanity checks (must be last: it inspects the filesystem).
