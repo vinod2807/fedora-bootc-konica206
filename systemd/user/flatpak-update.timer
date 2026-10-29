@@ -1,0 +1,13 @@
+[Unit]
+Description=Daily Flatpak update (user installation)
+Documentation=https://github.com/vinod2807/fedora-bootc-konica206#automatic-flatpak-updates
+
+[Timer]
+# Runs while the graphical session is up; Persistent=true catches up on the
+# first login after the machine was switched off.
+OnCalendar=daily
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

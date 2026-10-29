@@ -1,0 +1,12 @@
+[Unit]
+Description=Update Flatpak applications (user installation)
+Documentation=man:flatpak-update(1)
+
+[Service]
+Type=oneshot
+Nice=10
+IOSchedulingClass=idle
+# Per-user installations are updated inside the user's own session; a system
+# service (flatpak-update.service) covers the system-wide installation.
+ExecStart=/usr/bin/flatpak update -y --noninteractive --user
+ExecStart=/usr/bin/flatpak uninstall --unused -y --noninteractive --user

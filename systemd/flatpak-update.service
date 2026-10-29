@@ -1,0 +1,16 @@
+[Unit]
+Description=Update Flatpak applications (system installation)
+Documentation=man:flatpak-update(1)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Nice=10
+IOSchedulingClass=idle
+# --noninteractive keeps the output minimal and never prompts; -y answers any
+# remaining question. Running applications keep running; Flatpak swaps the
+# deployment and the new version is used at the next start.
+ExecStart=/usr/bin/flatpak update -y --noninteractive --system
+# Drop runtimes/apps that are no longer needed by anything installed.
+ExecStart=/usr/bin/flatpak uninstall --unused -y --noninteractive

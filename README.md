@@ -46,7 +46,7 @@ The installed machine tracks that reference and updates with `bootc upgrade`.
 | `.github/workflows/build-iso.yml` | Manual-only Anaconda installer ISO build with El Torito and QEMU SeaBIOS checks |
 | `.github/iso/Containerfile` | Anaconda installer container consumed by image-builder `bootc-generic-iso` |
 | `.github/iso/iso.yaml` | GRUB/ISO label and kernel command line for the installer media |
-| `systemd/` | Printer/queue units plus the stage-only (never reboots) bootc update timer |
+| `systemd/` | Printer/queue units, the stage-only (never reboots) bootc update timer, and the daily Flatpak update timers (system + user) |
 | `udev/70-konica206.rules` | USB permissions for `132b:232b` (group `lp`, `uaccess`) |
 | `greetd/config.toml` | tuigreet → labwc login session |
 | `desktop/` | labwc autostart/environment/menu, sfwbar panel config, Waybar fallback config |
@@ -261,7 +261,10 @@ internet (it pulls the image, roughly 1 GiB compressed, from GHCR).
   driverless eSCL/AirScan devices (the Epson L3260 scanner and most modern
   network MFPs).
 - **Flatpak:** `flatpak` and the Flathub remote are ready; install apps with
-  `flatpak install flathub <app-id>` and run them from the launcher.
+  `flatpak install flathub <app-id>` and run them from the launcher. Installed
+  Flatpaks update themselves daily (see *Automatic Flatpak updates*).
+- **GitHub CLI:** `gh` is installed (`gh auth login`, `gh repo clone …`,
+  `gh workflow run …`).
 - **Text fallback:** `Ctrl+Alt+F2` gives a text login. From there, run `labwc`
   to start the Wayland session manually.
 - **Audio:** PipeWire, WirePlumber and `pipewire-pulseaudio` are enabled for
@@ -364,6 +367,34 @@ sudo systemctl enable --now bootc-fetch-apply-updates.timer
 Updates pull anonymously from GHCR, so the package must be public or the host
 authenticated (see *Registry access* below). A staged update that fails to boot
 can be rolled back from the bootloader or with `bootc rollback`.
+
+### Automatic Flatpak updates
+
+Flatpak has no built-in updater, so the image ships two timers that install new
+Flatpak versions daily with a 1 h jitter and `Persistent=true` (a run missed
+while the machine was off happens at the next boot/login):
+
+| Unit | Scope | Runs |
+|---|---|---|
+| `flatpak-update.timer` (`/usr/lib/systemd/system/`) | system installation | `flatpak update -y --noninteractive --system`, then `flatpak uninstall --unused -y` |
+| `flatpak-update.timer` (`/usr/lib/systemd/user/`, enabled globally) | per-user installation | the same with `--user`, inside the graphical session |
+
+Flatpak updates never reboot and need none: running apps keep running and use
+the new version at the next start. Check them with:
+
+```bash
+systemctl list-timers flatpak-update.timer
+systemctl --user list-timers flatpak-update.timer
+journalctl -u flatpak-update.service
+journalctl --user -u flatpak-update.service
+```
+
+Update immediately instead of waiting:
+
+```bash
+sudo systemctl start flatpak-update.service
+systemctl --user start flatpak-update.service
+```
 
 ### Registry access
 

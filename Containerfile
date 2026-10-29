@@ -120,6 +120,7 @@ RUN set -eux; \
         desktop-file-utils \
         evince \
         flatpak \
+        gh \
         foot \
         fuzzel \
         ghostscript \
@@ -246,6 +247,10 @@ COPY systemd/konica206-queue.service  /usr/lib/systemd/system/konica206-queue.se
 COPY systemd/epson-l3260-queue.service /usr/lib/systemd/system/epson-l3260-queue.service
 COPY systemd/bootc-upgrade.service    /usr/lib/systemd/system/bootc-upgrade.service
 COPY systemd/bootc-upgrade.timer      /usr/lib/systemd/system/bootc-upgrade.timer
+COPY systemd/flatpak-update.service   /usr/lib/systemd/system/flatpak-update.service
+COPY systemd/flatpak-update.timer     /usr/lib/systemd/system/flatpak-update.timer
+COPY systemd/user/flatpak-update.service /usr/lib/systemd/user/flatpak-update.service
+COPY systemd/user/flatpak-update.timer   /usr/lib/systemd/user/flatpak-update.timer
 COPY udev/70-konica206.rules          /usr/lib/udev/rules.d/70-konica206.rules
 COPY greetd/config.toml               /etc/greetd/config.toml
 COPY desktop/labwc/autostart          /etc/xdg/labwc/autostart
@@ -274,6 +279,10 @@ RUN set -eux; \
         /usr/lib/systemd/system/epson-l3260-queue.service \
         /usr/lib/systemd/system/bootc-upgrade.service \
         /usr/lib/systemd/system/bootc-upgrade.timer \
+        /usr/lib/systemd/system/flatpak-update.service \
+        /usr/lib/systemd/system/flatpak-update.timer \
+        /usr/lib/systemd/user/flatpak-update.service \
+        /usr/lib/systemd/user/flatpak-update.timer \
         /usr/lib/udev/rules.d/70-konica206.rules \
         /etc/xdg/labwc/menu.xml \
         /usr/share/sfwbar/sfwbar.config \
@@ -305,6 +314,8 @@ RUN set -eux; \
     systemctl mask bootc-fetch-apply-updates.timer; \
     rm -f /etc/systemd/system/timers.target.wants/bootc-fetch-apply-updates.timer; \
     systemctl enable bootc-upgrade.timer; \
+    systemctl enable flatpak-update.timer; \
+    systemctl --global enable flatpak-update.timer; \
     systemctl enable NetworkManager.service; \
     systemctl enable greetd.service; \
     systemctl enable konica206-native.service; \

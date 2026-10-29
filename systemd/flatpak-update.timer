@@ -1,0 +1,13 @@
+[Unit]
+Description=Daily Flatpak update (system installation)
+Documentation=https://github.com/vinod2807/fedora-bootc-konica206#automatic-flatpak-updates
+
+[Timer]
+# The desktop is powered off overnight, so Persistent=true runs a missed check
+# at the next boot instead of skipping it. Updates need no reboot.
+OnCalendar=daily
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
