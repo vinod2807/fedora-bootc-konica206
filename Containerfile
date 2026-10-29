@@ -151,6 +151,7 @@ RUN set -eux; \
         polkit \
         qt5-qtbase-gui \
         sane-airscan \
+        sfwbar \
         shared-mime-info \
         simple-scan \
         slurp \
@@ -254,6 +255,8 @@ COPY desktop/applications/konica206-reboot.desktop   /usr/share/applications/kon
 COPY desktop/applications/konica206-poweroff.desktop /usr/share/applications/konica206-poweroff.desktop
 COPY desktop/waybar/config            /etc/xdg/waybar/config
 COPY desktop/waybar/style.css         /etc/xdg/waybar/style.css
+# sfwbar reads its system-wide default from the XDG *data* dir, not /etc/xdg.
+COPY desktop/sfwbar/sfwbar.config     /usr/share/sfwbar/sfwbar.config
 COPY scripts/install-vendor-data      /usr/libexec/konica206/install-vendor-data
 COPY scripts/ensure-queue             /usr/libexec/konica206/ensure-queue
 COPY scripts/preflight                /usr/libexec/konica206/preflight
@@ -273,6 +276,7 @@ RUN set -eux; \
         /usr/lib/systemd/system/bootc-upgrade.timer \
         /usr/lib/udev/rules.d/70-konica206.rules \
         /etc/xdg/labwc/menu.xml \
+        /usr/share/sfwbar/sfwbar.config \
         /usr/share/applications/konica206-reboot.desktop \
         /usr/share/applications/konica206-poweroff.desktop \
         /usr/share/ppd/konica206/konica206.ppd; \

@@ -1,8 +1,9 @@
 #!/bin/sh
 # Started by labwc at the beginning of every session.
 
-# Panel
-waybar &
+# Panel: sfwbar — start menu, task buttons, tray (openbox/tint2 style).
+# Waybar stays installed as a fallback; run "waybar &" by hand to use it.
+sfwbar &
 
 # Solid background (no wallpaper asset shipped). Optional; harmless if absent.
 if command -v swaybg >/dev/null 2>&1; then

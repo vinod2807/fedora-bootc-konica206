@@ -4,7 +4,8 @@ A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
 (the target is an Intel Core i5 650). It provides:
 
 - **Fedora bootc 44**, `linux/amd64`
-- **Labwc** Wayland compositor, **Waybar** panel, **Foot** terminal
+- **Labwc** Wayland compositor, **sfwbar** panel (openbox-style start menu and
+  task buttons), **Foot** terminal
 - A desktop with **pcmanfm**, **gthumb**, **evince**, **mousepad**,
   **xarchiver**, **pavucontrol**, GVFS/udisks2, and a right-click menu
 - **LibreOffice** (full suite) and **ONLYOFFICE Desktop Editors** (official
@@ -45,10 +46,10 @@ The installed machine tracks that reference and updates with `bootc upgrade`.
 | `.github/workflows/build-iso.yml` | Manual-only Anaconda installer ISO build with El Torito and QEMU SeaBIOS checks |
 | `.github/iso/Containerfile` | Anaconda installer container consumed by image-builder `bootc-generic-iso` |
 | `.github/iso/iso.yaml` | GRUB/ISO label and kernel command line for the installer media |
-| `systemd/` | Printer/queue units plus nightly auto-update and stage-only bootc units |
+| `systemd/` | Printer/queue units plus the stage-only (never reboots) bootc update timer |
 | `udev/70-konica206.rules` | USB permissions for `132b:232b` (group `lp`, `uaccess`) |
 | `greetd/config.toml` | tuigreet → labwc login session |
-| `desktop/` | labwc autostart/environment and Waybar config/style |
+| `desktop/` | labwc autostart/environment/menu, sfwbar panel config, Waybar fallback config |
 | `scripts/install-vendor-data` | Post-install installer for the licensed Konica runtime data |
 | `scripts/ensure-queue` | Creates the PAPPL queue and the local CUPS queue with the PPD shim |
 | `scripts/ensure-epson-queue` | Creates the driverless Epson L3260 network queue |
@@ -225,16 +226,32 @@ internet (it pulls the image, roughly 1 GiB compressed, from GHCR).
 
 - **Graphical:** greetd starts on VT1, tuigreet asks for the user/password you
   created during installation, then launches `labwc`.
-- **Panel:** Waybar autostarts at the top (`/etc/xdg/waybar/config`): a
-  **Menu** button (application launcher), a **Files** button, workspaces, a
-  taskbar, clock, volume, network, battery and tray.
+- **Panel:** **sfwbar** autostarts (`/usr/share/sfwbar/sfwbar.config`), in
+  openbox/tint2 style: a **Start** button that opens a categorised application
+  menu generated from the installed `.desktop` files, terminal and files
+  buttons, a window list (click = focus/minimise, middle-click = close,
+  right-click = window menu), tray, network, volume, battery and clock.
+  Window buttons and the window menu use the compositor's foreign-toplevel
+  protocol, so they track labwc windows directly. Waybar is still installed as
+  a fallback (`waybar &`).
+  The packaged sfwbar (1.0~beta16.1) has no `edge` setting: the bar's edge is
+  chosen by `window { -GtkWidget-direction: top; }` in the CSS section — change
+  it to `bottom` to move the panel. Sizing/layout notes that matter when
+  editing `desktop/sfwbar/sfwbar.config`:
+  - comments inside the `#CSS` section must use slash-star form; a `#` comment
+    is an ID selector and makes GTK reject the whole stylesheet (the panel then
+    falls back to the light GTK theme);
+  - never put `-GtkWidget-hexpand: true` on the taskbar: the flow grid gives the
+    freed width to the window buttons and one window stretches across the bar.
+    A spacer label does the right-side alignment instead.
 - **Desktop menu:** right-click the desktop for Files, Terminal, Image viewer,
   Text editor, Archive manager, Document viewer, an **Office** submenu
   (LibreOffice Writer/Calc/Impress, ONLYOFFICE), a **Scanning** submenu, Volume,
   Network and Session actions (`/etc/xdg/labwc/menu.xml`).
-- **Application launcher:** the **Menu** button on Waybar runs `fuzzel`, which
-  lists every installed application (including Flatpak apps) plus
-  **Reboot** and **Shut Down** actions.
+- **Application menu:** the **Start** button opens sfwbar's `app_menu_system`
+  menu, built from `/usr/share/applications` (so newly installed and Flatpak
+  apps appear automatically). `fuzzel` is still available as a keyboard
+  launcher (`fuzzel`, or `fuzzel dmenu` for stdin).
 - **Applications:** `pcmanfm` (files, with GVFS/udisks2 automount),
   `gthumb` (images), `evince` (PDF), `mousepad` (text), `xarchiver`,
   `pavucontrol`, `nm-connection-editor`, `foot` (terminal),
@@ -648,10 +665,11 @@ machine. It is updated after workflow runs.
 | Weekly push to GHCR + traceable tags | **Passed** — tags `latest`, `main`, `sha-ff563ecb6e91280d01cf3bf0412c588468319837`; all resolve to `sha256:73dee69ab2a2756636a8d680c7941cef0f4516da12fa44e8f473d84ecb325ae9`. Anonymous pull works (public package). |
 | ISO El Torito BIOS metadata | **Passed** — `build-iso` run [40688027094](https://github.com/vinod2807/fedora-bootc-konica206/actions/runs/40688027094): `-b '/images/eltorito.img'`, `Boot record: El Torito, grub2-mbr, GPT` |
 | ISO boots under QEMU SeaBIOS to Linux userspace | **Passed** — same run; serial log reaches the Anaconda installer UI |
-| Full BIOS installation on real hardware | **Not tested** — physical PC required |
-| Graphical login (greetd → labwc → Waybar) on real hardware | **Not tested** — physical/QEMU desktop test required |
-| Real USB printing on bizhub 206 | **Not tested** — printer + licensed runtime data required |
-| Printer works with vendor assets installed | **Not tested** — requires the licensed data and paper |
+| Full BIOS installation on real hardware | **Passed** — installed on the i5-650 desktop (BIOS boot, NTFS partition preserved) |
+| Graphical login (greetd → labwc → sfwbar) on real hardware | **Passed** — graphical session in daily use |
+| Real USB printing on bizhub 206 | **Passed** — real A4 simplex job printed from the `konica206` queue (2026-10-28) |
+| Printer works with vendor assets installed | **Passed** — same job, licensed runtime data installed |
+| Duplex, A3 and other media sizes on real paper | **Not tested** — options are present and selectable, but only A4 simplex has been printed |
 
 Do not treat “ISO file exists” or “compilation succeeded” as proof of a working
 BIOS install or a working printer.

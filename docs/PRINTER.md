@@ -55,6 +55,9 @@ tests.
 These tests prove compilation and the offline job path. They **do not** prove
 that paper comes out.
 
+> **Verified on hardware:** a real A4 simplex job sent to the `konica206`
+> queue from the installed desktop printed correctly (2026-10-28).
+
 ## Queue
 
 The service listens on loopback only:
