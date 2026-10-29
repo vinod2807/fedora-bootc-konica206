@@ -172,6 +172,7 @@ RUN set -eux; \
         pipewire-pulseaudio \
         polkit \
         qt5-qtbase-gui \
+        qt5-qtwayland \
         sane-airscan \
         sfwbar \
         shared-mime-info \
