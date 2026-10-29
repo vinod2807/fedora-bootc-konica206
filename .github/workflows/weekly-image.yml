@@ -67,8 +67,8 @@ jobs:
             type=sha,format=long,prefix=sha-
             type=ref,event=branch
           labels: |
-            org.opencontainers.image.title=Fedora bootc 44 - Labwc + Konica bizhub 206
-            org.opencontainers.image.description=Fedora bootc 44 linux/amd64 with Labwc, sfwbar, Foot and the Konica Minolta bizhub 206 printer application
+            org.opencontainers.image.title=Fedora bootc - Labwc + Konica bizhub 206
+            org.opencontainers.image.description=Fedora bootc (base follows :latest) linux/amd64 with Labwc, sfwbar, Foot and the Konica Minolta bizhub 206 printer application
             org.vinod2807.konica.app-ref=${{ steps.refs.outputs.app }}
             org.vinod2807.konica.native-ref=${{ steps.refs.outputs.native }}
 
@@ -94,6 +94,10 @@ jobs:
           push: false
           tags: localhost/fedora-bootc-konica206:smoke
           labels: ${{ steps.meta.outputs.labels }}
+          # The base is a moving tag (:latest): always resolve it against the
+          # registry instead of reusing a cached resolution, so a Fedora major
+          # release is actually picked up.
+          pull: true
           build-args: |
             BUILD_EPOCH=${{ github.run_id }}
             KONICA_APP_REF=${{ steps.refs.outputs.app }}
@@ -120,6 +124,8 @@ jobs:
             grep -q "tuigreet --time --remember --cmd /usr/bin/labwc" /etc/greetd/config.toml
             test -f /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
             grep -q "intel_idle.max_cstate=1" /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
+            # GRUB menu must pause so an older deployment can be selected.
+            grep -qx "set timeout=10" /usr/lib/bootupd/grub2-static/grub-static-pre.cfg
             systemctl is-enabled greetd.service NetworkManager.service konica206-native.service konica206-queue.service
             systemd-analyze verify /usr/lib/systemd/system/konica206-native.service \
                                    /usr/lib/systemd/system/konica206-queue.service \
@@ -147,6 +153,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # See the smoke-test step above: the base tag must be re-resolved.
+          pull: true
           build-args: |
             BUILD_EPOCH=${{ github.run_id }}
             KONICA_APP_REF=${{ steps.refs.outputs.app }}

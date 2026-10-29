@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 #
-# Fedora bootc 44 image with:
+# Fedora bootc image with:
 #   - Labwc / Waybar / Foot Wayland desktop + greetd/tuigreet login
 #   - Konica Minolta bizhub 206 PAPPL printer application
 #   - konica-native (C11) device-stream encoder
@@ -15,9 +15,16 @@
 # weekly GitHub workflow resolves each branch to a commit SHA and passes the
 # SHAs as build args, so every published image is traceable while the next
 # weekly run still picks up new upstream commits.
+#
+# The base follows the moving :latest tag on purpose: each weekly build picks
+# up the current Fedora release, so a new Fedora major version lands a few days
+# after GA without touching this file. The trade-off is that a Fedora major
+# version jump is unattended; the bootloader keeps the previous deployment and
+# the GRUB menu waits, so a bad jump can be rolled back by hand. To stop
+# following the release train, pin both args (e.g. :45) and bump them by hand.
 
-ARG BASE_IMAGE=quay.io/fedora/fedora-bootc:44
-ARG BUILDER_IMAGE=quay.io/fedora/fedora:44
+ARG BASE_IMAGE=quay.io/fedora/fedora-bootc:latest
+ARG BUILDER_IMAGE=quay.io/fedora/fedora:latest
 
 ARG KONICA_APP_REPO=https://github.com/vinod2807/konica206-native-alpine.git
 ARG KONICA_NATIVE_REPO=https://github.com/vinod2807/konica-native-musl.git
@@ -105,8 +112,8 @@ ARG KONICA_NATIVE_REF=main
 # value per run.
 ARG BUILD_EPOCH=local
 
-LABEL org.opencontainers.image.title="Fedora bootc 44 - Labwc + Konica bizhub 206" \
-      org.opencontainers.image.description="Fedora bootc 44, Linux/amd64, Labwc/Waybar/Foot desktop, PAPPL printer application with the konica-native C11 encoder" \
+LABEL org.opencontainers.image.title="Fedora bootc - Labwc + Konica bizhub 206" \
+      org.opencontainers.image.description="Fedora bootc (base follows :latest), Linux/amd64, Labwc/Waybar/Foot desktop, PAPPL printer application with the konica-native C11 encoder" \
       org.opencontainers.image.source="https://github.com/vinod2807/fedora-bootc-konica206" \
       org.opencontainers.image.licenses="NOASSERTION" \
       org.vinod2807.konica.app-ref="${KONICA_APP_REF}" \
@@ -280,6 +287,17 @@ COPY scripts/ensure-queue             /usr/libexec/konica206/ensure-queue
 COPY scripts/preflight                /usr/libexec/konica206/preflight
 COPY scripts/ensure-epson-queue       /usr/libexec/epson-l3260/ensure-queue
 COPY ppd/konica206.ppd                /usr/share/ppd/konica206/konica206.ppd
+
+# Give the GRUB menu long enough to pick an older deployment by hand. The
+# timeout lives in bootupd's static config, which bootupd concatenates into
+# /boot/grub2/grub.cfg at install time. bootc runs bootupd only during
+# installation and never regenerates grub.cfg afterwards, so this covers fresh
+# installs; an already-installed machine keeps its own /boot/grub2/grub.cfg and
+# is patched in place (see "Boot menu" in README.md).
+RUN set -eux; \
+    cfg=/usr/lib/bootupd/grub2-static/grub-static-pre.cfg; \
+    sed -i -E 's/^set timeout=[0-9]+$/set timeout=10/' "$cfg"; \
+    grep -qx 'set timeout=10' "$cfg"
 
 RUN set -eux; \
     chmod 0755 /usr/bin/konica206-native /usr/bin/konica-send /usr/bin/konica-render /usr/bin/konica-native; \
