@@ -1,8 +1,13 @@
 #%PAM-1.0
 auth       substack     password-auth
-auth       optional     pam_gnome_keyring.so
 account    include      password-auth
 password   include      password-auth
-password   optional     pam_gnome_keyring.so use_authtok
+# pam_selinux.so close must be the first session rule.
+# pam_selinux.so open establishes the normal user domain for the compositor
+# and applications launched from the graphical session.
+session    required     pam_selinux.so close
+session    required     pam_loginuid.so
+session    required     pam_selinux.so open
+session    required     pam_namespace.so
+session    optional     pam_keyinit.so force revoke
 session    include      password-auth
-session    optional     pam_gnome_keyring.so auto_start
