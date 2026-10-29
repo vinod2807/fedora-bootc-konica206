@@ -284,6 +284,7 @@ COPY systemd/user/flatpak-update.service /usr/lib/systemd/user/flatpak-update.se
 COPY systemd/user/flatpak-update.timer   /usr/lib/systemd/user/flatpak-update.timer
 COPY udev/70-konica206.rules          /usr/lib/udev/rules.d/70-konica206.rules
 COPY greetd/config.toml               /etc/greetd/config.toml
+COPY greetd/pam.d/greetd              /etc/pam.d/greetd
 COPY desktop/labwc/autostart          /etc/xdg/labwc/autostart
 COPY desktop/labwc/environment        /etc/xdg/labwc/environment
 COPY desktop/labwc/menu.xml           /etc/xdg/labwc/menu.xml
@@ -315,6 +316,7 @@ RUN set -eux; \
     chmod 0755 /usr/libexec/konica206/install-vendor-data /usr/libexec/konica206/ensure-queue /usr/libexec/konica206/preflight; \
     chmod 0755 /usr/libexec/epson-l3260/ensure-queue; \
     chmod 0644 /etc/greetd/config.toml \
+        /etc/pam.d/greetd \
         /etc/modprobe.d/90-konica206-usblp.conf \
         /usr/lib/systemd/system/konica206-native.service \
         /usr/lib/systemd/system/konica206-queue.service \
