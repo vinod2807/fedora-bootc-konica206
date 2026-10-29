@@ -13,8 +13,8 @@
   },
   "custom/files": {
     "format": "Files",
-    "tooltip": "Open pcmanfm",
-    "on-click": "pcmanfm"
+    "tooltip": "Open Thunar",
+    "on-click": "thunar"
   },
   "wlr/workspaces": {
     "format": "{name}",
