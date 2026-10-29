@@ -245,6 +245,11 @@ COPY systemd/konica206-queue.service  /usr/lib/systemd/system/konica206-queue.se
 COPY systemd/epson-l3260-queue.service /usr/lib/systemd/system/epson-l3260-queue.service
 COPY systemd/bootc-upgrade.service    /usr/lib/systemd/system/bootc-upgrade.service
 COPY systemd/bootc-upgrade.timer      /usr/lib/systemd/system/bootc-upgrade.timer
+# Nightly window for the upstream auto-update timer (see README).
+COPY systemd/bootc-fetch-apply-updates.timer.d/10-schedule.conf \
+     /etc/systemd/system/bootc-fetch-apply-updates.timer.d/10-schedule.conf
+COPY systemd/bootc-fetch-apply-updates.service.d/10-timeout.conf \
+     /etc/systemd/system/bootc-fetch-apply-updates.service.d/10-timeout.conf
 COPY udev/70-konica206.rules          /usr/lib/udev/rules.d/70-konica206.rules
 COPY greetd/config.toml               /etc/greetd/config.toml
 COPY desktop/labwc/autostart          /etc/xdg/labwc/autostart
@@ -291,8 +296,11 @@ RUN set -eux; \
         https://dl.flathub.org/repo/flathub.flatpakrepo
 
 # Graphical login by default (greetd on VT1 -> tuigreet -> labwc).
-# The bootc-upgrade.timer is installed but NOT enabled: automatic updates are
-# opt-in (see README "Automatic updates").
+# Automatic updates: the base image enables bootc-fetch-apply-updates.timer
+# (bootc upgrade --apply, which reboots into the new image). A drop-in moves it
+# from "1 h after boot, then every 8 h" to a nightly 04:00 window, and the
+# service gets a 45 min timeout. bootc-upgrade.timer (stage-only, no reboot) is
+# still installed but NOT enabled; see README "Automatic updates".
 RUN set -eux; \
     systemctl set-default graphical.target; \
     systemctl enable NetworkManager.service; \
@@ -300,6 +308,7 @@ RUN set -eux; \
     systemctl enable konica206-native.service; \
     systemctl enable konica206-queue.service; \
     systemctl enable epson-l3260-queue.service; \
+    systemctl enable bootc-fetch-apply-updates.timer; \
     systemctl --global enable pipewire.service pipewire-pulse.service wireplumber.service
 
 # bootc's own image sanity checks (must be last: it inspects the filesystem).

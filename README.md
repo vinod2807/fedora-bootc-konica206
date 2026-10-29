@@ -45,7 +45,7 @@ The installed machine tracks that reference and updates with `bootc upgrade`.
 | `.github/workflows/build-iso.yml` | Manual-only Anaconda installer ISO build with El Torito and QEMU SeaBIOS checks |
 | `.github/iso/Containerfile` | Anaconda installer container consumed by image-builder `bootc-generic-iso` |
 | `.github/iso/iso.yaml` | GRUB/ISO label and kernel command line for the installer media |
-| `systemd/` | Printer app, queue creation (Konica + Epson), and opt-in bootc update units |
+| `systemd/` | Printer/queue units plus nightly auto-update and stage-only bootc units |
 | `udev/70-konica206.rules` | USB permissions for `132b:232b` (group `lp`, `uaccess`) |
 | `greetd/config.toml` | tuigreet → labwc login session |
 | `desktop/` | labwc autostart/environment and Waybar config/style |
@@ -279,9 +279,9 @@ sudo bootc upgrade                # downloads and stages the new deployment
 sudo systemctl reboot            # activates it
 ```
 
-`bootc upgrade` stages by default; it does **not** reboot. Check
-`bootc upgrade --help` on the installed version before using any optional
-flags; this repository does not rely on `--apply`.
+`bootc upgrade` stages by default; it does **not** reboot. The automatic nightly
+update (below) is the one that uses `--apply`; if you run the command yourself,
+check `bootc upgrade --help` on the installed version before passing flags.
 
 To change the tracked image (for example to a frozen SHA tag):
 
@@ -300,10 +300,46 @@ sudo systemctl reboot
 The previous deployment remains available in the bootloader. Roll back if a
 new image does not boot, the desktop does not start, or printing regresses.
 
-### Automatic updates (optional, off by default)
+### Automatic updates (nightly, on by default)
 
-The image ships `bootc-upgrade.service` and `bootc-upgrade.timer`, but the timer
-is **not enabled**. To opt in:
+The Fedora bootc base image enables `bootc-fetch-apply-updates.timer`, which runs
+`bootc upgrade --apply`: it pulls the new image, deploys it and **reboots into
+it**. This repository keeps that timer enabled but gives it a nightly window so
+the reboot does not land in the middle of the day:
+
+| Drop-in | Effect |
+|---|---|
+| `/etc/systemd/system/bootc-fetch-apply-updates.timer.d/10-schedule.conf` | `OnCalendar=*-*-* 04:00:00`, `RandomizedDelaySec=30m`, `Persistent=true` — replaces upstream's "1 h after boot, then every 8 h" |
+| `/etc/systemd/system/bootc-fetch-apply-updates.service.d/10-timeout.conf` | `Nice=10`, idle I/O class, `TimeoutStartSec=45min` |
+
+In practice:
+
+- a new image (the weekly Sunday 03:00 UTC build) is installed automatically and
+  the machine reboots itself, usually the following night;
+- **unsaved work is lost at that reboot** — that is why the window is 04:00;
+- if the machine is off at 04:00, `Persistent=true` runs the update at the next
+  boot instead of skipping it;
+- updates pull anonymously from GHCR, so the package must be public or the host
+  must be authenticated (see *Registry access* below).
+
+Check what happened:
+
+```bash
+systemctl list-timers bootc-fetch-apply-updates.timer
+bootc status
+journalctl -u bootc-fetch-apply-updates.service
+```
+
+Turn it off, or move the window:
+
+```bash
+sudo systemctl disable --now bootc-fetch-apply-updates.timer
+sudo systemctl edit bootc-fetch-apply-updates.timer   # e.g. OnCalendar=*-*-* 02:30:00
+```
+
+**Stage-only alternative (no automatic reboot).** `bootc-upgrade.service` and
+`bootc-upgrade.timer` are also installed, but the timer is **disabled**. Enable
+it if you prefer to stage the update and reboot yourself:
 
 ```bash
 sudo systemctl enable --now bootc-upgrade.timer
@@ -311,18 +347,8 @@ systemctl list-timers bootc-upgrade.timer
 journalctl -u bootc-upgrade.service
 ```
 
-The timer runs weekly with a random delay, stages the update, and logs to the
-journal. It never reboots. Reboot when convenient:
-
-```bash
-sudo bootc status
-sudo systemctl reboot
-```
-
-The trade-off: staging without rebooting is safe and predictable; the new
-image is inactive until you reboot. If you want a fully unattended update,
-enable the timer **and** schedule your own reboot window; this repository does
-not do that for you.
+The timer runs weekly with a random delay and never reboots; the new image stays
+inactive until you run `sudo systemctl reboot`.
 
 ### Registry access
 
