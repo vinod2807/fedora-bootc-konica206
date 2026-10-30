@@ -57,9 +57,9 @@ already exist (create it in the installer if needed):
 sudo smbpasswd -a vinod
 ```
 
-When prompted, enter the requested Samba password `mastermind` twice. This is
-separate from the Linux login password. If firewalld is enabled, allow Samba on
-the LAN zone:
+When prompted, choose a Samba password. Do not reuse or record a password from
+this repository; it is separate from the Linux login password. If firewalld is
+enabled, allow Samba on the LAN zone:
 
 ```bash
 sudo firewall-cmd --permanent --zone=public --add-service=samba
@@ -82,7 +82,7 @@ smbclient -L localhost -U vinod
 |---|---|
 | `Containerfile` | Multi-stage bootc image build (printer binaries built in a builder stage of the same Fedora release) |
 | `.github/workflows/weekly-image.yml` | Weekly (Sunday 03:00 UTC) + manual image build/publish; never builds an ISO |
-| `.github/workflows/build-iso.yml` | Manual-only Anaconda installer ISO build with El Torito and QEMU SeaBIOS checks |
+| `.github/workflows/build-iso.yml` | Manual or Fedora-major-release Anaconda installer ISO build with El Torito and QEMU SeaBIOS checks |
 | `.github/iso/Containerfile` | Anaconda installer container consumed by image-builder `bootc-generic-iso` |
 | `.github/iso/iso.yaml` | GRUB/ISO label and kernel command line for the installer media |
 | `systemd/` | Printer/queue units, the stage-only (never reboots) bootc update timer, and the daily Flatpak update timers (system + user) |
@@ -128,11 +128,13 @@ smbclient -L localhost -U vinod
   new upstream commit cannot be hidden by an old cache.
 - **Does not build an ISO.**
 
-### ISO (manual only)
+### ISO (manual, or once per Fedora major release)
 
 `.github/workflows/build-iso.yml`
 
-- Triggered **only** by `workflow_dispatch` (no schedule, no push)
+- Triggered manually by `workflow_dispatch`, or once for a Fedora major release
+  when a GitHub release named `fedora-<major>` is published. It is not triggered
+  by weekly image builds.
 - Input: `image_tag` (default `latest`)
 - Pulls the published image, resolves its **digest**, and bakes that digest into
   the installer so the ISO installs the exact tested image
@@ -155,6 +157,14 @@ smbclient -L localhost -U vinod
 - Uploads the ISO, checksums, El Torito metadata and QEMU serial log as a
   30-day artifact.
 - Never writes to a physical disk or flashes a USB device.
+
+To create the release ISO, first ensure the weekly image workflow has published
+and smoke-tested the new Fedora major-version image, then publish a GitHub
+release with a tag such as `fedora-46`. The release-triggered workflow pulls
+`:latest`, resolves its immutable digest for installation, and configures the
+installed system to continue tracking `:latest` for future `bootc upgrade`
+operations. Do not publish multiple releases with the same Fedora-major tag if
+you want exactly one automatic ISO for that release.
 
 ---
 
@@ -287,8 +297,8 @@ internet (it pulls the image, roughly 1 GiB compressed, from GHCR).
 ### BIOS installation notes
 
 - The target must be booted in legacy BIOS/CSM mode; then Anaconda writes a
-  BIOS/MBR-compatible boot path (GPT with a BIOS boot partition, as bootc
-  expects) rather than an EFI-only one.
+  legacy-BIOS boot path on a GPT disk with a BIOS Boot partition (as bootc
+  expects), rather than an EFI-only one.
 - The ISO itself is checked for El Torito BIOS boot metadata and booted under
   QEMU SeaBIOS in CI.
 - An ISO boot test is **not** a complete install test. A physical install and
@@ -310,16 +320,17 @@ internet (it pulls the image, roughly 1 GiB compressed, from GHCR).
 - **Graphical:** greetd starts on VT1, tuigreet asks for the user/password you
   created during installation, then launches `labwc`.
 - **Panel:** **sfwbar** autostarts (`/usr/share/sfwbar/sfwbar.config`), in
-  openbox/tint2 style: a **Start** button that opens a categorised application
+  openbox/tint2 style: an **Applications** button with a grid icon that opens a
+  categorised application
   menu generated from the installed `.desktop` files, terminal and files
   buttons, a window list (click = focus/minimise, middle-click = close,
   right-click = window menu), tray, network, volume, battery and clock.
   Window buttons and the window menu use the compositor's foreign-toplevel
   protocol, so they track labwc windows directly. Waybar is still installed as
   a fallback (`waybar &`).
-  The packaged sfwbar (1.0~beta16.1) has no `edge` setting: the bar's edge is
-  chosen by `window { -GtkWidget-direction: top; }` in the CSS section — change
-  it to `bottom` to move the panel. Sizing/layout notes that matter when
+  The packaged sfwbar (1.0~beta16.1) has no `edge` setting: the bar is placed
+  at the bottom by `window { -GtkWidget-direction: bottom; }` in the CSS
+  section. Sizing/layout notes that matter when
   editing `desktop/sfwbar/sfwbar.config`:
   - comments inside the `#CSS` section must use slash-star form; a `#` comment
     is an ID selector and makes GTK reject the whole stylesheet (the panel then
@@ -331,7 +342,7 @@ internet (it pulls the image, roughly 1 GiB compressed, from GHCR).
   Text editor, Archive manager, Document viewer, an **Office** submenu
   (LibreOffice Writer/Calc/Impress, ONLYOFFICE), a **Scanning** submenu, Volume,
   Network and Session actions (`/etc/xdg/labwc/menu.xml`).
-- **Application menu:** the **Start** button opens sfwbar's `app_menu_system`
+- **Application menu:** the **Applications** button opens sfwbar's `app_menu_system`
   menu, built from `/usr/share/applications` (so newly installed and Flatpak
   apps appear automatically). `fuzzel` is still available as a keyboard
   launcher (`fuzzel`, or `fuzzel dmenu` for stdin).

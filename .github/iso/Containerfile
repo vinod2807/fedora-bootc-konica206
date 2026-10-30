@@ -6,7 +6,10 @@
 #
 # SOURCE_IMAGE is pinned to a digest by the workflow; TARGET_IMAGE is the
 # rolling tag the installed system will track for `bootc upgrade`.
-ARG INSTALLER_BASE=quay.io/fedora/fedora-bootc:44
+# Keep the installer environment on the same rolling Fedora release policy as
+# the runtime and builder images. The workflow still installs the selected
+# published image by digest.
+ARG INSTALLER_BASE=quay.io/fedora/fedora-bootc:latest
 FROM ${INSTALLER_BASE}
 
 ARG SOURCE_IMAGE

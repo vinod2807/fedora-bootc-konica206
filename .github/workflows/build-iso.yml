@@ -1,7 +1,10 @@
 name: build-iso
 
-# Manual-only: build a one-time USB installer ISO for the published bootc image.
-# This workflow is deliberately NOT triggered by the weekly image build.
+# Build a one-time USB installer ISO for the published bootc image.
+# A Fedora-major release is represented by publishing a GitHub release named
+# fedora-<major>; that creates one ISO for that release. Manual builds remain
+# available for recovery or a deliberately selected image tag. This workflow
+# is deliberately NOT triggered by the weekly image build.
 #
 # The ISO uses the current image-builder "bootc-generic-iso" path with an
 # Anaconda installer payload. Anaconda supports both legacy BIOS and UEFI; the
@@ -16,6 +19,8 @@ on:
         required: true
         default: "latest"
         type: string
+  release:
+    types: [published]
 
 permissions:
   contents: read
@@ -32,6 +37,9 @@ env:
 jobs:
   iso:
     name: Build installer ISO and BIOS-boot-test it
+    # Only Fedora release markers trigger automatic ISO creation. This avoids
+    # treating unrelated repository releases as installer releases.
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'fedora-')
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     steps:
@@ -78,7 +86,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          image="${IMAGE_NAME}:${{ inputs.image_tag }}"
+          # Release-triggered builds always use the rolling image. The manual
+          # path can select a traceable tag, but the installed system continues
+          # to track :latest via TARGET_IMAGE in the installer container.
+          image="${IMAGE_NAME}:${{ github.event_name == 'release' && 'latest' || inputs.image_tag }}"
           sudo podman pull "$image"
           digest=$(sudo podman image inspect --format '{{.Digest}}' "$image")
           if [[ ! $digest =~ ^sha256:[0-9a-f]{64}$ ]]; then
