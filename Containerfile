@@ -237,7 +237,6 @@ RUN set -eux; \
     curl --retry 3 --retry-delay 5 -fsSL \
         -o /etc/yum.repos.d/brave-browser.repo \
         https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo; \
-    rpm --import https://brave-browser-rpm-release.s3.brave.com/brave-browser.asc; \
     dnf install -y --nogpgcheck \
         https://download.onlyoffice.com/repo/centos/main/noarch/onlyoffice-repo.noarch.rpm; \
     dnf install -y --refresh onlyoffice-desktopeditors; \
