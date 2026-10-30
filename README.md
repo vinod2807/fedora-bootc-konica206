@@ -9,6 +9,8 @@ A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
   [Fedora major version](#fedora-major-version-follows-latest))
 - **Labwc** Wayland compositor, **sfwbar** panel (openbox-style start menu and
   task buttons), **Foot** terminal
+- **Firefox** browser with FFmpeg/GStreamer multimedia codecs, including
+  RPM Fusion codec support
 - A desktop with **Thunar**, **gthumb**, **evince**, **mousepad**,
   **xarchiver**, **pavucontrol**, GVFS/udisks2, and a right-click menu
 - **LibreOffice** (full suite) and **ONLYOFFICE Desktop Editors** (official

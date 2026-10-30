@@ -132,6 +132,10 @@ LABEL org.opencontainers.image.title="Fedora bootc - Labwc + Konica bizhub 206" 
 RUN set -eux; \
     dnf -y upgrade --refresh; \
     dnf install -y --setopt=install_weak_deps=False \
+        https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
+        https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm; \
+    dnf -y upgrade --refresh; \
+    dnf install -y --setopt=install_weak_deps=False \
         7zip \
         adwaita-cursor-theme \
         adwaita-icon-theme \
@@ -141,10 +145,16 @@ RUN set -eux; \
         default-fonts \
         desktop-file-utils \
         evince \
+        firefox \
         flatpak \
+        gh \
         gh \
         foot \
         fuzzel \
+        ffmpeg \
+        gstreamer1-libav \
+        gstreamer1-plugins-bad-free \
+        gstreamer1-plugins-ugly \
         ghostscript \
         gnome-keyring \
         gnome-keyring-pam \
@@ -158,6 +168,7 @@ RUN set -eux; \
         gvfs-smb \
         hicolor-icon-theme \
         labwc \
+        libavcodec-freeworld \
         libreoffice \
         libusb1 \
         mate-polkit \
