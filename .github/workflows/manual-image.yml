@@ -3,8 +3,7 @@ name: manual-image
 # Builds and publishes the bootc image every Sunday at 03:00 UTC, and on
 # demand. This workflow NEVER builds an installation ISO.
 
-on:
-  workflow_dispatch:
+on: workflow_dispatch
 
 
 permissions:
