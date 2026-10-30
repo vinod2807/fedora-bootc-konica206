@@ -1,0 +1,4 @@
+[Environment]
+# The older Intel GPU in the target PC cannot provide the EGL configuration
+# expected by Stremio's Qt/Wayland frontend. Run Stremio through XWayland.
+QT_QPA_PLATFORM=xcb

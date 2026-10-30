@@ -310,6 +310,8 @@ COPY scripts/preflight                /usr/libexec/konica206/preflight
 COPY scripts/ensure-epson-queue       /usr/libexec/epson-l3260/ensure-queue
 COPY scripts/setup-samba              /usr/libexec/setup-samba
 COPY samba/smb.conf                   /etc/samba/smb.conf
+RUN install -d -m 0755 /etc/flatpak/overrides
+COPY flatpak/overrides/com.stremio.Stremio /etc/flatpak/overrides/com.stremio.Stremio
 COPY ppd/konica206.ppd                /usr/share/ppd/konica206/konica206.ppd
 
 # Give the GRUB menu long enough to pick an older deployment by hand. The
@@ -335,7 +337,8 @@ RUN set -eux; \
         /usr/lib/systemd/system/konica206-queue.service \
         /usr/lib/systemd/system/epson-l3260-queue.service \
         /usr/lib/systemd/system/samba-setup.service \
-        /etc/samba/smb.conf \
+         /etc/samba/smb.conf \
+        /etc/flatpak/overrides/com.stremio.Stremio \
         /usr/lib/systemd/system/bootc-upgrade.service \
         /usr/lib/systemd/system/bootc-upgrade.timer \
         /usr/lib/systemd/system/flatpak-update.service \
