@@ -141,6 +141,7 @@ RUN set -eux; \
         adwaita-icon-theme \
         cups \
         cups-filters \
+        curl \
         dbus-daemon \
         default-fonts \
         desktop-file-utils \
@@ -227,9 +228,14 @@ RUN set -eux; \
 # --refresh additionally expires any metadata that survived into a partial cache.
 RUN set -eux; \
     echo "resolving third-party apps (cache epoch: ${BUILD_EPOCH})"; \
+    curl --retry 3 --retry-delay 5 -fsSL \
+        -o /etc/yum.repos.d/brave-browser.repo \
+        https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo; \
+    rpm --import https://brave-browser-rpm-release.s3.brave.com/brave-browser.asc; \
     dnf install -y --nogpgcheck \
         https://download.onlyoffice.com/repo/centos/main/noarch/onlyoffice-repo.noarch.rpm; \
     dnf install -y --refresh onlyoffice-desktopeditors; \
+    dnf install -y brave-browser; \
     dnf install -y \
         https://github.com/cyanfish/naps2/releases/download/v8.6.0/naps2-8.6.0-linux-x64.rpm; \
     dnf install -y \
