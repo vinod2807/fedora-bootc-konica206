@@ -29,6 +29,8 @@ A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
   IPP Everywhere) created automatically at boot
 - The Intel i5 650 crash/freeze kernel arguments from
   [linux-pc-crash-fixes](https://github.com/vinod2807/linux-pc-crash-fixes)
+- Authenticated **Samba** sharing for the local home directory, `/srv/samba/shared`,
+  and all CUPS printers
 
 Published image:
 
@@ -38,6 +40,39 @@ ghcr.io/vinod2807/fedora-bootc-konica206:latest
 
 The installed machine tracks that reference and updates with `bootc upgrade`.
 **A new ISO is not needed for routine updates.**
+
+## LAN file and printer sharing
+
+Samba is enabled in the image with SMB2+ authentication. It shares:
+
+- `\\<machine-name>\vinod` — the `vinod` home directory
+- `\\<machine-name>\shared` — `/srv/samba/shared`
+- CUPS queues, including `konica206` and `EPSON_L3260`, as network printers
+
+Because bootc images must not contain reusable passwords, create the Samba
+credential once on the installed machine. The local Linux account `vinod` must
+already exist (create it in the installer if needed):
+
+```bash
+sudo smbpasswd -a vinod
+```
+
+When prompted, enter the requested Samba password `mastermind` twice. This is
+separate from the Linux login password. If firewalld is enabled, allow Samba on
+the LAN zone:
+
+```bash
+sudo firewall-cmd --permanent --zone=public --add-service=samba
+sudo firewall-cmd --reload
+```
+
+From another computer, use `smb://<machine-name>/` (or the server IP) and log
+in as `vinod`. Verify the services with:
+
+```bash
+systemctl status smb nmb samba-setup
+smbclient -L localhost -U vinod
+```
 
 ---
 

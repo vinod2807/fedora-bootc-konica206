@@ -1,0 +1,14 @@
+#!/bin/bash
+set -euo pipefail
+
+# Runtime-only Samba/CUPS preparation.  Credentials are deliberately not baked
+# into the bootc image; add the local user with `smbpasswd` after installation.
+install -d -m 2770 -o root -g users /srv/samba/shared
+install -d -m 1777 /var/spool/samba
+
+# CUPS must advertise its queues to Samba, but it need not expose its admin UI.
+if command -v cupsctl >/dev/null 2>&1; then
+    cupsctl --share-printers || true
+fi
+
+exit 0

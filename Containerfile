@@ -4,6 +4,7 @@
 #   - Labwc / Waybar / Foot Wayland desktop + greetd/tuigreet login
 #   - Konica Minolta bizhub 206 PAPPL printer application
 #   - konica-native (C11) device-stream encoder
+#   - authenticated Samba folder and CUPS printer sharing
 #
 # Vendor-owned runtime data (halftone screen + ICC profiles) is deliberately
 # NOT copied into this image. See docs/PRINTER.md and scripts/install-vendor-data.
@@ -175,6 +176,8 @@ RUN set -eux; \
         qt5-qtbase-gui \
         qt5-qtwayland \
         sane-airscan \
+        samba \
+        samba-client \
         sfwbar \
         shared-mime-info \
         simple-scan \
@@ -282,6 +285,7 @@ COPY modprobe.d/90-konica206-usblp.conf      /etc/modprobe.d/90-konica206-usblp.
 COPY systemd/konica206-native.service /usr/lib/systemd/system/konica206-native.service
 COPY systemd/konica206-queue.service  /usr/lib/systemd/system/konica206-queue.service
 COPY systemd/epson-l3260-queue.service /usr/lib/systemd/system/epson-l3260-queue.service
+COPY systemd/samba-setup.service    /usr/lib/systemd/system/samba-setup.service
 COPY systemd/bootc-upgrade.service    /usr/lib/systemd/system/bootc-upgrade.service
 COPY systemd/bootc-upgrade.timer      /usr/lib/systemd/system/bootc-upgrade.timer
 COPY systemd/flatpak-update.service   /usr/lib/systemd/system/flatpak-update.service
@@ -304,6 +308,8 @@ COPY scripts/install-vendor-data      /usr/libexec/konica206/install-vendor-data
 COPY scripts/ensure-queue             /usr/libexec/konica206/ensure-queue
 COPY scripts/preflight                /usr/libexec/konica206/preflight
 COPY scripts/ensure-epson-queue       /usr/libexec/epson-l3260/ensure-queue
+COPY scripts/setup-samba              /usr/libexec/setup-samba
+COPY samba/smb.conf                   /etc/samba/smb.conf
 COPY ppd/konica206.ppd                /usr/share/ppd/konica206/konica206.ppd
 
 # Give the GRUB menu long enough to pick an older deployment by hand. The
@@ -320,13 +326,16 @@ RUN set -eux; \
 RUN set -eux; \
     chmod 0755 /usr/bin/konica206-native /usr/bin/konica-send /usr/bin/konica-render /usr/bin/konica-native; \
     chmod 0755 /usr/libexec/konica206/install-vendor-data /usr/libexec/konica206/ensure-queue /usr/libexec/konica206/preflight; \
-    chmod 0755 /usr/libexec/epson-l3260/ensure-queue; \
+     chmod 0755 /usr/libexec/epson-l3260/ensure-queue; \
+     chmod 0755 /usr/libexec/setup-samba; \
     chmod 0644 /etc/greetd/config.toml \
         /etc/pam.d/greetd \
         /etc/modprobe.d/90-konica206-usblp.conf \
         /usr/lib/systemd/system/konica206-native.service \
         /usr/lib/systemd/system/konica206-queue.service \
         /usr/lib/systemd/system/epson-l3260-queue.service \
+        /usr/lib/systemd/system/samba-setup.service \
+        /etc/samba/smb.conf \
         /usr/lib/systemd/system/bootc-upgrade.service \
         /usr/lib/systemd/system/bootc-upgrade.timer \
         /usr/lib/systemd/system/flatpak-update.service \
@@ -371,6 +380,8 @@ RUN set -eux; \
     systemctl enable konica206-native.service; \
     systemctl enable konica206-queue.service; \
     systemctl enable epson-l3260-queue.service; \
+    systemctl enable samba-setup.service; \
+    systemctl enable smb.service nmb.service; \
     if [ -e /usr/lib/systemd/system/ecbd.service ]; then \
         systemctl enable ecbd.service; \
     fi; \

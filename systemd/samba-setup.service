@@ -1,0 +1,13 @@
+[Unit]
+Description=Prepare Samba shared folders and CUPS printer sharing
+After=cups.service cups.socket
+Wants=cups.service
+Before=smb.service nmb.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/setup-samba
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
