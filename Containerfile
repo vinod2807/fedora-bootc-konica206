@@ -132,10 +132,8 @@ LABEL org.opencontainers.image.title="Fedora bootc - Labwc + Konica bizhub 206" 
 RUN set -eux; \
     dnf -y upgrade --refresh; \
     dnf install -y --setopt=install_weak_deps=False \
-        dnf-plugins-core \
         https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
         https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm; \
-    dnf copr enable -y leo/localsend; \
     dnf -y upgrade --refresh; \
     dnf install -y --setopt=install_weak_deps=False \
         7zip \
@@ -173,7 +171,6 @@ RUN set -eux; \
         hicolor-icon-theme \
         labwc \
         libavcodec-freeworld \
-        localsend \
         libreoffice \
         libusb1 \
         mate-polkit \

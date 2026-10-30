@@ -132,7 +132,7 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm --entrypoint /bin/bash localhost/fedora-bootc-konica206:smoke -euo pipefail -c '
-             rpm -q labwc waybar foot firefox brave-browser ffmpeg libavcodec-freeworld gstreamer1-libav gstreamer1-plugins-ugly wine winetricks wine-mono gpodder retroarch localsend vlc greetd tuigreet NetworkManager pappl cups ghostscript Thunar qt5-qtwayland gnome-keyring-pam >/dev/null
+             rpm -q labwc waybar foot firefox brave-browser ffmpeg libavcodec-freeworld gstreamer1-libav gstreamer1-plugins-ugly wine winetricks wine-mono gpodder retroarch vlc greetd tuigreet NetworkManager pappl cups ghostscript Thunar qt5-qtwayland gnome-keyring-pam >/dev/null
             ! rpm -q pcmanfm >/dev/null 2>&1
             test -f /usr/lib64/qt5/plugins/platforms/libqwayland-generic.so
             test -f /usr/lib64/security/pam_gnome_keyring.so

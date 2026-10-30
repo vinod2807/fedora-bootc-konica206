@@ -13,7 +13,7 @@ A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
   RPM Fusion codec support
 - **Brave** browser installed from Brave's official RPM repository
 - **Wine** with Winetricks and Wine Mono, plus native Fedora packages for
-  **gPodder**, **RetroArch**, **LocalSend** (COPR), and **VLC**
+  **gPodder**, **RetroArch**, and **VLC**
 - A desktop with **Thunar**, **gthumb**, **evince**, **mousepad**,
   **xarchiver**, **pavucontrol**, GVFS/udisks2, and a right-click menu
 - **LibreOffice** (full suite) and **ONLYOFFICE Desktop Editors** (official
