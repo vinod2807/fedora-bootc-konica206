@@ -172,8 +172,9 @@ RUN set -eux; \
         Thunar \
         pipewire \
         pipewire-pulseaudio \
-        polkit \
-        qt5-qtbase-gui \
+         polkit \
+         policycoreutils-python-utils \
+         qt5-qtbase-gui \
         qt5-qtwayland \
         sane-airscan \
         samba \

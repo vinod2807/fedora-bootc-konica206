@@ -6,6 +6,16 @@ set -euo pipefail
 install -d -m 2770 -o root -g users /srv/samba/shared
 install -d -m 1777 /var/spool/samba
 
+# Permit Samba to serve home directories and label the extra share for SELinux.
+if command -v setsebool >/dev/null 2>&1; then
+    setsebool -P samba_enable_home_dirs on
+fi
+if command -v semanage >/dev/null 2>&1; then
+    semanage fcontext -a -t samba_share_t '/srv/samba(/.*)?' 2>/dev/null || \
+        semanage fcontext -m -t samba_share_t '/srv/samba(/.*)?'
+    restorecon -RF /srv/samba
+fi
+
 # CUPS must advertise its queues to Samba, but it need not expose its admin UI.
 if command -v cupsctl >/dev/null 2>&1; then
     cupsctl --share-printers || true
