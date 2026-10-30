@@ -190,9 +190,9 @@ jobs:
             ZAPFAST_VERSION=${{ steps.zapfast.outputs.version }}
           cache-from: type=gha,scope=bootc-image
           provenance: mode=max
-           # This image contains a large desktop/runtime package set; the
-           # default full SBOM exceeds GitHub's 80 MiB build-record limit.
-           sbom: false
+          # This image contains a large desktop/runtime package set; the
+          # default full SBOM exceeds GitHub's 80 MiB build-record limit.
+          sbom: false
 
       - name: Report image references
         shell: bash
