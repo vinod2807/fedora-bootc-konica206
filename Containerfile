@@ -132,8 +132,10 @@ LABEL org.opencontainers.image.title="Fedora bootc - Labwc + Konica bizhub 206" 
 RUN set -eux; \
     dnf -y upgrade --refresh; \
     dnf install -y --setopt=install_weak_deps=False \
+        dnf-plugins-core \
         https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
         https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm; \
+    dnf copr enable -y leo/localsend; \
     dnf -y upgrade --refresh; \
     dnf install -y --setopt=install_weak_deps=False \
         7zip \
@@ -148,6 +150,7 @@ RUN set -eux; \
         evince \
         firefox \
         flatpak \
+        gpodder \
         gh \
         gh \
         foot \
@@ -170,6 +173,7 @@ RUN set -eux; \
         hicolor-icon-theme \
         labwc \
         libavcodec-freeworld \
+        localsend \
         libreoffice \
         libusb1 \
         mate-polkit \
@@ -188,6 +192,7 @@ RUN set -eux; \
          policycoreutils-python-utils \
          qt5-qtbase-gui \
         qt5-qtwayland \
+        retroarch \
         sane-airscan \
         samba \
         samba-client \
@@ -201,6 +206,7 @@ RUN set -eux; \
         udisks2 \
         unzip \
         usbutils \
+        vlc \
         waybar \
         wl-clipboard \
         wpa_supplicant \
@@ -211,6 +217,9 @@ RUN set -eux; \
         xdg-user-dirs \
         xdg-utils \
         xorg-x11-server-Xwayland \
+        wine \
+        wine-mono \
+        winetricks \
         zip \
     && dnf clean all
 
