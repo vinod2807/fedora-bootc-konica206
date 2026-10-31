@@ -324,6 +324,7 @@ COPY greetd/pam.d/greetd              /etc/pam.d/greetd
 COPY desktop/labwc/autostart          /etc/xdg/labwc/autostart
 COPY desktop/labwc/environment        /etc/xdg/labwc/environment
 COPY desktop/labwc/menu.xml           /etc/xdg/labwc/menu.xml
+COPY desktop/labwc/rc.xml             /etc/xdg/labwc/rc.xml
 COPY desktop/applications/konica206-reboot.desktop   /usr/share/applications/konica206-reboot.desktop
 COPY desktop/applications/konica206-poweroff.desktop /usr/share/applications/konica206-poweroff.desktop
 COPY desktop/waybar/config            /etc/xdg/waybar/config
@@ -378,6 +379,7 @@ RUN set -eux; \
         /usr/share/applications/konica206-poweroff.desktop \
         /usr/share/ppd/konica206/konica206.ppd; \
     chmod 0755 /etc/xdg/labwc/autostart; \
+    chmod 0644 /etc/xdg/labwc/rc.xml; \
     ln -sf /usr/libexec/konica206/install-vendor-data /usr/bin/konica206-install-vendor-data; \
     ln -sf /usr/libexec/konica206/preflight /usr/bin/konica206-preflight; \
     install -d -m 0755 /usr/share/konica206
