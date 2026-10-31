@@ -206,6 +206,7 @@ RUN set -eux; \
         unzip \
         usbutils \
         vlc \
+        mpv \
         waybar \
         weechat \
         wl-clipboard \
@@ -327,6 +328,7 @@ COPY desktop/labwc/menu.xml           /etc/xdg/labwc/menu.xml
 COPY desktop/labwc/rc.xml             /etc/xdg/labwc/rc.xml
 COPY desktop/applications/konica206-reboot.desktop   /usr/share/applications/konica206-reboot.desktop
 COPY desktop/applications/konica206-poweroff.desktop /usr/share/applications/konica206-poweroff.desktop
+COPY desktop/applications/mpv.desktop                /usr/share/applications/mpv.desktop
 COPY desktop/waybar/config            /etc/xdg/waybar/config
 COPY desktop/waybar/style.css         /etc/xdg/waybar/style.css
 # sfwbar reads its system-wide default from the XDG *data* dir, not /etc/xdg.
@@ -377,6 +379,7 @@ RUN set -eux; \
         /usr/share/sfwbar/sfwbar.config \
         /usr/share/applications/konica206-reboot.desktop \
         /usr/share/applications/konica206-poweroff.desktop \
+        /usr/share/applications/mpv.desktop \
         /usr/share/ppd/konica206/konica206.ppd; \
     chmod 0755 /etc/xdg/labwc/autostart; \
     chmod 0644 /etc/xdg/labwc/rc.xml; \
