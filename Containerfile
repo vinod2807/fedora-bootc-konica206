@@ -154,6 +154,7 @@ RUN set -eux; \
         foot \
         fuzzel \
         ffmpeg \
+        fastfetch \
         gstreamer1-libav \
         gstreamer1-plugins-bad-free \
         gstreamer1-plugins-ugly \
@@ -200,11 +201,13 @@ RUN set -eux; \
         sudo \
         swaybg \
         tuigreet \
+        transmission \
         udisks2 \
         unzip \
         usbutils \
         vlc \
         waybar \
+        weechat \
         wl-clipboard \
         wpa_supplicant \
         xarchiver \
