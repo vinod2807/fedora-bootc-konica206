@@ -1,11 +1,12 @@
 name: weekly-image
 
-# Builds and publishes the bootc image every Sunday at 03:00 UTC, and on
+# Builds and publishes the bootc image every Sunday at 03:00 IST (Saturday 21:30 UTC), and on
 # demand. This workflow NEVER builds an installation ISO.
 
 on:
   schedule:
-    - cron: "0 3 * * 0"
+    # 03:00 IST = 21:30 UTC (previous day)
+    - cron: "30 21 * * 6"
   workflow_dispatch:
 
 permissions:
