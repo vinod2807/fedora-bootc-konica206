@@ -143,8 +143,14 @@
       <action name="ToggleMaximizeFull"/>
     </keybind>
     <!-- Fullscreen -->
-    <keybind key="W-f">
+    <keybind key="W-S-f">
       <action name="ToggleFullscreen"/>
+    </keybind>
+    <!-- Firefox -->
+    <keybind key="W-f">
+      <action name="Execute">
+        <command>firefox</command>
+      </action>
     </keybind>
     <!-- Reload config -->
     <keybind key="W-S-r">
