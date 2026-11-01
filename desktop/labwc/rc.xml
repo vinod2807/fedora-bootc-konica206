@@ -170,6 +170,45 @@
         <command>grim - | wl-copy</command>
       </action>
     </keybind>
+    <!-- Screen lock -->
+    <keybind key="W-l">
+      <action name="Execute">
+        <command>waylock</command>
+      </action>
+    </keybind>
+    <!-- Brightness -->
+    <keybind key="XF86MonBrightnessUp">
+      <action name="Execute">
+        <command>sh -c 'brightnessctl set 5%+ | wob'</command>
+      </action>
+    </keybind>
+    <keybind key="XF86MonBrightnessDown">
+      <action name="Execute">
+        <command>sh -c 'brightnessctl set 5%- | wob'</command>
+      </action>
+    </keybind>
+    <!-- Volume -->
+    <keybind key="XF86AudioRaiseVolume">
+      <action name="Execute">
+        <command>sh -c 'wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ | wob'</command>
+      </action>
+    </keybind>
+    <keybind key="XF86AudioLowerVolume">
+      <action name="Execute">
+        <command>sh -c 'wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- | wob'</command>
+      </action>
+    </keybind>
+    <keybind key="XF86AudioMute">
+      <action name="Execute">
+        <command>wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle</command>
+      </action>
+    </keybind>
+    <!-- Power menu -->
+    <keybind key="W-S-x">
+      <action name="Execute">
+        <command>fuzzel --prompt "Power: " -d -w 20 -l 4 -p "lock\nlogout\nreboot\nshutdown" | sh -c 'case "$(cat)" in lock) waylock;; logout) labwc --exit;; reboot) systemctl reboot;; shutdown) systemctl poweroff;; esac'</command>
+      </action>
+    </keybind>
   </keyboard>
   <mouse>
     <dragThreshold>8</dragThreshold>
@@ -197,6 +236,19 @@
       </mousebind>
       <mousebind button="Left" action="DoubleClick">
         <action name="ToggleMaximize"/>
+      </mousebind>
+      <!-- Middle-click titlebar: lower window -->
+      <mousebind button="Middle" action="Press">
+        <action name="Lower"/>
+        <action name="FocusToBottom"/>
+        <action name="Unfocus"/>
+      </mousebind>
+      <!-- Scroll on titlebar: shade/unshade -->
+      <mousebind button="Up" action="Click">
+        <action name="Shade"/>
+      </mousebind>
+      <mousebind button="Down" action="Click">
+        <action name="Unshade"/>
       </mousebind>
     </context>
     <context name="Top">

@@ -203,13 +203,16 @@ RUN set -eux; \
         tuigreet \
         transmission \
         udisks2 \
+        udiskie \
         unzip \
         usbutils \
         vlc \
         mpv \
         waybar \
+        wdisplays \
         weechat \
         wl-clipboard \
+        wob \
         wpa_supplicant \
         xarchiver \
         xdg-desktop-portal \
@@ -222,6 +225,14 @@ RUN set -eux; \
         wine-mono \
         winetricks \
         zip \
+        mako \
+        waylock \
+        swayidle \
+        brightnessctl \
+        plank \
+        blueman \
+        lxappearance \
+        mate-control-center \
     && dnf clean all
 
 # Third-party desktop applications, from their vendor repository / official

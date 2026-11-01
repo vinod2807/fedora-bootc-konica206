@@ -5,9 +5,34 @@
 # Waybar stays installed as a fallback; run "waybar &" by hand to use it.
 sfwbar &
 
+# Dock: plank — macOS-style app launcher with running apps
+if command -v plank >/dev/null 2>&1; then
+    plank &
+fi
+
 # Solid background (no wallpaper asset shipped). Optional; harmless if absent.
 if command -v swaybg >/dev/null 2>&1; then
     swaybg -c '#1e1e2e' &
+fi
+
+# Notifications
+if command -v mako >/dev/null 2>&1; then
+    mako &
+fi
+
+# Clipboard history (cliphist not in repos; using wl-clipboard only for now)
+# Auto-mount removable media
+if command -v udiskie >/dev/null 2>&1; then
+    udiskie -s &
+fi
+
+# Idle management: dim at 5 min, lock at 10 min, suspend at 15 min
+if command -v swayidle >/dev/null 2>&1 && command -v waylock >/dev/null 2>&1; then
+    swayidle -w \
+        timeout 300 'brightnessctl set 20%' \
+        timeout 600 'waylock -fork-on-lock' \
+        timeout 900 'systemctl suspend' \
+        before-sleep 'waylock -fork-on-lock' &
 fi
 
 # Make WAYLAND_DISPLAY / XDG_CURRENT_DESKTOP visible to D-Bus activated
@@ -38,4 +63,9 @@ fi
 # Create/refresh ~/Desktop, ~/Documents, ~/Downloads, ... from the locale.
 if command -v xdg-user-dirs-update >/dev/null 2>&1; then
     xdg-user-dirs-update || true
+fi
+
+# Enable Thunar desktop icons (run after xdg-user-dirs-update)
+if command -v thunar >/dev/null 2>&1; then
+    thunar --daemon &
 fi
