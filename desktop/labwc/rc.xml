@@ -19,7 +19,7 @@
     <primaryMonitor>Mouse</primaryMonitor>
   </placement>
   <theme>
-    <name>Adwaita</name>
+    <name>Default</name>
     <titleLayout>NLIMC</titleLayout>
     <keepBorder>yes</keepBorder>
     <animateIconify>yes</animateIconify>
@@ -81,7 +81,6 @@
     <!-- Switch windows -->
     <keybind key="W-Tab">
       <action name="NextWindow">
-        <dialog>icons</dialog>
         <finalactions>
           <action name="Focus"/>
           <action name="Raise"/>
@@ -91,7 +90,6 @@
     </keybind>
     <keybind key="W-S-Tab">
       <action name="PreviousWindow">
-        <dialog>icons</dialog>
         <finalactions>
           <action name="Focus"/>
           <action name="Raise"/>
@@ -101,29 +99,29 @@
     </keybind>
     <!-- Move window to workspace -->
     <keybind key="W-S-Left">
-      <action name="SendToDesktopLeft"><wrap>yes</wrap></action>
+      <action name="SendToDesktop"><to>left</to><wrap>yes</wrap></action>
     </keybind>
     <keybind key="W-S-Right">
-      <action name="SendToDesktopRight"><wrap>yes</wrap></action>
+      <action name="SendToDesktop"><to>right</to><wrap>yes</wrap></action>
     </keybind>
     <keybind key="W-S-Up">
-      <action name="SendToDesktopUp"><wrap>yes</wrap></action>
+      <action name="SendToDesktop"><to>up</to><wrap>yes</wrap></action>
     </keybind>
     <keybind key="W-S-Down">
-      <action name="SendToDesktopDown"><wrap>yes</wrap></action>
+      <action name="SendToDesktop"><to>down</to><wrap>yes</wrap></action>
     </keybind>
     <!-- Switch workspace -->
     <keybind key="W-Left">
-      <action name="DesktopLeft"><wrap>yes</wrap></action>
+      <action name="Desktop"><to>left</to><wrap>yes</wrap></action>
     </keybind>
     <keybind key="W-Right">
-      <action name="DesktopRight"><wrap>yes</wrap></action>
+      <action name="Desktop"><to>right</to><wrap>yes</wrap></action>
     </keybind>
     <keybind key="W-Up">
-      <action name="DesktopUp"><wrap>yes</wrap></action>
+      <action name="Desktop"><to>up</to><wrap>yes</wrap></action>
     </keybind>
     <keybind key="W-Down">
-      <action name="DesktopDown"><wrap>yes</wrap></action>
+      <action name="Desktop"><to>down</to><wrap>yes</wrap></action>
     </keybind>
     <!-- Move/resize window with keyboard -->
     <keybind key="W-A-Left">
@@ -140,7 +138,7 @@
     </keybind>
     <!-- Maximize -->
     <keybind key="W-m">
-      <action name="ToggleMaximizeFull"/>
+      <action name="ToggleMaximize"/>
     </keybind>
     <!-- Fullscreen -->
     <keybind key="W-S-f">
@@ -188,23 +186,67 @@
         <action name="Resize"/>
       </mousebind>
     </context>
+    <context name="Titlebar">
+      <mousebind button="Left" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+      </mousebind>
+      <mousebind button="Left" action="Drag">
+        <action name="Move"/>
+      </mousebind>
+      <mousebind button="Left" action="DoubleClick">
+        <action name="ToggleMaximize"/>
+      </mousebind>
+    </context>
+    <context name="Top">
+      <mousebind button="Left" action="Drag"><action name="Resize"><edge>top</edge></action></mousebind>
+    </context>
+    <context name="Bottom">
+      <mousebind button="Left" action="Drag"><action name="Resize"><edge>bottom</edge></action></mousebind>
+    </context>
+    <context name="Left">
+      <mousebind button="Left" action="Drag"><action name="Resize"><edge>left</edge></action></mousebind>
+    </context>
+    <context name="Right">
+      <mousebind button="Left" action="Drag"><action name="Resize"><edge>right</edge></action></mousebind>
+    </context>
+    <context name="TLCorner">
+      <mousebind button="Left" action="Drag"><action name="Resize"><edge>top</edge></action></mousebind>
+    </context>
+    <context name="TRCorner">
+      <mousebind button="Left" action="Drag"><action name="Resize"><edge>top</edge></action></mousebind>
+    </context>
+    <context name="BLCorner">
+      <mousebind button="Left" action="Drag"><action name="Resize"><edge>bottom</edge></action></mousebind>
+    </context>
+    <context name="BRCorner">
+      <mousebind button="Left" action="Drag"><action name="Resize"><edge>bottom</edge></action></mousebind>
+    </context>
+    <!-- Titlebar button contexts -->
+    <context name="Close">
+      <mousebind button="Left" action="Press"><action name="Focus"/><action name="Raise"/></mousebind>
+      <mousebind button="Left" action="Click"><action name="Close"/></mousebind>
+    </context>
+    <context name="Iconify">
+      <mousebind button="Left" action="Press"><action name="Focus"/><action name="Raise"/></mousebind>
+      <mousebind button="Left" action="Click"><action name="Iconify"/></mousebind>
+    </context>
+    <context name="Maximize">
+      <mousebind button="Left" action="Press"><action name="Focus"/><action name="Raise"/></mousebind>
+      <mousebind button="Left" action="Click"><action name="ToggleMaximize"/></mousebind>
+    </context>
+    <context name="Menu">
+      <mousebind button="Left" action="Press"><action name="Focus"/><action name="Raise"/></mousebind>
+      <mousebind button="Left" action="Click"><action name="ShowMenu"><menu>client-menu</menu></action></mousebind>
+    </context>
   </mouse>
   <margins>
-    <top>0</top>
-    <bottom>0</bottom>
-    <left>0</left>
-    <right>0</right>
+    <top>0</top><bottom>0</bottom><left>0</left><right>0</right>
   </margins>
   <dock>
-    <position>TopLeft</position>
-    <floatingX>0</floatingX>
-    <floatingY>0</floatingY>
-    <noStrut>no</noStrut>
-    <stacking>Above</stacking>
-    <direction>Vertical</direction>
-    <autoHide>no</autoHide>
-    <hideDelay>300</hideDelay>
-    <showDelay>300</showDelay>
+    <position>TopLeft</position><floatingX>0</floatingX><floatingY>0</floatingY>
+    <noStrut>no</noStrut><stacking>Above</stacking><direction>Vertical</direction>
+    <autoHide>no</autoHide><hideDelay>300</hideDelay><showDelay>300</showDelay>
     <moveButton>Middle</moveButton>
   </dock>
 </openbox_config>
