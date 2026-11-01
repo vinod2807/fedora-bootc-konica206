@@ -136,12 +136,10 @@ RUN set -eux; \
         https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm; \
     dnf -y upgrade --refresh; \
     dnf install -y --setopt=install_weak_deps=False \
-        7zip \
         adwaita-cursor-theme \
         adwaita-icon-theme \
         cups \
         cups-filters \
-        curl \
         dbus-daemon \
         default-fonts \
         desktop-file-utils \
@@ -173,12 +171,10 @@ RUN set -eux; \
         labwc \
         libavcodec-freeworld \
         libreoffice \
-        libusb1 \
         mate-polkit \
         mesa-dri-drivers \
         mesa-libEGL \
         mousepad \
-        NetworkManager \
         NetworkManager-wifi \
         nm-connection-editor \
         pappl \
@@ -186,25 +182,20 @@ RUN set -eux; \
         Thunar \
         pipewire \
         pipewire-pulseaudio \
-         polkit \
-         policycoreutils-python-utils \
-         qt5-qtbase-gui \
+        policycoreutils-python-utils \
+        qt5-qtbase-gui \
         qt5-qtwayland \
         retroarch \
         sane-airscan \
         samba \
         samba-client \
         sfwbar \
-        shared-mime-info \
         simple-scan \
         slurp \
-        sudo \
         swaybg \
         tuigreet \
         transmission \
-        udisks2 \
         udiskie \
-        unzip \
         usbutils \
         vlc \
         mpv \
