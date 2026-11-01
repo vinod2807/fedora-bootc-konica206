@@ -229,8 +229,8 @@ RUN set -eux; \
         qt6ct \
         flatseal \
         network-manager-applet \
-        network-manager-openconnect \
-        network-manager-openvpn \
+        NetworkManager-openconnect \
+        NetworkManager-openvpn \
         gnome-font-viewer \
         gparted \
         thunderbird \
