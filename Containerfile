@@ -247,6 +247,13 @@ RUN set -eux; \
         kvantum \
         qt5ct \
         qt6ct \
+        flatseal \
+        gnome-online-accounts \
+        network-manager-openconnect-gnome \
+        network-manager-openvpn-gnome \
+        gnome-font-viewer \
+        gparted \
+        thunderbird \
     && dnf clean all
 
 # Third-party desktop applications, from their vendor repository / official

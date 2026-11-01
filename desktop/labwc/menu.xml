@@ -133,6 +133,25 @@
         <action name="Execute" command="wl-clipboard-history" />
       </item>
       <separator />
+      <item label="Print Test Page">
+        <action name="Execute" command="lp -d konica206 /usr/share/cups/data/testprint" />
+      </item>
+      <item label="Test Scanner">
+        <action name="Execute" command="simple-scan" />
+      </item>
+      <item label="Flatpak Permissions">
+        <action name="Execute" command="flatseal" />
+      </item>
+      <item label="Online Accounts">
+        <action name="Execute" command="gnome-online-accounts" />
+      </item>
+      <item label="Partition Manager">
+        <action name="Execute" command="gparted" />
+      </item>
+      <item label="Font Viewer">
+        <action name="Execute" command="gnome-font-viewer" />
+      </item>
+      <separator />
       <item label="Reconfigure labwc">
         <action name="Reconfigure" />
       </item>

@@ -151,6 +151,18 @@
         <command>firefox</command>
       </action>
     </keybind>
+    <!-- Thunderbird -->
+    <keybind key="W-t">
+      <action name="Execute">
+        <command>thunderbird</command>
+      </action>
+    </keybind>
+    <!-- Flatpak Permissions -->
+    <keybind key="W-S-p">
+      <action name="Execute">
+        <command>flatseal</command>
+      </action>
+    </keybind>
     <!-- Reload config -->
     <keybind key="W-S-r">
       <action name="Reconfigure"/>
