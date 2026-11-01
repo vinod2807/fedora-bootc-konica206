@@ -226,6 +226,21 @@
         <action name="Resize"/>
       </mousebind>
     </context>
+    <!-- Click to focus: focus window when clicking anywhere in client area -->
+    <context name="Client">
+      <mousebind button="Left" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+      </mousebind>
+      <mousebind button="Right" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+      </mousebind>
+      <mousebind button="Middle" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+      </mousebind>
+    </context>
     <context name="Titlebar">
       <mousebind button="Left" action="Press">
         <action name="Focus"/>
