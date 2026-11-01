@@ -61,6 +61,7 @@
     </font>
   </theme>
   <keyboard>
+    <numlock>yes</numlock>
     <chainQuitKey>C-g</chainQuitKey>
     <!-- Terminal -->
     <keybind key="W-Return">
