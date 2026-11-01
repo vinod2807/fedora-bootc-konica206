@@ -230,9 +230,17 @@ RUN set -eux; \
         swayidle \
         brightnessctl \
         plank \
-        blueman \
         lxappearance \
         mate-control-center \
+        wpg \
+        wl-clipboard-history \
+        network-manager-applet \
+        pavucontrol \
+        pasystray \
+        swappy \
+        wlogout \
+        wlsunset \
+        gsimplecal \
     && dnf clean all
 
 # Third-party desktop applications, from their vendor repository / official

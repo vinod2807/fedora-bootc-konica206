@@ -170,10 +170,22 @@
         <command>grim - | wl-copy</command>
       </action>
     </keybind>
+    <!-- Screenshot with annotation (swappy) -->
+    <keybind key="C-Print">
+      <action name="Execute">
+        <command>grim -g "$(slurp)" - | swappy -f -</command>
+      </action>
+    </keybind>
     <!-- Screen lock -->
     <keybind key="W-l">
       <action name="Execute">
         <command>waylock</command>
+      </action>
+    </keybind>
+    <!-- Clipboard history -->
+    <keybind key="W-v">
+      <action name="Execute">
+        <command>wl-clipboard-history | fuzzel -d | wl-copy</command>
       </action>
     </keybind>
     <!-- Brightness -->
@@ -203,10 +215,22 @@
         <command>wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle</command>
       </action>
     </keybind>
-    <!-- Power menu -->
+    <!-- Power menu (wlogout GUI) -->
     <keybind key="W-S-x">
       <action name="Execute">
-        <command>fuzzel --prompt "Power: " -d -w 20 -l 4 -p "lock\nlogout\nreboot\nshutdown" | sh -c 'case "$(cat)" in lock) waylock;; logout) labwc --exit;; reboot) systemctl reboot;; shutdown) systemctl poweroff;; esac'</command>
+        <command>wlogout</command>
+      </action>
+    </keybind>
+    <!-- Wallpaper randomizer -->
+    <keybind key="W-S-w">
+      <action name="Execute">
+        <command>wpg -rs</command>
+      </action>
+    </keybind>
+    <!-- Application launcher -->
+    <keybind key="W-d">
+      <action name="Execute">
+        <command>fuzzel</command>
       </action>
     </keybind>
   </keyboard>

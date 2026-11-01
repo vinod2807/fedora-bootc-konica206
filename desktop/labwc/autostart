@@ -20,10 +20,22 @@ if command -v mako >/dev/null 2>&1; then
     mako &
 fi
 
-# Clipboard history (cliphist not in repos; using wl-clipboard only for now)
+# Clipboard history
+if command -v wl-clipboard-history >/dev/null 2>&1; then
+    wl-clipboard-history &
+fi
+
 # Auto-mount removable media
 if command -v udiskie >/dev/null 2>&1; then
     udiskie -s &
+fi
+
+# Tray applets
+if command -v nm-applet >/dev/null 2>&1; then
+    nm-applet &
+fi
+if command -v pasystray >/dev/null 2>&1; then
+    pasystray &
 fi
 
 # Idle management: dim at 5 min, lock at 10 min, suspend at 15 min
@@ -33,6 +45,16 @@ if command -v swayidle >/dev/null 2>&1 && command -v waylock >/dev/null 2>&1; th
         timeout 600 'waylock -fork-on-lock' \
         timeout 900 'systemctl suspend' \
         before-sleep 'waylock -fork-on-lock' &
+fi
+
+# Night light (adjust latitude/longitude for your location)
+if command -v wlsunset >/dev/null 2>&1; then
+    wlsunset -l 40.7 -L -74.0 -t 4500 &
+fi
+
+# Restore wallpaper
+if command -v wpg >/dev/null 2>&1; then
+    wpg -rs &
 fi
 
 # Make WAYLAND_DISPLAY / XDG_CURRENT_DESKTOP visible to D-Bus activated
