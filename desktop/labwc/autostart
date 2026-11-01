@@ -1,6 +1,14 @@
 #!/bin/sh
 # Started by labwc at the beginning of every session.
 
+# Set system-wide dark theme (GTK3/GTK4)
+if command -v gsettings >/dev/null 2>&1; then
+    gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark' &
+    gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' &
+fi
+# Qt theme via kvantum (requires qt5ct/qt6ct config)
+export QT_QPA_PLATFORMTHEME=qt5ct
+
 # Panel: sfwbar — start menu, task buttons, tray (openbox/tint2 style).
 # Waybar stays installed as a fallback; run "waybar &" by hand to use it.
 sfwbar &

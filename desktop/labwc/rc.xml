@@ -227,6 +227,18 @@
         <command>wpg -rs</command>
       </action>
     </keybind>
+    <!-- System Monitor -->
+    <keybind key="C-Escape">
+      <action name="Execute">
+        <command>mission-center</command>
+      </action>
+    </keybind>
+    <!-- File Search -->
+    <keybind key="W-f">
+      <action name="Execute">
+        <command>catfish</command>
+      </action>
+    </keybind>
     <!-- Application launcher -->
     <keybind key="W-d">
       <action name="Execute">

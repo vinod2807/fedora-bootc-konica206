@@ -241,6 +241,12 @@ RUN set -eux; \
         wlogout \
         wlsunset \
         gsimplecal \
+        mission-center \
+        catfish \
+        adw-gtk3-theme \
+        kvantum \
+        qt5ct \
+        qt6ct \
     && dnf clean all
 
 # Third-party desktop applications, from their vendor repository / official
