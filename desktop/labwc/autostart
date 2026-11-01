@@ -1,11 +1,11 @@
 #!/bin/sh
 # Started by labwc at the beginning of every session.
 
-# Set system-wide dark theme (GTK3/GTK4)
+# Set system-wide dark theme (GTK3/GTK4) — wait for dconf to be ready
 if command -v gsettings >/dev/null 2>&1; then
-    gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark' &
-    gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' &
+    (sleep 2; gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark'; gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark') &
 fi
+export GTK_THEME=adw-gtk3-dark
 # Qt theme via kvantum (requires qt5ct/qt6ct config)
 export QT_QPA_PLATFORMTHEME=qt5ct
 
