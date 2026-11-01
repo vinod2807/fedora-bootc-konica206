@@ -226,30 +226,20 @@ RUN set -eux; \
         winetricks \
         zip \
         mako \
-        waylock \
+        swaylock \
         swayidle \
         brightnessctl \
         plank \
         lxappearance \
         mate-control-center \
-        wpg \
-        wl-clipboard-history \
-        network-manager-applet \
-        pavucontrol \
-        pasystray \
-        swappy \
-        wlogout \
-        wlsunset \
-        gsimplecal \
-        mission-center \
-        catfish \
         adw-gtk3-theme \
         kvantum \
         qt5ct \
         qt6ct \
         flatseal \
-        network-manager-openconnect-gnome \
-        network-manager-openvpn-gnome \
+        network-manager-applet \
+        network-manager-openconnect \
+        network-manager-openvpn \
         gnome-font-viewer \
         gparted \
         thunderbird \

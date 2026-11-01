@@ -227,30 +227,6 @@
         <command>wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle</command>
       </action>
     </keybind>
-    <!-- Power menu (wlogout GUI) -->
-    <keybind key="W-S-x">
-      <action name="Execute">
-        <command>wlogout</command>
-      </action>
-    </keybind>
-    <!-- Wallpaper randomizer -->
-    <keybind key="W-S-w">
-      <action name="Execute">
-        <command>wpg -rs</command>
-      </action>
-    </keybind>
-    <!-- System Monitor -->
-    <keybind key="C-Escape">
-      <action name="Execute">
-        <command>mission-center</command>
-      </action>
-    </keybind>
-    <!-- File Search -->
-    <keybind key="W-f">
-      <action name="Execute">
-        <command>catfish</command>
-      </action>
-    </keybind>
     <!-- Application launcher -->
     <keybind key="W-d">
       <action name="Execute">

@@ -117,20 +117,11 @@
       </item>
     </menu>
     <menu id="system" label="System">
-      <item label="System Monitor">
-        <action name="Execute" command="mission-center" />
-      </item>
       <item label="Task Manager (btop)">
         <action name="Execute" command="foot -e btop" />
       </item>
       <item label="Disk Usage Analyzer">
         <action name="Execute" command="baobab" />
-      </item>
-      <item label="File Search">
-        <action name="Execute" command="catfish" />
-      </item>
-      <item label="Clipboard History">
-        <action name="Execute" command="wl-clipboard-history" />
       </item>
       <separator />
       <item label="Flatpak Permissions">
