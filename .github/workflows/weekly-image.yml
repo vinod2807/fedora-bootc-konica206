@@ -204,7 +204,7 @@ jobs:
             ! grep -q "systemctl suspend" /etc/xdg/labwc/autostart
             # labwc takes attribute syntax; Openbox child-element form logs red
             # "Invalid action" errors on every login.
-            ! grep -Eq 'name="Desktop"|name="MoveResizeTo"|<edge>|context="Menu"' /etc/xdg/labwc/rc.xml
+            ! grep -Eq "name=\"Desktop\"|name=\"MoveResizeTo\"|<edge>|context=\"Menu\"" /etc/xdg/labwc/rc.xml
             # zram: config must produce a swap unit for /dev/zram0.
             test -f /etc/systemd/zram-generator.conf
             grep -qx "zram-size = min(ram / 2, 4096)" /etc/systemd/zram-generator.conf
