@@ -57,10 +57,12 @@ jobs:
       - name: Resolve latest ZapFast release
         id: zapfast
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           # Get the latest release tag (not pre-release) from GitHub API
-          tag=$(curl -fsSL -H "Accept: application/vnd.github+json" \
+          tag=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" \
             "https://api.github.com/repos/crmne/zapfast/releases/latest" \
             | jq -r '.tag_name')
           if [[ ! $tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -78,10 +80,12 @@ jobs:
       - name: Resolve latest pdfcraft RPM
         id: pdfcraft
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           # Get the latest release from pdfcraft-alpine that contains a .rpm asset
-          url=$(curl -fsSL -H "Accept: application/vnd.github+json" \
+          url=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" \
             "https://api.github.com/repos/vinod2807/pdfcraft-alpine/releases" \
             | jq -r '
               map(select(.assets[]?.name | endswith(".rpm"))) |
