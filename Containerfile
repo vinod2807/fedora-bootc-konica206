@@ -217,7 +217,6 @@ RUN set -eux; \
         winetricks \
         zip \
         mako \
-        swaylock \
         swayidle \
         brightnessctl \
         plank \
