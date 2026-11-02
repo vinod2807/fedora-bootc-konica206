@@ -83,9 +83,6 @@
       </item>
     </menu>
     <menu id="settings" label="Settings">
-      <item label="Control Center">
-        <action name="Execute" command="mate-control-center" />
-      </item>
       <item label="Appearance (GTK)">
         <action name="Execute" command="lxappearance" />
       </item>
@@ -96,12 +93,6 @@
         <action name="Execute" command="wlsunset -l 40.7 -L -74.0 -t 4500" />
       </item>
       <separator />
-      <item label="Keyboard">
-        <action name="Execute" command="mate-keyboard-properties" />
-      </item>
-      <item label="Mouse">
-        <action name="Execute" command="mate-mouse-properties" />
-      </item>
       <item label="Displays">
         <action name="Execute" command="wdisplays" />
       </item>

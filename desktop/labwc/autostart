@@ -69,10 +69,10 @@ if command -v gnome-keyring-daemon >/dev/null 2>&1; then
 fi
 
 # PolicyKit agent: GUI authentication for udisks2 mounts, Flatpak installs and
-# other privileged actions. Fedora 44 no longer ships polkit-gnome, so this is
-# the MATE agent (/usr/libexec/polkit-mate-authentication-agent-1).
-if [ -x /usr/libexec/polkit-mate-authentication-agent-1 ]; then
-    /usr/libexec/polkit-mate-authentication-agent-1 &
+# other privileged actions. Fedora 44 no longer ships polkit-gnome, so use
+# lxpolkit (the LXDE agent).
+if command -v lxpolkit >/dev/null 2>&1; then
+    lxpolkit &
 fi
 
 # Create/refresh ~/Desktop, ~/Documents, ~/Downloads, ... from the locale.

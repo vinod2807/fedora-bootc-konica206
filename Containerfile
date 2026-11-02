@@ -171,7 +171,7 @@ RUN set -eux; \
         labwc \
         libavcodec-freeworld \
         libreoffice \
-        mate-polkit \
+        lxpolkit \
         mesa-dri-drivers \
         mesa-libEGL \
         mousepad \
@@ -222,7 +222,6 @@ RUN set -eux; \
         brightnessctl \
         plank \
         lxappearance \
-        mate-control-center \
         adw-gtk3-theme \
         kvantum \
         qt5ct \
