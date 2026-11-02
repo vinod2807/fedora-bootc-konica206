@@ -448,3 +448,37 @@ RUN set -eux; \
 
 # bootc's own image sanity checks (must be last: it inspects the filesystem).
 RUN bootc container lint
+
+# ---------------------------------------------------------------------------
+# Konica Minolta 206 - retrofit (PAPPL/legacy-printer-app) integration
+# ---------------------------------------------------------------------------
+RUN set -eux; \
+    dnf install -y --setopt=install_weak_deps=False \
+        legacy-printer-app \
+        pappl-retrofit \
+        cups \
+        cups-client \
+        cups-filters \
+        ghostscript \
+        ipptool \
+        avahi \
+        libusb1 \
+        gcc \
+        make \
+        pkgconfig \
+        libcups2-devel \
+        pappl-devel \
+        libusb1-devel \
+        openssl-devel \
+    && dnf clean all
+
+COPY konica-retrofit/install-konica-anylinux.sh /usr/local/bin/install-konica-anylinux.sh
+COPY konica-retrofit/konica-cups-watch.sh /usr/local/bin/konica-cups-watch.sh
+COPY konica-retrofit/konica-cups-watch.service /etc/systemd/system/konica-cups-watch.service
+COPY konica-retrofit/konica-cups-watch.timer /etc/systemd/system/konica-cups-watch.timer
+COPY konica-retrofit/99-konica206uri-cups.rules /usr/lib/udev/rules.d/99-konica206uri-cups.rules
+COPY konica-retrofit/backup/konica-pappl-backup-20260818-1532 /tmp/konica-retrofit-backup
+
+RUN set -eux; \
+    chmod +x /usr/local/bin/install-konica-anylinux.sh /usr/local/bin/konica-cups-watch.sh; \
+    chmod 644 /etc/systemd/system/konica-cups-watch.service /etc/systemd/system/konica-cups-watch.timer /usr/lib/udev/rules.d/99-konica206uri-cups.rules
