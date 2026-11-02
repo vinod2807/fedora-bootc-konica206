@@ -277,6 +277,11 @@ RUN set -eux; \
 COPY local-rpms/ /tmp/local-rpms/
 RUN set -eux; \
     if compgen -G '/tmp/local-rpms/*.rpm' >/dev/null; then \
+        # Remove any duplicate pdfcraft versions if both exist
+        if [ "$(ls /tmp/local-rpms/pdfcraft-*.rpm 2>/dev/null | wc -l)" -gt 1 ]; then \
+            echo "Multiple pdfcraft versions found, keeping only the latest"; \
+            ls -1t /tmp/local-rpms/pdfcraft-*.rpm | tail -n +2 | xargs -r rm -f; \
+        fi; \
         dnf install -y --setopt=tsflags=noscripts /tmp/local-rpms/*.rpm; \
         if [ -f /usr/lib/epson-backend/ecbd.service ]; then \
             install -D -m 0644 /usr/lib/epson-backend/ecbd.service \

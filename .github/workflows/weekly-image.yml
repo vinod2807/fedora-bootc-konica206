@@ -110,6 +110,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p local-rpms
+          # Remove any existing pdfcraft RPMs to avoid conflicts
+          rm -f local-rpms/pdfcraft-*.rpm
           curl -fsSL -o "local-rpms/${{ steps.pdfcraft.outputs.filename }}" "${{ steps.pdfcraft.outputs.url }}"
           echo "Downloaded ${{ steps.pdfcraft.outputs.filename }} to local-rpms/"
 
