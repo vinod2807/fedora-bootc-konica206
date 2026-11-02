@@ -194,6 +194,11 @@ jobs:
             # GRUB menu must pause so an older deployment can be selected.
             grep -qx "set timeout=10" /usr/lib/bootupd/grub2-static/grub-static-pre.cfg
             systemctl is-enabled greetd.service NetworkManager.service konica206-native.service konica206-queue.service ecbd.service
+            # Suspend/hibernate must stay masked: s2idle hangs on this hardware.
+            for t in suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target; do
+              test "$(readlink "/etc/systemd/system/$t")" = /dev/null
+            done
+            ! grep -q "systemctl suspend" /etc/xdg/labwc/autostart
             systemd-analyze verify /usr/lib/systemd/system/konica206-native.service \
                                    /usr/lib/systemd/system/konica206-queue.service \
                                    /usr/lib/systemd/system/bootc-upgrade.service \

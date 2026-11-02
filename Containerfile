@@ -413,10 +413,15 @@ RUN set -eux; \
 # reboot when the user says so, so that timer is masked and the repository's own
 # bootc-upgrade.timer is used instead: it stages the update and never reboots.
 # Masking also survives base-image updates (unlike a plain disable).
+#
+# Suspend/hibernate are not usable on this Ironlake hardware: the BIOS exposes
+# no S3 and s2idle hangs on suspend. Mask the targets so no session (or
+# leftover user config) can put the machine into a frozen state.
 RUN set -eux; \
     systemctl set-default graphical.target; \
     systemctl mask bootc-fetch-apply-updates.timer; \
     rm -f /etc/systemd/system/timers.target.wants/bootc-fetch-apply-updates.timer; \
+    systemctl mask suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target; \
     systemctl enable bootc-upgrade.timer; \
     systemctl enable flatpak-update.timer; \
     systemctl --global enable flatpak-update.timer; \

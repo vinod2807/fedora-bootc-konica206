@@ -41,12 +41,12 @@ if command -v pasystray >/dev/null 2>&1; then
     pasystray &
 fi
 
-# Idle management: dim at 5 min, lock at 10 min, suspend at 15 min
+# Idle management: dim at 5 min, lock at 10 min. Suspend is deliberately not
+# enabled: this Ironlake machine exposes no S3, and s2idle hangs on suspend.
 if command -v swayidle >/dev/null 2>&1 && command -v swaylock >/dev/null 2>&1; then
     swayidle -w \
         timeout 300 'brightnessctl set 20%' \
         timeout 600 'swaylock -f' \
-        timeout 900 'systemctl suspend' \
         before-sleep 'swaylock -f' &
 fi
 
