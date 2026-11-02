@@ -150,6 +150,7 @@ RUN set -eux; \
         gh \
         gh \
         foot \
+        fuse-libs \
         fuzzel \
         ffmpeg \
         fastfetch \
