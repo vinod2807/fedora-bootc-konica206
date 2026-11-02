@@ -216,6 +216,7 @@ RUN set -eux; \
         wine-mono \
         winetricks \
         zip \
+        zram-generator \
         mako \
         swayidle \
         brightnessctl \
@@ -329,6 +330,7 @@ COPY systemd/flatpak-update.service   /usr/lib/systemd/system/flatpak-update.ser
 COPY systemd/flatpak-update.timer     /usr/lib/systemd/system/flatpak-update.timer
 COPY systemd/user/flatpak-update.service /usr/lib/systemd/user/flatpak-update.service
 COPY systemd/user/flatpak-update.timer   /usr/lib/systemd/user/flatpak-update.timer
+COPY systemd/zram-generator.conf      /etc/systemd/zram-generator.conf
 COPY udev/70-konica206.rules          /usr/lib/udev/rules.d/70-konica206.rules
 COPY greetd/config.toml               /etc/greetd/config.toml
 COPY greetd/pam.d/greetd              /etc/pam.d/greetd
@@ -371,6 +373,7 @@ RUN set -eux; \
      chmod 0755 /usr/libexec/setup-samba; \
     chmod 0644 /etc/greetd/config.toml \
         /etc/pam.d/greetd \
+        /etc/systemd/zram-generator.conf \
         /etc/modprobe.d/90-konica206-usblp.conf \
         /usr/lib/systemd/system/konica206-native.service \
         /usr/lib/systemd/system/konica206-queue.service \

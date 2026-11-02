@@ -172,6 +172,7 @@ jobs:
           set -euo pipefail
           docker run --rm --entrypoint /bin/bash localhost/fedora-bootc-konica206:smoke -euo pipefail -c '
              rpm -q labwc waybar foot firefox brave-browser ffmpeg libavcodec-freeworld gstreamer1-plugin-libav gstreamer1-plugins-ugly wine winetricks wine-mono gpodder retroarch vlc greetd tuigreet NetworkManager pappl cups ghostscript Thunar qt5-qtwayland gnome-keyring-pam lxpolkit swayidle >/dev/null
+            rpm -q zram-generator >/dev/null
             ! rpm -q pcmanfm >/dev/null 2>&1
             ! rpm -q swaylock >/dev/null 2>&1
             ! grep -qi 'swaylock' /etc/xdg/labwc/autostart
@@ -201,6 +202,13 @@ jobs:
               test "$(readlink "/etc/systemd/system/$t")" = /dev/null
             done
             ! grep -q "systemctl suspend" /etc/xdg/labwc/autostart
+            # zram: config must produce a swap unit for /dev/zram0.
+            test -f /etc/systemd/zram-generator.conf
+            grep -qx "zram-size = min(ram / 2, 4096)" /etc/systemd/zram-generator.conf
+            zgen=$(mktemp -d)
+            ZRAM_GENERATOR_ROOT=/ /usr/lib/systemd/system-generators/zram-generator "$zgen" "$zgen" "$zgen" >/dev/null 2>&1
+            test -f "$zgen/dev-zram0.swap"
+            rm -rf "$zgen"
             systemd-analyze verify /usr/lib/systemd/system/konica206-native.service \
                                    /usr/lib/systemd/system/konica206-queue.service \
                                    /usr/lib/systemd/system/bootc-upgrade.service \
