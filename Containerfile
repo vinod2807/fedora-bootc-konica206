@@ -429,6 +429,7 @@ COPY modprobe.d/90-konica206-usblp.conf      /etc/modprobe.d/90-konica206-usblp.
 COPY systemd/konica206-native.service /usr/lib/systemd/system/konica206-native.service
 COPY systemd/konica206-queue.service  /usr/lib/systemd/system/konica206-queue.service
 COPY systemd/epson-l3260-queue.service /usr/lib/systemd/system/epson-l3260-queue.service
+COPY systemd/konica206-classic-queue.service /usr/lib/systemd/system/konica206-classic-queue.service
 COPY systemd/samba-setup.service    /usr/lib/systemd/system/samba-setup.service
 COPY systemd/bootc-upgrade.service    /usr/lib/systemd/system/bootc-upgrade.service
 COPY systemd/bootc-upgrade.timer      /usr/lib/systemd/system/bootc-upgrade.timer
@@ -455,6 +456,7 @@ COPY scripts/install-vendor-data      /usr/libexec/konica206/install-vendor-data
 COPY scripts/ensure-queue             /usr/libexec/konica206/ensure-queue
 COPY scripts/preflight                /usr/libexec/konica206/preflight
 COPY scripts/ensure-epson-queue       /usr/libexec/epson-l3260/ensure-queue
+COPY scripts/ensure-classic-queue     /usr/libexec/konica206/ensure-classic-queue
 COPY scripts/setup-samba              /usr/libexec/setup-samba
 COPY samba/smb.conf                   /etc/samba/smb.conf
 RUN install -d -m 0755 /etc/flatpak/overrides
@@ -476,6 +478,7 @@ RUN set -eux; \
     chmod 0755 /usr/bin/konica206-native /usr/bin/konica-send /usr/bin/konica-render /usr/bin/konica-native; \
     chmod 0755 /usr/libexec/konica206/install-vendor-data /usr/libexec/konica206/ensure-queue /usr/libexec/konica206/preflight /usr/libexec/konica206/ensure-legacy-queue; \
      chmod 0755 /usr/libexec/epson-l3260/ensure-queue; \
+     chmod 0755 /usr/libexec/konica206/ensure-classic-queue; \
      chmod 0755 /usr/libexec/setup-samba; \
     chmod 0755 /usr/local/bin/konica-cups-watch.sh \
                /usr/local/sbin/check-wineps-route.sh \
@@ -555,6 +558,7 @@ RUN set -eux; \
     systemctl enable konica-cups-watch.service; \
     systemctl enable konica-cups-watch.timer; \
     systemctl enable epson-l3260-queue.service; \
+    systemctl enable konica206-classic-queue.service; \
     systemctl enable samba-setup.service; \
     systemctl enable avahi-daemon.service; \
     systemctl enable smb.service nmb.service; \

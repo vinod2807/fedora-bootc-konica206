@@ -4,5 +4,6 @@
 # desktop user access for diagnostics (lsusb, konica-send).
 # Both printer applications are started: the native konica206 app and the
 # legacy konica206uri app (USB interface 1 is opened per job, so only the
-# application that is printing drives the device).
-SUBSYSTEM=="usb", ATTR{idVendor}=="132b", ATTR{idProduct}=="232b", MODE="0660", GROUP="lp", TAG+="uaccess", TAG+="systemd", ENV{SYSTEMD_WANTS}+="konica206-queue.service konica206uri-queue.service"
+# application that is printing drives the device). The classic CUPS queue is
+# also triggered for direct USB printing.
+SUBSYSTEM=="usb", ATTR{idVendor}=="132b", ATTR{idProduct}=="232b", MODE="0660", GROUP="lp", TAG+="uaccess", TAG+="systemd", ENV{SYSTEMD_WANTS}+="konica206-queue.service konica206uri-queue.service konica206-classic-queue.service"

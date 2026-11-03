@@ -207,7 +207,7 @@ jobs:
             grep -q "intel_idle.max_cstate=1" /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
             # GRUB menu must pause so an older deployment can be selected.
             grep -qx "set timeout=10" /usr/lib/bootupd/grub2-static/grub-static-pre.cfg
-            systemctl is-enabled greetd.service NetworkManager.service konica206-native.service konica206-queue.service konica-cups-watch.service konica-cups-watch.timer ecbd.service
+            systemctl is-enabled greetd.service NetworkManager.service konica206-native.service konica206-queue.service konica206-classic-queue.service konica-cups-watch.service konica-cups-watch.timer ecbd.service
             # konica-retrofit integration: USB presence watcher covering the
             # native queue and the legacy konica206uri pair, plus the
             # Wine/Adobe PS retype rule.
@@ -251,6 +251,7 @@ jobs:
             rm -rf "$zgen"
             systemd-analyze verify /usr/lib/systemd/system/konica206-native.service \
                                    /usr/lib/systemd/system/konica206-queue.service \
+                                   /usr/lib/systemd/system/konica206-classic-queue.service \
                                    /usr/lib/systemd/system/konica206uri-queue.service \
                                    /usr/lib/systemd/system/konica-cups-watch.service \
                                    /usr/lib/systemd/system/konica-cups-watch.timer \

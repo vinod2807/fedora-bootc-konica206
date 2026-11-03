@@ -1,0 +1,15 @@
+[Unit]
+Description=Create the Konica bizhub 206 classic CUPS queue (direct USB)
+Documentation=https://github.com/vinod2807/fedora-bootc-konica206/blob/main/docs/PRINTER.md
+After=cups.socket
+Wants=cups.socket
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/konica206/ensure-classic-queue
+# No printer attached is a normal condition, not a service failure.
+SuccessExitStatus=0
+TimeoutStartSec=90s
+
+[Install]
+WantedBy=multi-user.target

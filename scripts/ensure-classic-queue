@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Create a classic CUPS queue for the Konica bizhub 206 that prints directly
+# to the USB device (usb:// URI), bypassing both PAPPL applications.
+#
+# Safe to run at every boot and from udev: it exits 0 when no printer is
+# attached or the queue already exists. No paper is used.
+#
+# The queue reuses the same shim PPD as the PAPPL queues, so real page sizes
+# (not borderless) are advertised and defaults are A4 + simplex. Duplex is
+# available (off / long-edge / short-edge) but defaults to off.
+set -euo pipefail
+
+QUEUE=${KONICA_CLASSIC_QUEUE:-konica206-classic}
+VENDOR=132b
+PRODUCT=232b
+INTERFACE=1
+PPD=/usr/share/ppd/konica206/konica206.ppd
+
+log() { printf 'konica206-classic-queue: %s\n' "$*"; }
+
+if ! command -v lpadmin >/dev/null 2>&1 || ! command -v lpstat >/dev/null 2>&1; then
+    log "CUPS tools not installed; no classic queue created"
+    exit 0
+fi
+
+# cupsd is socket-activated on Fedora; ensure the socket is up so lpadmin has
+# a server to talk to even when no print job has been submitted yet.
+systemctl start cups.socket >/dev/null 2>&1 || true
+
+# Find the Konica USB device and read its serial number.
+serial=""
+for dev in /sys/bus/usb/devices/*; do
+    [[ -r "$dev/idVendor" && -r "$dev/idProduct" ]] || continue
+    [[ $(<"$dev/idVendor") == "$VENDOR" ]] || continue
+    [[ $(<"$dev/idProduct") == "$PRODUCT" ]] || continue
+    if [[ -r "$dev/serial" ]]; then
+        serial=$(<"$dev/serial")
+        break
+    fi
+done
+
+if [[ -z $serial ]]; then
+    log "no bizhub 206 ($VENDOR:$PRODUCT) on USB; no classic queue created"
+    exit 0
+fi
+
+# The serial is embedded in the USB device URI. Only accept the character set
+# real devices use, so a malformed sysfs value cannot inject URI syntax.
+if [[ ! $serial =~ ^[A-Za-z0-9._-]+$ ]]; then
+    log "refusing unexpected USB serial format: $serial"
+    exit 1
+fi
+
+uri="usb://KONICA%20MINOLTA/206?serial=${serial}&interface=${INTERFACE}"
+
+if lpstat -p "$QUEUE" >/dev/null 2>&1; then
+    # Queue exists: refresh its PPD and defaults, leave the URI as-is.
+    lpadmin -p "$QUEUE" -P "$PPD" >/dev/null 2>&1 \
+        && log "CUPS queue '$QUEUE' refreshed with $PPD"
+    lpadmin -p "$QUEUE" -o PageSize=A4 -o Duplex=None >/dev/null 2>&1 \
+        && log "defaults applied: PageSize=A4 Duplex=None"
+    exit 0
+fi
+
+# Create the queue. The device URI is the direct USB path; the shim PPD
+# advertises the ten real page sizes and offers simplex + duplex.
+if lpadmin -p "$QUEUE" -E \
+        -v "$uri" \
+        -P "$PPD" \
+        -D "KONICA MINOLTA bizhub 206 (classic USB)" \
+        -L "Local USB" \
+        -o printer-error-policy=retry-job >/dev/null 2>&1; then
+    log "classic CUPS queue '$QUEUE' created ($uri)"
+else
+    log "could not create classic CUPS queue '$QUEUE'"
+    exit 1
+fi
+
+# Persisted defaults: A4 paper, one-sided. Both can still be overridden
+# per job (-o PageSize=A3, -o Duplex=DuplexNoTumble) or in the print dialog.
+lpadmin -p "$QUEUE" -o PageSize=A4 -o Duplex=None >/dev/null 2>&1 \
+    && log "defaults applied: PageSize=A4 Duplex=None"
