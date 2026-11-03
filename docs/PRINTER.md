@@ -29,6 +29,8 @@ application still uses libcups’ raster API and libusb, both from Fedora RPMs.
 | USB presence watcher | `/usr/local/bin/konica-cups-watch.sh` |
 | watcher udev rule | `/usr/lib/udev/rules.d/71-konica206-usb-presence.rules` |
 | watcher units | `konica-cups-watch.service`, `konica-cups-watch.timer` |
+| legacy konica206uri app | `legacy-printer-app.service` (`/usr/bin/legacy-printer-app`, port 8000) |
+| legacy queue helper | `/usr/libexec/konica206/ensure-legacy-queue` |
 | Wine/Adobe PS MIME rule | `/etc/cups/wineps.convs` |
 | Wine/Adobe PS guard | `/usr/local/sbin/check-wineps-route.sh` |
 | build commit stamps | `/usr/share/konica206/{app,native,retrofit}-commit` |
@@ -96,31 +98,79 @@ If the serial is not exposed by the device, set it explicitly:
 sudo KONICA_SERIAL=YOURSERIAL /usr/libexec/konica206/ensure-queue
 ```
 
-Only one process may claim USB interface 1 of the printer. Do not enable a
-second legacy `konica206uri` queue for the same device.
+The native application and the legacy `konica206uri` application both use USB
+interface 1, but only when printing: each opens the device per job, so one job
+at a time drives the printer. Do not run both queues concurrently in a way
+that interleaves jobs on the same physical sheet stack.
+
+## Legacy konica206uri stack
+
+The image also installs the legacy stack from
+[konica-retrofit](https://github.com/vinod2807/konica-retrofit), kept as a
+second, independent path to the same printer:
+
+| Piece | Path |
+|---|---|
+| Legacy Printer Application | `/usr/bin/legacy-printer-app` (pappl-retrofit 1.0b2) |
+| retrofit PPD driver | `/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd` |
+| chunked USB backend | `/usr/local/libexec/konica-backend/usb` |
+| service drop-in (port 8000, `PPD_PATHS`) | `/etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf` |
+| queue service | `/usr/lib/systemd/system/konica206uri-queue.service` |
+| queue helper | `/usr/libexec/konica206/ensure-legacy-queue` |
+| state/spool tmpfiles | `/usr/lib/tmpfiles.d/konica206uri.conf` |
+
+```
+IPP client -> CUPS queue konica206uri -> Legacy Printer Application :8000
+           -> pappl-retrofit raster -> /usr/bin/konica-native -> USB backend -> bizhub 206
+```
+
+The retrofit full-bleed PPD is used unchanged except for two build-time edits:
+its vendor filter `/usr/local/lib/konica/.../245igdirf` is replaced by the open
+`/usr/bin/konica-native`, and the default duplex mode is pinned to `None`.
+`*ImageableArea` must stay equal to `*PaperDimension` for every size: an inset
+area makes the encoder's raster smaller than the sheet the device declares and
+ghosting appears. The build fails if the PPD filter line moves upstream.
+
+`konica206uri-queue.service` runs at boot and on every USB add. It waits for
+the application, adds the `konica206uri` printer with
+`cups:usb://KONICA%20MINOLTA/206?serial=<serial>&interface=1`, and creates the
+two CUPS proxy queues `konica206uri` and `konica206uri-ppd` with the same
+pass-through shim PPD as the native queue (A4, simplex defaults). The chunked
+USB backend is used because the bizhub 206 re-enumerates when a single bulk
+write is too large.
+
+Manual checks:
+
+```bash
+systemctl status legacy-printer-app.service konica206uri-queue.service
+legacy-printer-app printers
+lpstat -p konica206uri konica206uri-ppd
+```
+
+Jobs through the legacy queues need the same vendor runtime data as the native
+queue (see below); without it the encoder fails the job before sending
+anything.
 
 ## konica-retrofit integration
 
-The image consumes two distro-neutral assets from
+The image consumes distro-neutral assets from
 [konica-retrofit](https://github.com/vinod2807/konica-retrofit), pinned by
 `KONICA_RETROFIT_REF` and stamped into
 `/usr/share/konica206/retrofit-commit`:
 
 - **USB queue-presence watcher** — `konica-cups-watch.service` reconciles the
-  `konica206` CUPS proxy queue with the real sysfs state at boot, on udev
-  add/remove, and every five minutes via `konica-cups-watch.timer`. It disables
-  the queue with the `konica-usb-absent` marker when the printer is off and
-  re-enables only queues carrying that marker, so a deliberate manual pause is
-  never undone. This complements the add-only `70-konica206.rules`, which
-  cannot disable anything on remove.
+  `konica206`, `konica206uri` and `konica206uri-ppd` CUPS proxy queues with the
+  real sysfs state at boot, on udev add/remove, and every five minutes via
+  `konica-cups-watch.timer`. It disables the queues with the
+  `konica-usb-absent` marker when the printer is off and re-enables only queues
+  carrying that marker, so a deliberate manual pause is never undone. This
+  complements the add-only `70-konica206.rules`, which cannot disable anything
+  on remove.
 - **Wine/Adobe PostScript rule** — `/etc/cups/wineps.convs` retypes
   `application/vnd.adobe-reader-postscript` to plain `application/postscript`,
   avoiding the broken `gstoraster` path. The read-only
   `/usr/local/sbin/check-wineps-route.sh` verifies the rule and filter chain.
 
-The retrofit repository's installer, `legacy-printer-app`, vendor driver and
-`konica206uri` queues are **not** installed: the native `konica206` application
-already claims USB interface 1, and two stacks cannot drive the same device.
 The upstream scripts are patched at build time for the native queue name, and
 the build fails if the patched lines move upstream.
 

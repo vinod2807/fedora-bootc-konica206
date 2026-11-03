@@ -208,15 +208,32 @@ jobs:
             # GRUB menu must pause so an older deployment can be selected.
             grep -qx "set timeout=10" /usr/lib/bootupd/grub2-static/grub-static-pre.cfg
             systemctl is-enabled greetd.service NetworkManager.service konica206-native.service konica206-queue.service konica-cups-watch.service konica-cups-watch.timer ecbd.service
-            # konica-retrofit integration: USB presence watcher retargeted at
-            # the native konica206 queue, plus the Wine/Adobe PS retype rule.
+            # konica-retrofit integration: USB presence watcher covering the
+            # native queue and the legacy konica206uri pair, plus the
+            # Wine/Adobe PS retype rule.
             test -x /usr/local/bin/konica-cups-watch.sh
             test -x /usr/local/sbin/check-wineps-route.sh
             test -f /usr/local/share/konica-retrofit/min-ar.ps
             test -f /usr/share/konica206/retrofit-commit
-            grep -qx "QUEUES=\"konica206\"" /usr/local/bin/konica-cups-watch.sh
+            grep -qx "QUEUES=\"konica206 konica206uri konica206uri-ppd\"" /usr/local/bin/konica-cups-watch.sh
             grep -qx "application/vnd.adobe-reader-postscript application/postscript 0 -" /etc/cups/wineps.convs
             test -f /usr/lib/udev/rules.d/71-konica206-usb-presence.rules
+            # Legacy konica206uri stack: pappl-retrofit application, the
+            # retrofit full-bleed PPD driven by the open encoder, the chunked
+            # USB backend, and the runtime queue service.
+            rpm -q legacy-printer-app pappl-retrofit avahi libusb1 >/dev/null
+            test -x /usr/bin/legacy-printer-app
+            test -x /usr/libexec/konica206/ensure-legacy-queue
+            test -x /usr/local/libexec/konica-backend/usb
+            test -f /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
+            grep -qxF "*cupsFilter: \"application/vnd.cups-raster 0 /usr/bin/konica-native\"" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
+            grep -qxF "*DefaultDuplex: None" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
+            ! grep -q "^[*]OCM_resourceDir:" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
+            grep -qx "Environment=PPD_PATHS=/usr/share/konica206/legacy-ppd:/usr/share/cups/model:/usr/lib/cups/driver" /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf
+            grep -q "server-port=8000" /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf
+            ! grep -q "server-port=8001" /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf
+            test -f /usr/lib/tmpfiles.d/konica206uri.conf
+            systemctl is-enabled legacy-printer-app.service konica206uri-queue.service avahi-daemon.service
             # Suspend/hibernate must stay masked: s2idle hangs on this hardware.
             for t in suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target; do
               test "$(readlink "/etc/systemd/system/$t")" = /dev/null
@@ -234,6 +251,7 @@ jobs:
             rm -rf "$zgen"
             systemd-analyze verify /usr/lib/systemd/system/konica206-native.service \
                                    /usr/lib/systemd/system/konica206-queue.service \
+                                   /usr/lib/systemd/system/konica206uri-queue.service \
                                    /usr/lib/systemd/system/konica-cups-watch.service \
                                    /usr/lib/systemd/system/konica-cups-watch.timer \
                                    /usr/lib/systemd/system/bootc-upgrade.service \

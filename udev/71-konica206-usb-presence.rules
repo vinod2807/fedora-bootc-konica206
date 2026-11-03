@@ -8,8 +8,8 @@
 # The watcher reconciles against the real sysfs state, so a lost or reordered
 # event self-heals. Jobs stay queued while the printer is absent.
 #
-# Ported from konica-retrofit's 99-konica206uri-cups.rules, retargeted at the
-# native application's queue (konica206) instead of the legacy
-# konica206uri/konica206uri-ppd pair.
+# Ported from konica-retrofit's 99-konica206uri-cups.rules. The watcher keeps
+# the native queue (konica206) and the legacy pair (konica206uri,
+# konica206uri-ppd) in step with the physical device.
 ACTION=="add",    SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ENV{PRODUCT}=="132b/232b/100", RUN+="/usr/local/bin/konica-cups-watch.sh add"
 ACTION=="remove", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ENV{PRODUCT}=="132b/232b/100", RUN+="/usr/local/bin/konica-cups-watch.sh remove"

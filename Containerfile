@@ -6,6 +6,9 @@
 #   - konica-native (C11) device-stream encoder
 #   - konica-retrofit CUPS integration assets (USB queue-presence watcher and
 #     the Wine/Adobe PostScript MIME rule), retargeted at the native queue
+#   - the legacy konica206uri stack (pappl-retrofit Legacy Printer Application
+#     plus the konica206uri and konica206uri-ppd CUPS queues), driven from the
+#     retrofit PPD through the open konica-native encoder
 #   - authenticated Samba folder and CUPS printer sharing
 #
 # Vendor-owned runtime data (halftone screen + ICC profiles) is deliberately
@@ -83,11 +86,11 @@ RUN set -eux; \
     git -C native checkout --detach FETCH_HEAD; \
     git -C native rev-parse HEAD > /src/native-commit
 
-# konica-retrofit is a legacy CUPS/legacy-printer-app kit. This image only
-# consumes its distro-neutral hardening pieces (the USB queue-presence watcher
-# and the Wine/Adobe PostScript retype rule); the legacy installer and its
-# konica206uri queues are deliberately not installed because the native
-# konica206 app already owns the printer's USB interface.
+# konica-retrofit is a legacy CUPS/legacy-printer-app kit. This image consumes
+# both its hardening pieces (the USB queue-presence watcher and the Wine/Adobe
+# PostScript retype rule) and the assets of its legacy konica206uri stack: the
+# full-bleed PPD, and the chunked USB backend that keeps the bizhub 206 from
+# dropping off the bus on large writes.
 RUN set -eux; \
     git clone --depth 1 "${KONICA_RETROFIT_REPO}" retrofit; \
     git -C retrofit fetch --depth 1 origin "${KONICA_RETROFIT_REF}"; \
@@ -96,6 +99,10 @@ RUN set -eux; \
 
 COPY cups/wineps.convs /tmp/retrofit-wineps.convs
 COPY udev/71-konica206-usb-presence.rules /tmp/retrofit-usb-presence.rules
+COPY scripts/ensure-legacy-queue /tmp/retrofit-ensure-legacy-queue
+COPY systemd/konica206uri-queue.service /tmp/retrofit-konica206uri-queue.service
+COPY systemd/legacy-printer-app.service.d/90-konica206uri.conf /tmp/retrofit-legacy-app.conf
+COPY systemd/tmpfiles.d/konica206uri.conf /tmp/retrofit-konica206uri.tmpfiles.conf
 
 # Assemble and patch the retrofit files in the builder stage, laid out exactly
 # as they must appear in the final image. The final stage then needs a single
@@ -104,15 +111,20 @@ COPY udev/71-konica206-usb-presence.rules /tmp/retrofit-usb-presence.rules
 RUN set -eux; \
     root=/out/retrofit-root; \
     install -d "$root/etc/cups" \
+               "$root/etc/systemd/system/legacy-printer-app.service.d" \
                "$root/usr/local/bin" \
                "$root/usr/local/sbin" \
+               "$root/usr/local/libexec/konica-backend" \
                "$root/usr/local/share/konica-retrofit" \
                "$root/usr/lib/systemd/system" \
+               "$root/usr/lib/tmpfiles.d" \
                "$root/usr/lib/udev/rules.d" \
-               "$root/usr/share/konica206"; \
-    sed 's/^QUEUES="konica206uri konica206uri-ppd"$/QUEUES="konica206"/' \
+               "$root/usr/libexec/konica206" \
+               "$root/usr/share/konica206/legacy-ppd"; \
+    sed 's/^QUEUES="konica206uri konica206uri-ppd"$/QUEUES="konica206 konica206uri konica206uri-ppd"/' \
         retrofit/konica-cups-watch.sh > "$root/usr/local/bin/konica-cups-watch.sh"; \
-    grep -qx 'QUEUES="konica206"' "$root/usr/local/bin/konica-cups-watch.sh"; \
+    grep -qx 'QUEUES="konica206 konica206uri konica206uri-ppd"' \
+        "$root/usr/local/bin/konica-cups-watch.sh"; \
     sed 's#/etc/cups/ppd/konica206uri.ppd#/etc/cups/ppd/konica206.ppd#' \
         retrofit/check-wineps-route.sh > "$root/usr/local/sbin/check-wineps-route.sh"; \
     grep -q '/etc/cups/ppd/konica206.ppd' "$root/usr/local/sbin/check-wineps-route.sh"; \
@@ -128,7 +140,32 @@ RUN set -eux; \
     install -m 0644 /tmp/retrofit-usb-presence.rules \
         "$root/usr/lib/udev/rules.d/71-konica206-usb-presence.rules"; \
     install -m 0644 /src/retrofit-commit \
-        "$root/usr/share/konica206/retrofit-commit"
+        "$root/usr/share/konica206/retrofit-commit"; \
+    install -m 0755 /tmp/retrofit-ensure-legacy-queue \
+        "$root/usr/libexec/konica206/ensure-legacy-queue"; \
+    install -m 0644 /tmp/retrofit-konica206uri-queue.service \
+        "$root/usr/lib/systemd/system/konica206uri-queue.service"; \
+    install -m 0644 /tmp/retrofit-legacy-app.conf \
+        "$root/etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf"; \
+    install -m 0644 /tmp/retrofit-konica206uri.tmpfiles.conf \
+        "$root/usr/lib/tmpfiles.d/konica206uri.conf"; \
+    sed -e 's#^\*cupsFilter: .*#*cupsFilter: "application/vnd.cups-raster 0 /usr/bin/konica-native"#' \
+        -e 's#^\*DefaultDuplex:.*#*DefaultDuplex: None#' \
+        -e '/^\*OCM_resourceDir:/d' \
+        retrofit/backup/var/lib/legacy-printer-app/ppd/KonicaMinolta-206-fullbleed.ppd \
+        > "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd"; \
+    grep -qxF '*cupsFilter: "application/vnd.cups-raster 0 /usr/bin/konica-native"' \
+        "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd"; \
+    grep -qxF '*DefaultDuplex: None' \
+        "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd"; \
+    ! grep -q '^\*OCM_resourceDir:' \
+        "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd"; \
+    gcc -O2 -std=gnu17 -Wall -Wextra \
+        -o "$root/usr/local/libexec/konica-backend/usb" \
+        retrofit/backup/source/konica-usb-backend/konica-usb-backend.c \
+        $(pkg-config --cflags --libs libusb-1.0); \
+    chmod 0755 "$root/usr/local/libexec/konica-backend/usb"; \
+    test -x "$root/usr/local/libexec/konica-backend/usb"
 
 # Upstream tests that need no printer, no USB device and no vendor runtime data.
 # make check        -> chunking + PPD parser regression
@@ -193,6 +230,7 @@ RUN set -eux; \
     dnf install -y --setopt=install_weak_deps=False \
         adwaita-cursor-theme \
         adwaita-icon-theme \
+        avahi \
         cups \
         cups-filters \
         dbus-daemon \
@@ -226,8 +264,10 @@ RUN set -eux; \
         gvfs-smb \
         hicolor-icon-theme \
         labwc \
+        legacy-printer-app \
         libavcodec-freeworld \
         libreoffice \
+        libusb1 \
         lxpolkit \
         mesa-dri-drivers \
         mesa-libEGL \
@@ -434,11 +474,12 @@ RUN set -eux; \
 
 RUN set -eux; \
     chmod 0755 /usr/bin/konica206-native /usr/bin/konica-send /usr/bin/konica-render /usr/bin/konica-native; \
-    chmod 0755 /usr/libexec/konica206/install-vendor-data /usr/libexec/konica206/ensure-queue /usr/libexec/konica206/preflight; \
+    chmod 0755 /usr/libexec/konica206/install-vendor-data /usr/libexec/konica206/ensure-queue /usr/libexec/konica206/preflight /usr/libexec/konica206/ensure-legacy-queue; \
      chmod 0755 /usr/libexec/epson-l3260/ensure-queue; \
      chmod 0755 /usr/libexec/setup-samba; \
     chmod 0755 /usr/local/bin/konica-cups-watch.sh \
-               /usr/local/sbin/check-wineps-route.sh; \
+               /usr/local/sbin/check-wineps-route.sh \
+               /usr/local/libexec/konica-backend/usb; \
     chmod 0644 /etc/greetd/config.toml \
         /etc/pam.d/greetd \
         /etc/systemd/zram-generator.conf \
@@ -462,6 +503,10 @@ RUN set -eux; \
         /usr/share/konica206/retrofit-commit \
         /usr/lib/systemd/system/konica-cups-watch.service \
         /usr/lib/systemd/system/konica-cups-watch.timer \
+        /usr/lib/systemd/system/konica206uri-queue.service \
+        /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf \
+        /usr/lib/tmpfiles.d/konica206uri.conf \
+        /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd \
         /usr/lib/udev/rules.d/71-konica206-usb-presence.rules \
         /usr/share/sfwbar/sfwbar.config \
         /usr/share/applications/konica206-reboot.desktop \
@@ -505,10 +550,13 @@ RUN set -eux; \
     systemctl enable greetd.service; \
     systemctl enable konica206-native.service; \
     systemctl enable konica206-queue.service; \
+    systemctl enable legacy-printer-app.service; \
+    systemctl enable konica206uri-queue.service; \
     systemctl enable konica-cups-watch.service; \
     systemctl enable konica-cups-watch.timer; \
     systemctl enable epson-l3260-queue.service; \
     systemctl enable samba-setup.service; \
+    systemctl enable avahi-daemon.service; \
     systemctl enable smb.service nmb.service; \
     if [ -e /usr/lib/systemd/system/ecbd.service ]; then \
         systemctl enable ecbd.service; \

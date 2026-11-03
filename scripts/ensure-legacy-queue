@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+# Create the legacy (konica-retrofit) konica206uri stack when the printer is
+# present.
+#
+# The legacy stack is a PAPPL "Legacy Printer Application" (pappl-retrofit)
+# that serves the retrofit full-bleed PPD through /usr/bin/konica-native, plus
+# two CUPS proxy queues (konica206uri and konica206uri-ppd) that desktop
+# applications print through. It coexists with the native konica206
+# application: USB interface 1 is opened per job, so only one of them drives
+# the device at a time.
+#
+# Safe to run at every boot and on every USB add: it exits 0 when the printer
+# is not attached or the queues already exist. No paper is used.
+set -euo pipefail
+
+QUEUE=${KONICA_LEGACY_QUEUE:-konica206uri}
+PORT=${KONICA_LEGACY_PORT:-8000}
+VENDOR=132b
+PRODUCT=232b
+STATE_DIR=/var/lib/legacy-printer-app
+SPOOL_DIR=/var/spool/legacy-printer-app
+IPP="ipp://localhost:${PORT}/ipp/print/${QUEUE}"
+CUPS_PPD=/usr/share/ppd/konica206/konica206.ppd
+
+log() { printf 'konica206uri-queue: %s\n' "$*"; }
+
+# /var content baked into an image is not applied on bootc upgrades, so seed
+# the Legacy Printer Application's writable directories here as well. A
+# tmpfiles.d entry covers the window before this service runs.
+install -d -m 0755 "$STATE_DIR" "$STATE_DIR/ppd"
+install -d -m 0700 "$SPOOL_DIR"
+
+if ! command -v legacy-printer-app >/dev/null 2>&1; then
+    log "legacy-printer-app is not installed; no queue created"
+    exit 0
+fi
+
+# udev can start this unit at the same moment as the application itself.
+ready=0
+for _ in $(seq 1 30); do
+    if legacy-printer-app status 2>/dev/null | grep -q '^Running'; then
+        ready=1
+        break
+    fi
+    sleep 1
+done
+if ((ready == 0)); then
+    log "legacy-printer-app is not running; leaving queue creation to the next trigger"
+    exit 0
+fi
+
+serial=${KONICA_SERIAL:-}
+if [[ -z $serial ]]; then
+    for dev in /sys/bus/usb/devices/*; do
+        [[ -r $dev/idVendor && -r $dev/idProduct ]] || continue
+        [[ $(<"$dev/idVendor") == "$VENDOR" ]] || continue
+        [[ $(<"$dev/idProduct") == "$PRODUCT" ]] || continue
+        if [[ -r $dev/serial ]]; then
+            serial=$(<"$dev/serial")
+            break
+        fi
+    done
+fi
+
+if [[ -z $serial ]]; then
+    log "no bizhub 206 ($VENDOR:$PRODUCT) on USB; no queue created"
+    exit 0
+fi
+
+# The serial is embedded in an IPP device URI. Only accept the character set
+# real devices use, so a malformed sysfs value cannot inject URI syntax.
+if [[ ! $serial =~ ^[A-Za-z0-9._-]+$ ]]; then
+    log "refusing unexpected USB serial format: $serial"
+    exit 1
+fi
+
+printer_present() {
+    legacy-printer-app printers 2>/dev/null | awk '{print $1}' | grep -Fxq "$QUEUE"
+}
+
+if ! printer_present; then
+    # pappl-retrofit builds the driver name from the PPD's identification
+    # strings and decorates listed PPDs with "-user-added". Which spelling
+    # `add` accepts varies by build: Fedora 44 accepts the listed name, while
+    # older builds accept the name without the token. Try both.
+    listed=$(legacy-printer-app drivers 2>/dev/null \
+        | awk '$1 ~ /konica/ && $1 ~ /full-bleed/ {print $1; exit}' || true)
+    if [[ -z $listed ]]; then
+        log "no Konica full-bleed PPD driver is advertised (check PPD_PATHS)"
+        legacy-printer-app drivers 2>/dev/null | grep -i konica >&2 || true
+        exit 1
+    fi
+
+    uri="cups:usb://KONICA%20MINOLTA/206?serial=${serial}&interface=1"
+    added=0
+    for candidate in "$listed" "${listed/-user-added/}"; do
+        [[ -n $candidate ]] || continue
+        if out=$(legacy-printer-app add -d "$QUEUE" -v "$uri" -m "$candidate" 2>&1); then
+            added=1
+            log "printer '$QUEUE' ready (driver '$candidate', serial $serial)"
+            break
+        fi
+        # udev re-triggers this unit, and the server may have created the
+        # printer by the time we get here.
+        if printf '%s\n' "$out" | grep -qi 'already exists'; then
+            added=1
+            log "printer '$QUEUE' already exists"
+            break
+        fi
+        printf '%s\n' "$out" >&2
+    done
+    ((added)) || { log "could not add printer '$QUEUE'"; exit 1; }
+fi
+
+# CUPS proxy queues. They reuse the pass-through shim PPD of the native queue,
+# so every real media size stays visible without the runtime driverless tool.
+[[ -r $CUPS_PPD ]] || { log "no shim PPD at $CUPS_PPD; skipping CUPS queues"; exit 0; }
+systemctl start cups.socket >/dev/null 2>&1 || true
+
+for q in "$QUEUE" "$QUEUE-ppd"; do
+    if lpstat -p "$q" >/dev/null 2>&1; then
+        lpadmin -p "$q" -P "$CUPS_PPD" >/dev/null 2>&1 || true
+        log "CUPS queue '$q' refreshed with $CUPS_PPD"
+    else
+        if lpadmin -p "$q" -E \
+                -v "$IPP" \
+                -P "$CUPS_PPD" \
+                -D "KONICA MINOLTA bizhub 206 (legacy konica206uri)" \
+                -L "Local USB" \
+                -o printer-error-policy=retry-job >/dev/null 2>&1; then
+            log "CUPS queue '$q' created (A4, simplex)"
+        else
+            log "could not create CUPS queue '$q'"
+            continue
+        fi
+    fi
+
+    lpadmin -p "$q" -o PageSize=A4 -o Duplex=None >/dev/null 2>&1 || true
+done

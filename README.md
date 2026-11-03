@@ -32,6 +32,10 @@ A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
   device-stream encoder as the filter stage, plus the USB queue-presence
   watcher and Wine/Adobe PostScript rule from
   [konica-retrofit](https://github.com/vinod2807/konica-retrofit)
+- The **legacy `konica206uri`** path: `pappl-retrofit`'s Legacy Printer
+  Application on port 8000, driving the retrofit full-bleed PPD through the
+  same `konica-native` encoder, with `konica206uri` and `konica206uri-ppd`
+  CUPS queues
 - A driverless **Epson L3260** network queue (`ipp://192.168.1.19/ipp/print`,
   IPP Everywhere) created automatically at boot
 - The Intel i5 650 crash/freeze kernel arguments from
@@ -54,7 +58,8 @@ Samba is enabled in the image with SMB2+ authentication. It shares:
 
 - `\\<machine-name>\vinod` — the `vinod` home directory
 - `\\<machine-name>\shared` — `/srv/samba/shared`
-- CUPS queues, including `konica206` and `EPSON_L3260`, as network printers
+- CUPS queues, including `konica206`, `konica206uri`, `konica206uri-ppd` and
+  `EPSON_L3260`, as network printers
 
 Because bootc images must not contain reusable passwords, create the Samba
 credential once on the installed machine. The local Linux account `vinod` must
@@ -98,6 +103,9 @@ smbclient -L localhost -U vinod
 | `desktop/` | labwc autostart/environment/menu, sfwbar panel config, Waybar fallback config |
 | `scripts/install-vendor-data` | Post-install installer for the licensed Konica runtime data |
 | `scripts/ensure-queue` | Creates the PAPPL queue and the local CUPS queue with the PPD shim |
+| `scripts/ensure-legacy-queue` | Creates the legacy `konica206uri` printer and its two CUPS proxy queues |
+| `systemd/legacy-printer-app.service.d/90-konica206uri.conf` | Legacy Printer Application on port 8000, with the retrofit PPD path |
+| `systemd/tmpfiles.d/konica206uri.conf` | Seeds the legacy application's `/var` state and spool at boot |
 | `scripts/ensure-epson-queue` | Creates the driverless Epson L3260 network queue |
 | `scripts/preflight` | Read-only diagnostic (`sudo konica206-preflight`) |
 | `ppd/konica206.ppd` | Hand-written PPD shim: real media sizes, duplex, A4/simplex defaults |
@@ -590,6 +598,23 @@ trigger:
 sudo systemctl start konica206-queue.service
 konica206-native printers -u ipp://localhost:8001
 ```
+
+### Legacy konica206uri queues
+
+The legacy stack from `konica-retrofit` is installed alongside the native app.
+`legacy-printer-app.service` (pappl-retrofit 1.0b2) serves a PPD driver on
+loopback port 8000, using the retrofit full-bleed PPD with `/usr/bin/konica-native`
+as its filter, and `konica206uri-queue.service` creates the CUPS proxy queues:
+
+```
+konica206uri      -> ipp://localhost:8000/ipp/print/konica206uri
+konica206uri-ppd  -> ipp://localhost:8000/ipp/print/konica206uri
+```
+
+Both default to A4 and simplex. They need the same licensed vendor runtime data
+as the native queue. The two applications open USB interface 1 per job, so a
+job goes through whichever queue it was sent to; see `docs/PRINTER.md` for the
+manual checks.
 
 ### Vendor runtime data — required, not redistributed
 
