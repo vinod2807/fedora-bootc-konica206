@@ -151,6 +151,7 @@ RUN set -eux; \
         "$root/usr/lib/tmpfiles.d/konica206uri.conf"; \
     sed -e 's#^\*cupsFilter: .*#*cupsFilter: "application/vnd.cups-raster 0 /usr/bin/konica-native"#' \
         -e 's#^\*DefaultDuplex:.*#*DefaultDuplex: None#' \
+        -e 's#^\*cupsManualCopies:.*#*cupsManualCopies: True#' \
         -e '/^\*OCM_resourceDir:/d' \
         retrofit/backup/var/lib/legacy-printer-app/ppd/KonicaMinolta-206-fullbleed.ppd \
         > "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd"; \

@@ -24,6 +24,7 @@
 *cupsFilter2: "application/vnd.cups-pdf application/pdf 10 -"
 *cupsFilter2: "image/urf image/urf 100 -"
 *cupsUrfSupported: "V1.5,W8,PQ3-4-5,DM1,FN3,IS20-19,MT1,OB10,RS300-600"
+*cupsManualCopies: True
 
 *% ---------------------------------------------------------------------------
 *% Page sizes are the ten real sizes the PAPPL application advertises
