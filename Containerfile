@@ -437,6 +437,8 @@ RUN set -eux; \
     chmod 0755 /usr/libexec/konica206/install-vendor-data /usr/libexec/konica206/ensure-queue /usr/libexec/konica206/preflight; \
      chmod 0755 /usr/libexec/epson-l3260/ensure-queue; \
      chmod 0755 /usr/libexec/setup-samba; \
+    chmod 0755 /usr/local/bin/konica-cups-watch.sh \
+               /usr/local/sbin/check-wineps-route.sh; \
     chmod 0644 /etc/greetd/config.toml \
         /etc/pam.d/greetd \
         /etc/systemd/zram-generator.conf \
@@ -455,6 +457,12 @@ RUN set -eux; \
         /usr/lib/systemd/user/flatpak-update.timer \
         /usr/lib/udev/rules.d/70-konica206.rules \
         /etc/xdg/labwc/menu.xml \
+        /etc/cups/wineps.convs \
+        /usr/local/share/konica-retrofit/min-ar.ps \
+        /usr/share/konica206/retrofit-commit \
+        /usr/lib/systemd/system/konica-cups-watch.service \
+        /usr/lib/systemd/system/konica-cups-watch.timer \
+        /usr/lib/udev/rules.d/71-konica206-usb-presence.rules \
         /usr/share/sfwbar/sfwbar.config \
         /usr/share/applications/konica206-reboot.desktop \
         /usr/share/applications/konica206-poweroff.desktop \
