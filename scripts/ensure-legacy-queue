@@ -30,6 +30,12 @@ log() { printf 'konica206uri-queue: %s\n' "$*"; }
 install -d -m 0755 "$STATE_DIR" "$STATE_DIR/ppd"
 install -d -m 0700 "$SPOOL_DIR"
 
+# Copy the retrofit full-bleed PPD into the legacy app state dir so it shows
+# up in `legacy-printer-app drivers` as a user-added driver. PPDs from
+# PPD_PATHS are loaded internally but not listed by `drivers`; user-added
+# PPDs are.
+install -m 0644 /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd "$STATE_DIR/ppd/" 2>/dev/null || true
+
 if ! command -v legacy-printer-app >/dev/null 2>&1; then
     log "legacy-printer-app is not installed; no queue created"
     exit 0
@@ -83,17 +89,21 @@ if ! printer_present; then
     # strings and decorates listed PPDs with "-user-added". Which spelling
     # `add` accepts varies by build: Fedora 44 accepts the listed name, while
     # older builds accept the name without the token. Try both.
+    #
+    # We match any Konica driver (not just "full-bleed") because
+    # `legacy-printer-app drivers` may not list PPDs loaded from PPD_PATHS
+    # unless they are also copied into the state directory (done above).
     listed=$(legacy-printer-app drivers 2>/dev/null \
-        | awk '$1 ~ /konica/ && $1 ~ /full-bleed/ {print $1; exit}' || true)
+        | awk '$1 ~ /konica/ {print $1}' || true)
     if [[ -z $listed ]]; then
-        log "no Konica full-bleed PPD driver is advertised (check PPD_PATHS)"
+        log "no Konica PPD driver is advertised (check PPD_PATHS)"
         legacy-printer-app drivers 2>/dev/null | grep -i konica >&2 || true
         exit 1
     fi
 
     uri="cups:usb://KONICA%20MINOLTA/206?serial=${serial}&interface=1"
     added=0
-    for candidate in "$listed" "${listed/-user-added/}"; do
+    for candidate in $listed; do
         [[ -n $candidate ]] || continue
         if out=$(legacy-printer-app add -d "$QUEUE" -v "$uri" -m "$candidate" 2>&1); then
             added=1
@@ -106,6 +116,20 @@ if ! printer_present; then
             added=1
             log "printer '$QUEUE' already exists"
             break
+        fi
+        # Also try without the -user-added suffix
+        candidate2="${candidate/-user-added/}"
+        if [[ "$candidate2" != "$candidate" ]]; then
+            if out=$(legacy-printer-app add -d "$QUEUE" -v "$uri" -m "$candidate2" 2>&1); then
+                added=1
+                log "printer '$QUEUE' ready (driver '$candidate2', serial $serial)"
+                break
+            fi
+            if printf '%s\n' "$out" | grep -qi 'already exists'; then
+                added=1
+                log "printer '$QUEUE' already exists"
+                break
+            fi
         fi
         printf '%s\n' "$out" >&2
     done
