@@ -1,0 +1,15 @@
+# Konica Minolta bizhub 206 (USB ID 132b:232b)
+#
+# Keep the CUPS proxy queue in step with the physical USB device. Matching on
+# ENV{PRODUCT} is deliberate: ID_VENDOR_ID/ID_MODEL_ID and ATTR{} are not
+# available on remove events, so the 70-konica206.rules add-only rule cannot
+# disable the queue when the printer is switched off.
+#
+# The watcher reconciles against the real sysfs state, so a lost or reordered
+# event self-heals. Jobs stay queued while the printer is absent.
+#
+# Ported from konica-retrofit's 99-konica206uri-cups.rules, retargeted at the
+# native application's queue (konica206) instead of the legacy
+# konica206uri/konica206uri-ppd pair.
+ACTION=="add",    SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ENV{PRODUCT}=="132b/232b/100", RUN+="/usr/local/bin/konica-cups-watch.sh add"
+ACTION=="remove", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ENV{PRODUCT}=="132b/232b/100", RUN+="/usr/local/bin/konica-cups-watch.sh remove"

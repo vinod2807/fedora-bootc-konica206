@@ -25,8 +25,13 @@ application still uses libcups’ raster API and libusb, both from Fedora RPMs.
 | queue helper | `/usr/libexec/konica206/ensure-queue` |
 | vendor data installer | `/usr/bin/konica206-install-vendor-data` |
 | preflight | `sudo /usr/bin/konica206-preflight` |
-| udev rule | `/usr/lib/udev/rules.d/70-konica206.rules` |
-| build commit stamps | `/usr/share/konica206/app-commit`, `/usr/share/konica206/native-commit` |
+| udev rule (add / queue creation) | `/usr/lib/udev/rules.d/70-konica206.rules` |
+| USB presence watcher | `/usr/local/bin/konica-cups-watch.sh` |
+| watcher udev rule | `/usr/lib/udev/rules.d/71-konica206-usb-presence.rules` |
+| watcher units | `konica-cups-watch.service`, `konica-cups-watch.timer` |
+| Wine/Adobe PS MIME rule | `/etc/cups/wineps.convs` |
+| Wine/Adobe PS guard | `/usr/local/sbin/check-wineps-route.sh` |
+| build commit stamps | `/usr/share/konica206/{app,native,retrofit}-commit` |
 
 The app runs as the system user `konica`, group `konica`, supplementary group
 `lp`. It is **not** run as root and has no shell login. PAPPL state is kept in
@@ -93,6 +98,39 @@ sudo KONICA_SERIAL=YOURSERIAL /usr/libexec/konica206/ensure-queue
 
 Only one process may claim USB interface 1 of the printer. Do not enable a
 second legacy `konica206uri` queue for the same device.
+
+## konica-retrofit integration
+
+The image consumes two distro-neutral assets from
+[konica-retrofit](https://github.com/vinod2807/konica-retrofit), pinned by
+`KONICA_RETROFIT_REF` and stamped into
+`/usr/share/konica206/retrofit-commit`:
+
+- **USB queue-presence watcher** — `konica-cups-watch.service` reconciles the
+  `konica206` CUPS proxy queue with the real sysfs state at boot, on udev
+  add/remove, and every five minutes via `konica-cups-watch.timer`. It disables
+  the queue with the `konica-usb-absent` marker when the printer is off and
+  re-enables only queues carrying that marker, so a deliberate manual pause is
+  never undone. This complements the add-only `70-konica206.rules`, which
+  cannot disable anything on remove.
+- **Wine/Adobe PostScript rule** — `/etc/cups/wineps.convs` retypes
+  `application/vnd.adobe-reader-postscript` to plain `application/postscript`,
+  avoiding the broken `gstoraster` path. The read-only
+  `/usr/local/sbin/check-wineps-route.sh` verifies the rule and filter chain.
+
+The retrofit repository's installer, `legacy-printer-app`, vendor driver and
+`konica206uri` queues are **not** installed: the native `konica206` application
+already claims USB interface 1, and two stacks cannot drive the same device.
+The upstream scripts are patched at build time for the native queue name, and
+the build fails if the patched lines move upstream.
+
+Manual checks:
+
+```bash
+systemctl status konica-cups-watch.service konica-cups-watch.timer
+sudo /usr/local/bin/konica-cups-watch.sh check
+sudo /usr/local/sbin/check-wineps-route.sh
+```
 
 ## USB permissions
 

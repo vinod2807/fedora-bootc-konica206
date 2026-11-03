@@ -38,7 +38,8 @@ jobs:
           set -euo pipefail
           app=$(git ls-remote https://github.com/vinod2807/konica206-native-alpine.git refs/heads/main | awk '{print $1}')
           native=$(git ls-remote https://github.com/vinod2807/konica-native-musl.git refs/heads/main | awk '{print $1}')
-          for ref in "$app" "$native"; do
+          retrofit=$(git ls-remote https://github.com/vinod2807/konica-retrofit.git refs/heads/main | awk '{print $1}')
+          for ref in "$app" "$native" "$retrofit"; do
             if [[ ! $ref =~ ^[0-9a-f]{40}$ ]]; then
               echo "::error::Could not resolve an upstream commit SHA from git ls-remote"
               exit 1
@@ -47,11 +48,13 @@ jobs:
           {
             echo "app=$app"
             echo "native=$native"
+            echo "retrofit=$retrofit"
           } >> "$GITHUB_OUTPUT"
           {
             echo "### Printer sources"
             echo "- konica206-native-alpine: \`$app\`"
             echo "- konica-native-musl: \`$native\`"
+            echo "- konica-retrofit: \`$retrofit\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Resolve latest ZapFast release
@@ -137,6 +140,7 @@ jobs:
             org.opencontainers.image.description=Fedora bootc (base follows :latest) linux/amd64 with Labwc, sfwbar, Foot and the Konica Minolta bizhub 206 printer application
             org.vinod2807.konica.app-ref=${{ steps.refs.outputs.app }}
             org.vinod2807.konica.native-ref=${{ steps.refs.outputs.native }}
+            org.vinod2807.konica.retrofit-ref=${{ steps.refs.outputs.retrofit }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -168,6 +172,7 @@ jobs:
             BUILD_EPOCH=${{ github.run_id }}
             KONICA_APP_REF=${{ steps.refs.outputs.app }}
             KONICA_NATIVE_REF=${{ steps.refs.outputs.native }}
+            KONICA_RETROFIT_REF=${{ steps.refs.outputs.retrofit }}
             ZAPFAST_VERSION=${{ steps.zapfast.outputs.version }}
           cache-from: type=gha,scope=bootc-image
           cache-to: type=gha,mode=max,scope=bootc-image
@@ -202,7 +207,16 @@ jobs:
             grep -q "intel_idle.max_cstate=1" /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
             # GRUB menu must pause so an older deployment can be selected.
             grep -qx "set timeout=10" /usr/lib/bootupd/grub2-static/grub-static-pre.cfg
-            systemctl is-enabled greetd.service NetworkManager.service konica206-native.service konica206-queue.service ecbd.service
+            systemctl is-enabled greetd.service NetworkManager.service konica206-native.service konica206-queue.service konica-cups-watch.service konica-cups-watch.timer ecbd.service
+            # konica-retrofit integration: USB presence watcher retargeted at
+            # the native konica206 queue, plus the Wine/Adobe PS retype rule.
+            test -x /usr/local/bin/konica-cups-watch.sh
+            test -x /usr/local/sbin/check-wineps-route.sh
+            test -f /usr/local/share/konica-retrofit/min-ar.ps
+            test -f /usr/share/konica206/retrofit-commit
+            grep -qx 'QUEUES="konica206"' /usr/local/bin/konica-cups-watch.sh
+            grep -qx 'application/vnd.adobe-reader-postscript application/postscript 0 -' /etc/cups/wineps.convs
+            test -f /usr/lib/udev/rules.d/71-konica206-usb-presence.rules
             # Suspend/hibernate must stay masked: s2idle hangs on this hardware.
             for t in suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target; do
               test "$(readlink "/etc/systemd/system/$t")" = /dev/null
@@ -220,6 +234,8 @@ jobs:
             rm -rf "$zgen"
             systemd-analyze verify /usr/lib/systemd/system/konica206-native.service \
                                    /usr/lib/systemd/system/konica206-queue.service \
+                                   /usr/lib/systemd/system/konica-cups-watch.service \
+                                   /usr/lib/systemd/system/konica-cups-watch.timer \
                                    /usr/lib/systemd/system/bootc-upgrade.service \
                                    /usr/lib/systemd/system/bootc-upgrade.timer
             # Vendor-owned runtime data must never be baked into the public image.
@@ -250,6 +266,7 @@ jobs:
             BUILD_EPOCH=${{ github.run_id }}
             KONICA_APP_REF=${{ steps.refs.outputs.app }}
             KONICA_NATIVE_REF=${{ steps.refs.outputs.native }}
+            KONICA_RETROFIT_REF=${{ steps.refs.outputs.retrofit }}
             ZAPFAST_VERSION=${{ steps.zapfast.outputs.version }}
           cache-from: type=gha,scope=bootc-image
           provenance: mode=max
@@ -267,7 +284,7 @@ jobs:
             echo "${{ steps.meta.outputs.tags }}"
             echo '```'
             echo ""
-            echo "Printer commit SHAs: app \`${{ steps.refs.outputs.app }}\`, native \`${{ steps.refs.outputs.native }}\`"
+            echo "Printer commit SHAs: app \`${{ steps.refs.outputs.app }}\`, native \`${{ steps.refs.outputs.native }}\`, retrofit \`${{ steps.refs.outputs.retrofit }}\`"
             echo ""
             echo "This workflow does not build an ISO. Use the **build-iso** workflow."
           } >> "$GITHUB_STEP_SUMMARY"

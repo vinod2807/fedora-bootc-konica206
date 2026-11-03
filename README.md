@@ -29,7 +29,9 @@ A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
   ([konica206-native-alpine](https://github.com/vinod2807/konica206-native-alpine))
   built for Fedora, with the
   [konica-native](https://github.com/vinod2807/konica-native-musl) C11
-  device-stream encoder as the filter stage
+  device-stream encoder as the filter stage, plus the USB queue-presence
+  watcher and Wine/Adobe PostScript rule from
+  [konica-retrofit](https://github.com/vinod2807/konica-retrofit)
 - A driverless **Epson L3260** network queue (`ipp://192.168.1.19/ipp/print`,
   IPP Everywhere) created automatically at boot
 - The Intel i5 650 crash/freeze kernel arguments from

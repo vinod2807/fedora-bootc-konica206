@@ -4,6 +4,8 @@
 #   - Labwc / Waybar / Foot Wayland desktop + greetd/tuigreet login
 #   - Konica Minolta bizhub 206 PAPPL printer application
 #   - konica-native (C11) device-stream encoder
+#   - konica-retrofit CUPS integration assets (USB queue-presence watcher and
+#     the Wine/Adobe PostScript MIME rule), retargeted at the native queue
 #   - authenticated Samba folder and CUPS printer sharing
 #
 # Vendor-owned runtime data (halftone screen + ICC profiles) is deliberately
@@ -29,8 +31,10 @@ ARG BUILDER_IMAGE=quay.io/fedora/fedora:latest
 
 ARG KONICA_APP_REPO=https://github.com/vinod2807/konica206-native-alpine.git
 ARG KONICA_NATIVE_REPO=https://github.com/vinod2807/konica-native-musl.git
+ARG KONICA_RETROFIT_REPO=https://github.com/vinod2807/konica-retrofit.git
 ARG KONICA_APP_REF=main
 ARG KONICA_NATIVE_REF=main
+ARG KONICA_RETROFIT_REF=main
 
 # ZapFast version to install from GitHub releases. Bump for a new release; the
 # weekly workflow resolves the latest tag automatically.
@@ -43,8 +47,10 @@ FROM ${BUILDER_IMAGE} AS printer-builder
 
 ARG KONICA_APP_REPO
 ARG KONICA_NATIVE_REPO
+ARG KONICA_RETROFIT_REPO
 ARG KONICA_APP_REF
 ARG KONICA_NATIVE_REF
+ARG KONICA_RETROFIT_REF
 
 ENV LANG=C.UTF-8
 
@@ -76,6 +82,17 @@ RUN set -eux; \
     git -C native fetch --depth 1 origin "${KONICA_NATIVE_REF}"; \
     git -C native checkout --detach FETCH_HEAD; \
     git -C native rev-parse HEAD > /src/native-commit
+
+# konica-retrofit is a legacy CUPS/legacy-printer-app kit. This image only
+# consumes its distro-neutral hardening pieces (the USB queue-presence watcher
+# and the Wine/Adobe PostScript retype rule); the legacy installer and its
+# konica206uri queues are deliberately not installed because the native
+# konica206 app already owns the printer's USB interface.
+RUN set -eux; \
+    git clone --depth 1 "${KONICA_RETROFIT_REPO}" retrofit; \
+    git -C retrofit fetch --depth 1 origin "${KONICA_RETROFIT_REF}"; \
+    git -C retrofit checkout --detach FETCH_HEAD; \
+    git -C retrofit rev-parse HEAD > /src/retrofit-commit
 
 # Upstream tests that need no printer, no USB device and no vendor runtime data.
 # make check        -> chunking + PPD parser regression
@@ -110,6 +127,7 @@ FROM ${BASE_IMAGE}
 
 ARG KONICA_APP_REF=main
 ARG KONICA_NATIVE_REF=main
+ARG KONICA_RETROFIT_REF=main
 
 # ZapFast version to install from GitHub releases. Bump for a new release; the
 # weekly workflow can resolve the latest tag automatically.
@@ -126,7 +144,8 @@ LABEL org.opencontainers.image.title="Fedora bootc - Labwc + Konica bizhub 206" 
       org.opencontainers.image.source="https://github.com/vinod2807/fedora-bootc-konica206" \
       org.opencontainers.image.licenses="NOASSERTION" \
       org.vinod2807.konica.app-ref="${KONICA_APP_REF}" \
-      org.vinod2807.konica.native-ref="${KONICA_NATIVE_REF}"
+      org.vinod2807.konica.native-ref="${KONICA_NATIVE_REF}" \
+      org.vinod2807.konica.retrofit-ref="${KONICA_RETROFIT_REF}"
 
 # Weekly builds update the base packages as well as the two printer sources.
 RUN set -eux; \
@@ -323,6 +342,38 @@ COPY --from=printer-builder /out/usr/bin/konica-render   /usr/bin/konica-render
 COPY --from=printer-builder /out/usr/bin/konica-native   /usr/bin/konica-native
 COPY --from=printer-builder /src/app-commit              /usr/share/konica206/app-commit
 COPY --from=printer-builder /src/native-commit           /usr/share/konica206/native-commit
+COPY --from=printer-builder /src/retrofit-commit         /usr/share/konica206/retrofit-commit
+
+# konica-retrofit integration assets. The watcher and guard are copied verbatim
+# from the pinned retrofit commit and then adjusted for this image's native
+# queue; the grep lines below fail the build if upstream changes the strings
+# being patched, rather than silently installing a no-op watcher.
+COPY --from=printer-builder /src/retrofit/konica-cups-watch.sh \
+     /usr/local/bin/konica-cups-watch.sh
+COPY --from=printer-builder /src/retrofit/konica-cups-watch.service \
+     /usr/lib/systemd/system/konica-cups-watch.service
+COPY --from=printer-builder /src/retrofit/konica-cups-watch.timer \
+     /usr/lib/systemd/system/konica-cups-watch.timer
+COPY --from=printer-builder /src/retrofit/check-wineps-route.sh \
+     /usr/local/sbin/check-wineps-route.sh
+COPY --from=printer-builder /src/retrofit/tests/min-ar.ps \
+     /usr/local/share/konica-retrofit/min-ar.ps
+COPY cups/wineps.convs /etc/cups/wineps.convs
+COPY udev/71-konica206-usb-presence.rules /usr/lib/udev/rules.d/71-konica206-usb-presence.rules
+
+RUN set -eux; \
+    sed -i 's/^QUEUES="konica206uri konica206uri-ppd"$/QUEUES="konica206"/' \
+        /usr/local/bin/konica-cups-watch.sh; \
+    grep -qx 'QUEUES="konica206"' /usr/local/bin/konica-cups-watch.sh; \
+    sed -i 's#/etc/cups/ppd/konica206uri.ppd#/etc/cups/ppd/konica206.ppd#' \
+        /usr/local/sbin/check-wineps-route.sh; \
+    grep -q '/etc/cups/ppd/konica206.ppd' /usr/local/sbin/check-wineps-route.sh; \
+    chmod 0755 /usr/local/bin/konica-cups-watch.sh /usr/local/sbin/check-wineps-route.sh; \
+    chmod 0644 /etc/cups/wineps.convs \
+        /usr/local/share/konica-retrofit/min-ar.ps \
+        /usr/lib/systemd/system/konica-cups-watch.service \
+        /usr/lib/systemd/system/konica-cups-watch.timer \
+        /usr/lib/udev/rules.d/71-konica206-usb-presence.rules
 
 COPY bootc/90-linux-pc-crash-fixes.toml /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
 COPY modprobe.d/90-linux-pc-crash-fixes.conf /etc/modprobe.d/90-linux-pc-crash-fixes.conf
@@ -438,6 +489,8 @@ RUN set -eux; \
     systemctl enable greetd.service; \
     systemctl enable konica206-native.service; \
     systemctl enable konica206-queue.service; \
+    systemctl enable konica-cups-watch.service; \
+    systemctl enable konica-cups-watch.timer; \
     systemctl enable epson-l3260-queue.service; \
     systemctl enable samba-setup.service; \
     systemctl enable smb.service nmb.service; \
@@ -448,37 +501,3 @@ RUN set -eux; \
 
 # bootc's own image sanity checks (must be last: it inspects the filesystem).
 RUN bootc container lint
-
-# ---------------------------------------------------------------------------
-# Konica Minolta 206 - retrofit (PAPPL/legacy-printer-app) integration
-# ---------------------------------------------------------------------------
-RUN set -eux; \
-    dnf install -y --setopt=install_weak_deps=False \
-        legacy-printer-app \
-        pappl-retrofit \
-        cups \
-        cups-client \
-        cups-filters \
-        ghostscript \
-        ipptool \
-        avahi \
-        libusb1 \
-        gcc \
-        make \
-        pkgconfig \
-        libcups2-devel \
-        pappl-devel \
-        libusb1-devel \
-        openssl-devel \
-    && dnf clean all
-
-COPY konica-retrofit/install-konica-anylinux.sh /usr/local/bin/install-konica-anylinux.sh
-COPY konica-retrofit/konica-cups-watch.sh /usr/local/bin/konica-cups-watch.sh
-COPY konica-retrofit/konica-cups-watch.service /etc/systemd/system/konica-cups-watch.service
-COPY konica-retrofit/konica-cups-watch.timer /etc/systemd/system/konica-cups-watch.timer
-COPY konica-retrofit/99-konica206uri-cups.rules /usr/lib/udev/rules.d/99-konica206uri-cups.rules
-COPY konica-retrofit/backup/konica-pappl-backup-20260818-1532 /tmp/konica-retrofit-backup
-
-RUN set -eux; \
-    chmod +x /usr/local/bin/install-konica-anylinux.sh /usr/local/bin/konica-cups-watch.sh; \
-    chmod 644 /etc/systemd/system/konica-cups-watch.service /etc/systemd/system/konica-cups-watch.timer /usr/lib/udev/rules.d/99-konica206uri-cups.rules
