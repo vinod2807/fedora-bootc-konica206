@@ -94,6 +94,42 @@ RUN set -eux; \
     git -C retrofit checkout --detach FETCH_HEAD; \
     git -C retrofit rev-parse HEAD > /src/retrofit-commit
 
+COPY cups/wineps.convs /tmp/retrofit-wineps.convs
+COPY udev/71-konica206-usb-presence.rules /tmp/retrofit-usb-presence.rules
+
+# Assemble and patch the retrofit files in the builder stage, laid out exactly
+# as they must appear in the final image. The final stage then needs a single
+# COPY: each extra layer counts against Docker's 125-layer overlay2 limit, and
+# the published image is already near it.
+RUN set -eux; \
+    root=/out/retrofit-root; \
+    install -d "$root/etc/cups" \
+               "$root/usr/local/bin" \
+               "$root/usr/local/sbin" \
+               "$root/usr/local/share/konica-retrofit" \
+               "$root/usr/lib/systemd/system" \
+               "$root/usr/lib/udev/rules.d" \
+               "$root/usr/share/konica206"; \
+    sed 's/^QUEUES="konica206uri konica206uri-ppd"$/QUEUES="konica206"/' \
+        retrofit/konica-cups-watch.sh > "$root/usr/local/bin/konica-cups-watch.sh"; \
+    grep -qx 'QUEUES="konica206"' "$root/usr/local/bin/konica-cups-watch.sh"; \
+    sed 's#/etc/cups/ppd/konica206uri.ppd#/etc/cups/ppd/konica206.ppd#' \
+        retrofit/check-wineps-route.sh > "$root/usr/local/sbin/check-wineps-route.sh"; \
+    grep -q '/etc/cups/ppd/konica206.ppd' "$root/usr/local/sbin/check-wineps-route.sh"; \
+    chmod 0755 "$root/usr/local/bin/konica-cups-watch.sh" \
+               "$root/usr/local/sbin/check-wineps-route.sh"; \
+    install -m 0644 retrofit/tests/min-ar.ps \
+        "$root/usr/local/share/konica-retrofit/min-ar.ps"; \
+    install -m 0644 retrofit/konica-cups-watch.service \
+                    retrofit/konica-cups-watch.timer \
+        "$root/usr/lib/systemd/system/"; \
+    install -m 0644 /tmp/retrofit-wineps.convs \
+        "$root/etc/cups/wineps.convs"; \
+    install -m 0644 /tmp/retrofit-usb-presence.rules \
+        "$root/usr/lib/udev/rules.d/71-konica206-usb-presence.rules"; \
+    install -m 0644 /src/retrofit-commit \
+        "$root/usr/share/konica206/retrofit-commit"
+
 # Upstream tests that need no printer, no USB device and no vendor runtime data.
 # make check        -> chunking + PPD parser regression
 # make check-native -> full PAPPL job path against a stand-in filter
@@ -342,38 +378,10 @@ COPY --from=printer-builder /out/usr/bin/konica-render   /usr/bin/konica-render
 COPY --from=printer-builder /out/usr/bin/konica-native   /usr/bin/konica-native
 COPY --from=printer-builder /src/app-commit              /usr/share/konica206/app-commit
 COPY --from=printer-builder /src/native-commit           /usr/share/konica206/native-commit
-COPY --from=printer-builder /src/retrofit-commit         /usr/share/konica206/retrofit-commit
-
-# konica-retrofit integration assets. The watcher and guard are copied verbatim
-# from the pinned retrofit commit and then adjusted for this image's native
-# queue; the grep lines below fail the build if upstream changes the strings
-# being patched, rather than silently installing a no-op watcher.
-COPY --from=printer-builder /src/retrofit/konica-cups-watch.sh \
-     /usr/local/bin/konica-cups-watch.sh
-COPY --from=printer-builder /src/retrofit/konica-cups-watch.service \
-     /usr/lib/systemd/system/konica-cups-watch.service
-COPY --from=printer-builder /src/retrofit/konica-cups-watch.timer \
-     /usr/lib/systemd/system/konica-cups-watch.timer
-COPY --from=printer-builder /src/retrofit/check-wineps-route.sh \
-     /usr/local/sbin/check-wineps-route.sh
-COPY --from=printer-builder /src/retrofit/tests/min-ar.ps \
-     /usr/local/share/konica-retrofit/min-ar.ps
-COPY cups/wineps.convs /etc/cups/wineps.convs
-COPY udev/71-konica206-usb-presence.rules /usr/lib/udev/rules.d/71-konica206-usb-presence.rules
-
-RUN set -eux; \
-    sed -i 's/^QUEUES="konica206uri konica206uri-ppd"$/QUEUES="konica206"/' \
-        /usr/local/bin/konica-cups-watch.sh; \
-    grep -qx 'QUEUES="konica206"' /usr/local/bin/konica-cups-watch.sh; \
-    sed -i 's#/etc/cups/ppd/konica206uri.ppd#/etc/cups/ppd/konica206.ppd#' \
-        /usr/local/sbin/check-wineps-route.sh; \
-    grep -q '/etc/cups/ppd/konica206.ppd' /usr/local/sbin/check-wineps-route.sh; \
-    chmod 0755 /usr/local/bin/konica-cups-watch.sh /usr/local/sbin/check-wineps-route.sh; \
-    chmod 0644 /etc/cups/wineps.convs \
-        /usr/local/share/konica-retrofit/min-ar.ps \
-        /usr/lib/systemd/system/konica-cups-watch.service \
-        /usr/lib/systemd/system/konica-cups-watch.timer \
-        /usr/lib/udev/rules.d/71-konica206-usb-presence.rules
+# konica-retrofit integration assets, assembled and patched in the builder
+# stage so this costs a single layer. Docker's overlay2 cannot load an image
+# with more than ~125 layers, and the published image is already near that.
+COPY --from=printer-builder /out/retrofit-root/ /
 
 COPY bootc/90-linux-pc-crash-fixes.toml /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
 COPY modprobe.d/90-linux-pc-crash-fixes.conf /etc/modprobe.d/90-linux-pc-crash-fixes.conf
