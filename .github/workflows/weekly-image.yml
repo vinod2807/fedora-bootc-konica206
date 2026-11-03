@@ -186,7 +186,7 @@ jobs:
             rpm -q zram-generator >/dev/null
             ! rpm -q pcmanfm >/dev/null 2>&1
             ! rpm -q swaylock >/dev/null 2>&1
-            ! grep -qi 'swaylock' /etc/xdg/labwc/autostart
+            ! grep -qi "swaylock" /etc/xdg/labwc/autostart
             # MATE was removed; no MATE app or setting panel may sneak back in.
             ! rpm -q mate-control-center mate-polkit >/dev/null 2>&1
             test -f /usr/lib64/qt5/plugins/platforms/libqwayland-generic.so
@@ -214,8 +214,8 @@ jobs:
             test -x /usr/local/sbin/check-wineps-route.sh
             test -f /usr/local/share/konica-retrofit/min-ar.ps
             test -f /usr/share/konica206/retrofit-commit
-            grep -qx 'QUEUES="konica206"' /usr/local/bin/konica-cups-watch.sh
-            grep -qx 'application/vnd.adobe-reader-postscript application/postscript 0 -' /etc/cups/wineps.convs
+            grep -qx "QUEUES=\"konica206\"" /usr/local/bin/konica-cups-watch.sh
+            grep -qx "application/vnd.adobe-reader-postscript application/postscript 0 -" /etc/cups/wineps.convs
             test -f /usr/lib/udev/rules.d/71-konica206-usb-presence.rules
             # Suspend/hibernate must stay masked: s2idle hangs on this hardware.
             for t in suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target; do
