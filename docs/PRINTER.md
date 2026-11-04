@@ -112,6 +112,13 @@ Verified offline with a 40-page job on a PAPPL file device: one CUPS job
 produced one PAPPL job and one spool file with the fixed script; the old
 script produced two.
 
+Separately, the printer drops off the USB bus when it enters its own
+energy-saver mode and re-enumerates 25–40 s later. A job submitted during that
+window waits for the device (PAPPL retries the open every 5 s) but is no longer
+duplicated. Host-side USB autosuspend is already off for this device
+(`/sys/bus/usb/devices/3-2/power/control` is `on`); disabling the printer's
+front-panel sleep mode shortens the wait.
+
 Manual:
 
 ```bash
