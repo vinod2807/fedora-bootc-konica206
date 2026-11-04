@@ -667,8 +667,9 @@ A CUPS queue named **`konica206`** is created automatically (by
 device's ~4.2 mm hardware margins — CUPS' auto-generated "everywhere" PPD
 labels every size `*.Borderless`, which this printer does not support.
 
-Defaults are **A4 and simplex** (`PageSize=A4`, `Duplex=None`) and are re-applied
-on every boot. Duplex is available per job:
+Defaults are **A4 and simplex** (`PageSize=A4`, `Duplex=None`). They are applied
+when the queue is first created and are never re-applied by a USB event, so a
+re-enumeration cannot restart an active job. Duplex is available per job:
 
 ```bash
 lp -d konica206 /path/to/test.pdf                          # A4, 1-sided

@@ -18,6 +18,19 @@ PPD=/usr/share/ppd/konica206/konica206.ppd
 
 log() { printf 'konica206-classic-queue: %s\n' "$*"; }
 
+# True when the queue's installed PPD is byte-identical to the image PPD.
+ppd_current() {
+    local queue="$1" src="$2"
+    cmp -s "/etc/cups/ppd/${queue}.ppd" "$src"
+}
+
+# True when the queue has a pending or processing job. Reloading a PPD makes
+# CUPS restart that job, so an update must wait until the queue is idle.
+queue_busy() {
+    local queue="$1"
+    lpstat -o "$queue" 2>/dev/null | grep -q .
+}
+
 if ! command -v lpadmin >/dev/null 2>&1 || ! command -v lpstat >/dev/null 2>&1; then
     log "CUPS tools not installed; no classic queue created"
     exit 0
@@ -54,11 +67,20 @@ fi
 uri="usb://KONICA%20MINOLTA/206?serial=${serial}&interface=${INTERFACE}"
 
 if lpstat -p "$QUEUE" >/dev/null 2>&1; then
-    # Queue exists: refresh its PPD and defaults, leave the URI as-is.
-    lpadmin -p "$QUEUE" -P "$PPD" >/dev/null 2>&1 \
-        && log "CUPS queue '$QUEUE' refreshed with $PPD"
-    lpadmin -p "$QUEUE" -o PageSize=A4 -o Duplex=None >/dev/null 2>&1 \
-        && log "defaults applied: PageSize=A4 Duplex=None"
+    # Queue exists: leave the URI as-is. Do NOT reload the PPD unconditionally:
+    # udev runs this script on every USB re-enumeration, and CUPS restarts the
+    # active job whenever a printer's PPD changes ("Job restarted because the
+    # printer was modified" in scheduler/ipp.c), which submits the document
+    # again and prints it twice. Only update a PPD that really differs, and
+    # never while the queue is busy.
+    if ppd_current "$QUEUE" "$PPD"; then
+        log "CUPS queue '$QUEUE' is up to date"
+    elif queue_busy "$QUEUE"; then
+        log "CUPS queue '$QUEUE' is busy; deferring PPD update"
+    else
+        lpadmin -p "$QUEUE" -P "$PPD" >/dev/null 2>&1 \
+            && log "CUPS queue '$QUEUE' refreshed with $PPD"
+    fi
     exit 0
 fi
 

@@ -80,9 +80,37 @@ when the device is plugged in. It:
 2. reads the printer serial from sysfs (`/sys/bus/usb/devices/*/serial`) for
    `132b:232b`;
 3. creates the `konica206` queue if it does not already exist;
-4. creates (or refreshes) the local CUPS queue `konica206` with the shipped
-   PPD shim and forces `PageSize=A4`, `Duplex=None`;
-5. exits 0 when no printer is attached.
+4. creates the local CUPS queue `konica206` with the shipped PPD shim and
+   applies `PageSize=A4`, `Duplex=None` **only when creating it**;
+5. if the queue already exists, reloads the PPD only when it differs from
+   `/usr/share/ppd/konica206/konica206.ppd` **and** the queue is idle;
+6. exits 0 when no printer is attached.
+
+### Why the PPD is never reloaded mid-job
+
+The udev rule requests these services on **every** USB `add` event. The printer
+drops off the bus when it sleeps and re-enumerates when it wakes, sometimes in
+the middle of a job. `ensure-queue`, `ensure-classic-queue` and
+`ensure-legacy-queue` used to run `lpadmin -p <queue> -P <ppd>`
+unconditionally on each trigger.
+
+In CUPS, uploading a PPD through `CUPS-Add-Modify-Printer` sets
+`need_restart_job`; the scheduler then restarts the active job
+(`scheduler/ipp.c`: "Job restarted because the printer was modified"). The
+restarted job is submitted to PAPPL again, which encodes and prints it a second
+time. That was the cause of the intermittent double prints — not CUPS retry
+policy and not `cupsManualCopies`.
+
+The scripts now:
+
+- compare the installed PPD with `cmp` and skip `lpadmin` when it is equal;
+- defer the update while `lpstat -o <queue>` reports pending/processing jobs;
+- apply A4/simplex defaults only on queue creation, so a USB event cannot
+  overwrite the user's choices.
+
+Verified offline with a 40-page job on a PAPPL file device: one CUPS job
+produced one PAPPL job and one spool file with the fixed script; the old
+script produced two.
 
 Manual:
 
@@ -331,6 +359,7 @@ konica206-native printers -u ipp://localhost:8001
 | “permission denied” on USB | udev rule loaded (`udevadm control --reload-rules`), `konica` in `lp`, replug |
 | `Unable to claim USB interface: Resource busy` | `usblp` grabbed the device; the image blacklists it (`/etc/modprobe.d/90-konica206-usblp.conf`) — reboot or `rmmod usblp` |
 | `konica206-queue` failed: “Printer name already exists” | udev re-trigger race; fixed by the idempotent `ensure-queue` script, safe to `systemctl restart` |
+| One print job produces two copies | was a mid-job PPD reload (`lpadmin -P` on USB re-enumeration); queue scripts must log “up to date” or “deferring PPD update”, never “refreshed”, while a job is active |
 | App starts but no queue | `konica206-native printers -u ipp://localhost:8001` |
 | CUPS queue disabled | re-create with `lpadmin -E`; check `cupsaccept` |
 | Duplex wrong | app uses compiled-in `cupsBackSide: Rotated`; file a test case |

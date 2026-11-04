@@ -17,9 +17,21 @@ log() { printf 'konica206-queue: %s\n' "$*"; }
 # but CUPS needs a local queue with a PPD before anything can print through it.
 # The shipped PPD is a shim: it declares the ten real page sizes of the device
 # (no CUPS-generated ".Borderless" entries) and offers simplex and duplex.
-# Defaults are forced to A4 and one-sided on every run.
 CUPS_QUEUE=${KONICA_CUPS_QUEUE:-konica206}
 PPD=/usr/share/ppd/konica206/konica206.ppd
+
+# True when the queue's installed PPD is byte-identical to the image PPD.
+ppd_current() {
+    local queue="$1" src="$2"
+    cmp -s "/etc/cups/ppd/${queue}.ppd" "$src"
+}
+
+# True when the queue has a pending or processing job. Reloading a PPD makes
+# CUPS restart that job, so an update must wait until the queue is idle.
+queue_busy() {
+    local queue="$1"
+    lpstat -o "$queue" 2>/dev/null | grep -q .
+}
 
 ensure_cups_queue() {
     [ -r "$PPD" ] || { log "no PPD at $PPD; skipping CUPS queue"; return 0; }
@@ -27,20 +39,36 @@ ensure_cups_queue() {
     systemctl start cups.socket >/dev/null 2>&1 || true
 
     if lpstat -p "$CUPS_QUEUE" >/dev/null 2>&1; then
-        lpadmin -p "$CUPS_QUEUE" -P "$PPD" >/dev/null 2>&1 \
-            && log "CUPS queue '$CUPS_QUEUE' refreshed with $PPD"
-    else
-        lpadmin -p "$CUPS_QUEUE" -E \
-            -v "ipp://127.0.0.1:${PORT}/ipp/print/${QUEUE}" \
-            -P "$PPD" \
-            -D "KONICA MINOLTA bizhub 206" -L "Local USB" \
-            -o printer-error-policy=retry-job >/dev/null 2>&1 \
-            && log "CUPS queue '$CUPS_QUEUE' created (A4, simplex)" \
-            || { log "could not create CUPS queue '$CUPS_QUEUE'"; return 0; }
+        # Never reload an unchanged PPD. udev runs this script on every USB
+        # re-enumeration, including the printer waking up in the middle of a
+        # job, and CUPS restarts the active job whenever a printer's PPD
+        # changes ("Job restarted because the printer was modified" in
+        # scheduler/ipp.c). The restarted job is submitted to PAPPL again and
+        # prints a second time. Only touch the PPD when it really differs,
+        # and never while the queue is busy.
+        if ppd_current "$CUPS_QUEUE" "$PPD"; then
+            log "CUPS queue '$CUPS_QUEUE' is up to date"
+        elif queue_busy "$CUPS_QUEUE"; then
+            log "CUPS queue '$CUPS_QUEUE' is busy; deferring PPD update"
+        else
+            lpadmin -p "$CUPS_QUEUE" -P "$PPD" >/dev/null 2>&1 \
+                && log "CUPS queue '$CUPS_QUEUE' refreshed with $PPD"
+        fi
+        return 0
     fi
+
+    lpadmin -p "$CUPS_QUEUE" -E \
+        -v "ipp://127.0.0.1:${PORT}/ipp/print/${QUEUE}" \
+        -P "$PPD" \
+        -D "KONICA MINOLTA bizhub 206" -L "Local USB" \
+        -o printer-error-policy=retry-job >/dev/null 2>&1 \
+        && log "CUPS queue '$CUPS_QUEUE' created (A4, simplex)" \
+        || { log "could not create CUPS queue '$CUPS_QUEUE'"; return 0; }
 
     # Persisted defaults: A4 paper, one-sided. Both can still be overridden
     # per job (-o PageSize=A3, -o Duplex=DuplexNoTumble) or in the print dialog.
+    # Apply them only on creation so a later USB event cannot overwrite the
+    # user's choices.
     lpadmin -p "$CUPS_QUEUE" -o PageSize=A4 -o Duplex=None >/dev/null 2>&1 \
         && log "defaults applied: PageSize=A4 Duplex=None"
 }
