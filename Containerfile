@@ -286,6 +286,9 @@ RUN set -eux; \
         lxpolkit \
         mesa-dri-drivers \
         mesa-libEGL \
+        alsa-lib \
+        libxkbcommon \
+        vulkan-loader \
         mousepad \
         NetworkManager-wifi \
         nm-connection-editor \
