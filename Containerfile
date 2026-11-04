@@ -328,9 +328,6 @@ RUN set -eux; \
         xdg-user-dirs \
         xdg-utils \
         xorg-x11-server-Xwayland \
-        wine \
-        wine-mono \
-        winetricks \
         zip \
         zram-generator \
         mako \

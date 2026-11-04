@@ -186,8 +186,12 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm --entrypoint /bin/bash localhost/fedora-bootc-konica206:smoke -euo pipefail -x -c '
-             rpm -q labwc waybar foot firefox brave-browser ffmpeg libavcodec-freeworld gstreamer1-plugin-libav gstreamer1-plugins-ugly wine winetricks wine-mono gpodder retroarch vlc greetd tuigreet NetworkManager pappl cups ghostscript Thunar qt5-qtwayland gnome-keyring-pam lxpolkit swayidle >/dev/null
+             rpm -q labwc waybar foot firefox brave-browser ffmpeg libavcodec-freeworld gstreamer1-plugin-libav gstreamer1-plugins-ugly gpodder retroarch vlc greetd tuigreet NetworkManager pappl cups ghostscript Thunar qt5-qtwayland gnome-keyring-pam lxpolkit swayidle >/dev/null
             rpm -q zram-generator >/dev/null
+            # The Wine stack was removed from the image; none of it may come back.
+            for p in wine wine-core wine-mono winetricks; do
+              ! rpm -q "$p" >/dev/null 2>&1
+            done
             ! rpm -q pcmanfm >/dev/null 2>&1
             ! rpm -q swaylock >/dev/null 2>&1
             ! grep -qi "swaylock" /etc/xdg/labwc/autostart
