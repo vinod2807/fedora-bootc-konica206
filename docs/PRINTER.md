@@ -198,9 +198,11 @@ The image consumes distro-neutral assets from
   real sysfs state at boot, on udev add/remove, and every five minutes via
   `konica-cups-watch.timer`. It disables the queues with the
   `konica-usb-absent` marker when the printer is off and re-enables only queues
-  carrying that marker, so a deliberate manual pause is never undone. This
-  complements the add-only `70-konica206.rules`, which cannot disable anything
-  on remove.
+  carrying that marker, so a deliberate manual pause is never undone. Queues
+  with pending or processing jobs are left alone: pausing one makes CUPS set
+  the job back to pending, and re-enabling the queue restarts it from page 1,
+  which prints the document twice. This complements the add-only
+  `70-konica206.rules`, which cannot disable anything on remove.
 - **Wine/Adobe PostScript rule** — `/etc/cups/wineps.convs` retypes
   `application/vnd.adobe-reader-postscript` to plain `application/postscript`,
   avoiding the broken `gstoraster` path. The read-only
@@ -367,6 +369,7 @@ konica206-native printers -u ipp://localhost:8001
 | `Unable to claim USB interface: Resource busy` | `usblp` grabbed the device; the image blacklists it (`/etc/modprobe.d/90-konica206-usblp.conf`) — reboot or `rmmod usblp` |
 | `konica206-queue` failed: “Printer name already exists” | udev re-trigger race; fixed by the idempotent `ensure-queue` script, safe to `systemctl restart` |
 | One print job produces two copies | was a mid-job PPD reload (`lpadmin -P` on USB re-enumeration); queue scripts must log “up to date” or “deferring PPD update”, never “refreshed”, while a job is active |
+| Two copies after the printer sleeps | the USB watcher must not pause a queue with an active job; `/var/log/konica-cups-watch.log` should say “disable … skipped (queue has a job)” |
 | App starts but no queue | `konica206-native printers -u ipp://localhost:8001` |
 | CUPS queue disabled | re-create with `lpadmin -E`; check `cupsaccept` |
 | Duplex wrong | app uses compiled-in `cupsBackSide: Rotated`; file a test case |
