@@ -286,6 +286,7 @@ RUN set -eux; \
         lxpolkit \
         mesa-dri-drivers \
         mesa-libEGL \
+        mesa-vulkan-drivers \
         alsa-lib \
         libxkbcommon \
         vulkan-loader \
