@@ -458,6 +458,7 @@ COPY systemd/konica206-queue.service  /usr/lib/systemd/system/konica206-queue.se
 COPY systemd/epson-l3260-queue.service /usr/lib/systemd/system/epson-l3260-queue.service
 COPY systemd/konica206-classic-queue.service /usr/lib/systemd/system/konica206-classic-queue.service
 COPY systemd/samba-setup.service    /usr/lib/systemd/system/samba-setup.service
+COPY systemd/nmb.service.d/10-wait-for-interface.conf /usr/lib/systemd/system/nmb.service.d/10-wait-for-interface.conf
 COPY systemd/bootc-upgrade.service    /usr/lib/systemd/system/bootc-upgrade.service
 COPY systemd/bootc-upgrade.timer      /usr/lib/systemd/system/bootc-upgrade.timer
 COPY systemd/flatpak-update.service   /usr/lib/systemd/system/flatpak-update.service
@@ -518,6 +519,7 @@ RUN set -eux; \
         /usr/lib/systemd/system/konica206-queue.service \
         /usr/lib/systemd/system/epson-l3260-queue.service \
         /usr/lib/systemd/system/samba-setup.service \
+        /usr/lib/systemd/system/nmb.service.d/10-wait-for-interface.conf \
          /etc/samba/smb.conf \
         /etc/flatpak/overrides/com.stremio.Stremio \
         /usr/lib/systemd/system/bootc-upgrade.service \

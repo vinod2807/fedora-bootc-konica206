@@ -272,6 +272,8 @@ jobs:
                                    /usr/lib/systemd/system/konica-cups-watch.timer \
                                    /usr/lib/systemd/system/bootc-upgrade.service \
                                    /usr/lib/systemd/system/bootc-upgrade.timer
+            # nmbd must be allowed to wait for a NIC that appears after boot.
+            grep -qx 'TimeoutStartSec=0' /usr/lib/systemd/system/nmb.service.d/10-wait-for-interface.conf
             # Vendor-owned runtime data must never be baked into the public image.
             # The encoder fixed /usr/local path must point at writable state.
             test "$(readlink -f /usr/local/lib/konica)" = "/var/lib/konica206/vendor"
