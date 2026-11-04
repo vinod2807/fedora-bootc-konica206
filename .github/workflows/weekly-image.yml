@@ -319,27 +319,17 @@ jobs:
           provenance: false
           sbom: false
 
-      - name: Set up Fedora container for rechunk
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-        with:
-          name: fedora-ns
-          buildkitd-flags: --oci-driver=classic
-
       - name: Export the built rootfs
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p /tmp/rechunk
-          # Load the tar produced by the previous step into the buildx builder
-          docker buildx load --builder fedora-ns --input /tmp/bootc-image.tar 2>/dev/null || true
-          # Extract the image's merged rootfs via a throwaway container.
-          IMAGE_TAG="${{ env.IMAGE_NAME }}:latest"
-          # The buildx load above may not tag with the right name; load with docker.
+          # Load the tar produced by the previous step into Docker and
+          # extract the image's merged rootfs via a throwaway container.
           docker load --input /tmp/bootc-image.tar
           # Find what we just loaded (the first tag set by the metadata step).
           IMG_ID=$(docker images --format '{{.ID}} {{.Repository}}:{{.Tag}}' | awk '{print $1}' | head -n1)
-          docker export "$(docker create "$IMG_ID")" > /tmp/rechunk/rootfs.tar
-          tar -xf /tmp/rechunk/rootfs.tar -C /tmp/rechunk
+          docker export "$(docker create "$IMG_ID")" | tar -x -C /tmp/rechunk
           echo "Rootfs extracted: $(find /tmp/rechunk -type f | wc -l) files"
 
       - name: Rechunk the image
@@ -349,11 +339,18 @@ jobs:
           # Rechunk the finished rootfs with chunkah. The output (oci-archive)
           # carries the same labels/config as the built image; the layer
           # boundaries are re-laid so updates only re-download changed chunks.
-          # chunkah is available in Fedora's updates repo (F45+).
-          dnf install -y chunkah skopeo
-          chunkah build --rootfs /tmp/rechunk --max-layers 64 --compressed --output oci-archive:/tmp/rechunked.tar
+          #
+          # We run chunkah inside a throwaway Fedora container so its tooling
+          # is present, without needing to install Fedora tools on the Ubuntu
+          # runner. The rootfs is mounted read-only; chunkah reads it and
+          # writes the rechunked archive to the mounted /out directory.
+          docker run --rm -v /tmp/rechunk:/rechunk:ro -v /tmp:/out quay.io/fedora/fedora:latest bash -c '
+            set -euo pipefail
+            dnf install -y chunkah skopeo
+            chunkah build --rootfs /rechunk --max-layers 64 --compressed --output oci-archive:/out/rechunked.tar
+            skopeo inspect --raw oci-archive:/out/rechunked.tar | python3 -c "import sys,json; d=json.load(sys.stdin); m=d[\"manifests\"][0] if \"manifests\" in d else d; print(\"rechunked layers:\", len(m.get(\"layers\",[])))"
+          '
           echo "Rechunked image written to /tmp/rechunked.tar"
-          skopeo inspect --raw oci-archive:/tmp/rechunked.tar | python3 -c 'import sys,json; d=json.load(sys.stdin); print("rechunked manifest ok")'
 
       - name: Push the rechunked image
         shell: bash
