@@ -13,11 +13,6 @@ export QT_QPA_PLATFORMTHEME=qt5ct
 # Waybar stays installed as a fallback; run "waybar &" by hand to use it.
 sfwbar &
 
-# Dock: plank — macOS-style app launcher with running apps
-if command -v plank >/dev/null 2>&1; then
-    plank &
-fi
-
 # Solid background (no wallpaper asset shipped). Optional; harmless if absent.
 if command -v swaybg >/dev/null 2>&1; then
     swaybg -c '#1e1e2e' &

@@ -336,7 +336,6 @@ RUN set -eux; \
         mako \
         swayidle \
         brightnessctl \
-        plank \
         lxappearance \
         adw-gtk3-theme \
         kvantum \
