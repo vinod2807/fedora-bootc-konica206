@@ -80,47 +80,47 @@ jobs:
             echo "- version: \`$tag\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Resolve latest pdfcraft RPM
-        id: pdfcraft
+      - name: Resolve latest storytold releases
+        id: storytold
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          # Get the latest release from pdfcraft-alpine that contains a .rpm asset
-          url=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" \
-            "https://api.github.com/repos/vinod2807/pdfcraft-alpine/releases" \
-            | jq -r '
-              map(select(.assets[]?.name | endswith(".rpm"))) |
-              first |
-              .assets[] |
-              select(.name | endswith(".rpm")) |
-              .browser_download_url
-            ')
-          if [[ -z "$url" || "$url" == "null" ]]; then
-            echo "::error::Could not resolve pdfcraft RPM URL"
-            exit 1
-          fi
-          filename=$(basename "$url")
+          # Resolve latest release tag for each storytold app
+          pdfcraft_tag=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" \
+            "https://api.github.com/repos/storytold/pdfcraft/releases/latest" \
+            | jq -r '.tag_name')
+          wordcraft_tag=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" \
+            "https://api.github.com/repos/storytold/wordcraft/releases/latest" \
+            | jq -r '.tag_name')
+          deckcraft_tag=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" \
+            "https://api.github.com/repos/storytold/deckcraft/releases/latest" \
+            | jq -r '.tag_name')
+          gridcraft_tag=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" \
+            "https://api.github.com/repos/storytold/gridcraft/releases/latest" \
+            | jq -r '.tag_name')
+
+          for tag in "$pdfcraft_tag" "$wordcraft_tag" "$deckcraft_tag" "$gridcraft_tag"; do
+            if [[ ! $tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Could not resolve a storytold release tag (got '$tag')"
+              exit 1
+            fi
+          done
+
           {
-            echo "url=$url"
-            echo "filename=$filename"
+            echo "pdfcraft_version=$pdfcraft_tag"
+            echo "wordcraft_version=$wordcraft_tag"
+            echo "deckcraft_version=$deckcraft_tag"
+            echo "gridcraft_version=$gridcraft_tag"
           } >> "$GITHUB_OUTPUT"
           {
-            echo "### pdfcraft"
-            echo "- RPM: \`$filename\`"
-            echo "- URL: \`$url\`"
+            echo "### Storytold Crafting Apps"
+            echo "- pdfcraft: \`$pdfcraft_tag\`"
+            echo "- wordcraft: \`$wordcraft_tag\`"
+            echo "- deckcraft: \`$deckcraft_tag\`"
+            echo "- gridcraft: \`$gridcraft_tag\`"
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Download pdfcraft RPM to local-rpms
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p local-rpms
-          # Remove any existing pdfcraft RPMs to avoid conflicts
-          rm -f local-rpms/pdfcraft-*.rpm
-          curl -fsSL -o "local-rpms/${{ steps.pdfcraft.outputs.filename }}" "${{ steps.pdfcraft.outputs.url }}"
-          echo "Downloaded ${{ steps.pdfcraft.outputs.filename }} to local-rpms/"
 
       - name: Set lower-case image name
         shell: bash
@@ -174,6 +174,10 @@ jobs:
             KONICA_NATIVE_REF=${{ steps.refs.outputs.native }}
             KONICA_RETROFIT_REF=${{ steps.refs.outputs.retrofit }}
             ZAPFAST_VERSION=${{ steps.zapfast.outputs.version }}
+            PDFCRAFT_VERSION=${{ steps.storytold.outputs.pdfcraft_version }}
+            WORDCRAFT_VERSION=${{ steps.storytold.outputs.wordcraft_version }}
+            DECKCRAFT_VERSION=${{ steps.storytold.outputs.deckcraft_version }}
+            GRIDCRAFT_VERSION=${{ steps.storytold.outputs.gridcraft_version }}
           cache-from: type=gha,scope=bootc-image
           cache-to: type=gha,mode=max,scope=bootc-image
 
@@ -192,7 +196,8 @@ jobs:
             test -f /usr/lib64/qt5/plugins/platforms/libqwayland-generic.so
             test -f /usr/lib64/security/pam_gnome_keyring.so
             rpm -q zapfast >/dev/null
-            for b in /usr/bin/konica206-native /usr/bin/konica-native /usr/bin/konica-send /usr/bin/labwc /usr/bin/waybar /usr/bin/foot /usr/bin/tuigreet /usr/bin/zapfast; do
+            rpm -q pdfcraft wordcraft deckcraft gridcraft >/dev/null
+            for b in /usr/bin/konica206-native /usr/bin/konica-native /usr/bin/konica-send /usr/bin/labwc /usr/bin/waybar /usr/bin/foot /usr/bin/tuigreet /usr/bin/zapfast /usr/bin/pdfcraft /usr/bin/wordcraft /usr/bin/deckcraft /usr/bin/gridcraft; do
               test -x "$b"
             done
             /usr/bin/konica206-native --version
@@ -287,6 +292,10 @@ jobs:
             KONICA_NATIVE_REF=${{ steps.refs.outputs.native }}
             KONICA_RETROFIT_REF=${{ steps.refs.outputs.retrofit }}
             ZAPFAST_VERSION=${{ steps.zapfast.outputs.version }}
+            PDFCRAFT_VERSION=${{ steps.storytold.outputs.pdfcraft_version }}
+            WORDCRAFT_VERSION=${{ steps.storytold.outputs.wordcraft_version }}
+            DECKCRAFT_VERSION=${{ steps.storytold.outputs.deckcraft_version }}
+            GRIDCRAFT_VERSION=${{ steps.storytold.outputs.gridcraft_version }}
           cache-from: type=gha,scope=bootc-image
           provenance: mode=max
           # This image contains a large desktop/runtime package set; the
