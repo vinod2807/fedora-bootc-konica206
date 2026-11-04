@@ -360,6 +360,17 @@ RUN set -eux; \
         https://github.com/crmne/zapfast/releases/download/${ZAPFAST_VERSION}/zapfast-${ZAPFAST_VERSION#v}-1.x86_64.rpm; \
     dnf clean all
 
+# Storytold Crafting Apps (official GitHub release RPMs).
+# These are glibc-linked x86_64 RPMs from the upstream storytold repos.
+RUN set -eux; \
+    echo "installing storytold crafting apps"; \
+    dnf install -y \
+        https://github.com/storytold/pdfcraft/releases/download/v0.18.0/pdfcraft-0.18.0-linux-x86_64.rpm \
+        https://github.com/storytold/wordcraft/releases/download/v0.15.0/wordcraft-0.15.0-linux-x86_64.rpm \
+        https://github.com/storytold/deckcraft/releases/download/v0.15.0/deckcraft-0.15.0-linux-x86_64.rpm \
+        https://github.com/storytold/gridcraft/releases/download/v0.16.0/gridcraft-0.16.0-linux-x86_64.rpm; \
+    dnf clean all
+
 # Epson Printer Utility for Linux is only distributed through Epson's download
 # centre, which answers automated requests with HTTP 403 (Akamai), so it cannot
 # be fetched here. The vendor RPM is committed under local-rpms/ and installed
@@ -373,11 +384,6 @@ RUN set -eux; \
 COPY local-rpms/ /tmp/local-rpms/
 RUN set -eux; \
     if compgen -G '/tmp/local-rpms/*.rpm' >/dev/null; then \
-        # Remove any duplicate pdfcraft versions if both exist
-        if [ "$(ls /tmp/local-rpms/pdfcraft-*.rpm 2>/dev/null | wc -l)" -gt 1 ]; then \
-            echo "Multiple pdfcraft versions found, keeping only the latest"; \
-            ls -1t /tmp/local-rpms/pdfcraft-*.rpm | tail -n +2 | xargs -r rm -f; \
-        fi; \
         dnf install -y --setopt=tsflags=noscripts /tmp/local-rpms/*.rpm; \
         if [ -f /usr/lib/epson-backend/ecbd.service ]; then \
             install -D -m 0644 /usr/lib/epson-backend/ecbd.service \
