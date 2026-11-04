@@ -64,6 +64,9 @@ ARG KONICA_RETROFIT_REF
 
 ENV LANG=C.UTF-8
 
+# util-linux provides runuser, which the non-root check-native test below uses.
+# Fedora 45 moved runuser out of util-linux-core, the only util-linux piece the
+# base image ships, so install the full package explicitly.
 RUN dnf install -y --setopt=install_weak_deps=False \
         ca-certificates \
         cups-devel \
@@ -77,6 +80,7 @@ RUN dnf install -y --setopt=install_weak_deps=False \
         findutils \
         diffutils \
         python3 \
+        util-linux \
     && dnf clean all
 
 WORKDIR /src
