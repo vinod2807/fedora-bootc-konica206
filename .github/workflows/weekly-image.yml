@@ -197,6 +197,12 @@ jobs:
             test -f /usr/lib64/security/pam_gnome_keyring.so
             rpm -q zapfast >/dev/null
             rpm -q pdfcraft wordcraft deckcraft gridcraft >/dev/null
+            # wgpu-based apps (wordcraft, deckcraft, gridcraft) abort with
+            # "Failed to create surface for any enabled backend" when no Vulkan
+            # ICD is installed. mesa-vulkan-drivers provides lavapipe (software
+            # Vulkan), which works on GPUs without a Vulkan driver (e.g. Ironlake).
+            rpm -q mesa-vulkan-drivers vulkan-loader >/dev/null
+            test -f /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
             for b in /usr/bin/konica206-native /usr/bin/konica-native /usr/bin/konica-send /usr/bin/labwc /usr/bin/waybar /usr/bin/foot /usr/bin/tuigreet /usr/bin/zapfast /usr/bin/pdfcraft /usr/bin/wordcraft /usr/bin/deckcraft /usr/bin/gridcraft; do
               test -x "$b"
             done
