@@ -80,48 +80,6 @@ jobs:
             echo "- version: \`$tag\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Resolve latest storytold releases
-        id: storytold
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          # Resolve latest release tag for each storytold app
-          pdfcraft_tag=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" \
-            "https://api.github.com/repos/storytold/pdfcraft/releases/latest" \
-            | jq -r '.tag_name')
-          wordcraft_tag=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" \
-            "https://api.github.com/repos/storytold/wordcraft/releases/latest" \
-            | jq -r '.tag_name')
-          deckcraft_tag=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" \
-            "https://api.github.com/repos/storytold/deckcraft/releases/latest" \
-            | jq -r '.tag_name')
-          gridcraft_tag=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" \
-            "https://api.github.com/repos/storytold/gridcraft/releases/latest" \
-            | jq -r '.tag_name')
-
-          for tag in "$pdfcraft_tag" "$wordcraft_tag" "$deckcraft_tag" "$gridcraft_tag"; do
-            if [[ ! $tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-              echo "::error::Could not resolve a storytold release tag (got '$tag')"
-              exit 1
-            fi
-          done
-
-          {
-            echo "pdfcraft_version=$pdfcraft_tag"
-            echo "wordcraft_version=$wordcraft_tag"
-            echo "deckcraft_version=$deckcraft_tag"
-            echo "gridcraft_version=$gridcraft_tag"
-          } >> "$GITHUB_OUTPUT"
-          {
-            echo "### Storytold Crafting Apps"
-            echo "- pdfcraft: \`$pdfcraft_tag\`"
-            echo "- wordcraft: \`$wordcraft_tag\`"
-            echo "- deckcraft: \`$deckcraft_tag\`"
-            echo "- gridcraft: \`$gridcraft_tag\`"
-          } >> "$GITHUB_STEP_SUMMARY"
-
       - name: Set lower-case image name
         shell: bash
         run: echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
@@ -174,10 +132,6 @@ jobs:
             KONICA_NATIVE_REF=${{ steps.refs.outputs.native }}
             KONICA_RETROFIT_REF=${{ steps.refs.outputs.retrofit }}
             ZAPFAST_VERSION=${{ steps.zapfast.outputs.version }}
-            PDFCRAFT_VERSION=${{ steps.storytold.outputs.pdfcraft_version }}
-            WORDCRAFT_VERSION=${{ steps.storytold.outputs.wordcraft_version }}
-            DECKCRAFT_VERSION=${{ steps.storytold.outputs.deckcraft_version }}
-            GRIDCRAFT_VERSION=${{ steps.storytold.outputs.gridcraft_version }}
           cache-from: type=gha,scope=bootc-image
           cache-to: type=gha,mode=max,scope=bootc-image
           provenance: false
@@ -202,14 +156,13 @@ jobs:
             test -f /usr/lib64/qt5/plugins/platforms/libqwayland-generic.so
             test -f /usr/lib64/security/pam_gnome_keyring.so
             rpm -q zapfast >/dev/null
-            rpm -q pdfcraft wordcraft deckcraft gridcraft >/dev/null
-            # wgpu-based apps (wordcraft, deckcraft, gridcraft) abort with
+            # wgpu-based apps (zapfast) abort with
             # "Failed to create surface for any enabled backend" when no Vulkan
             # ICD is installed. mesa-vulkan-drivers provides lavapipe (software
             # Vulkan), which works on GPUs without a Vulkan driver (e.g. Ironlake).
             rpm -q mesa-vulkan-drivers vulkan-loader >/dev/null
             test -f /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
-            for b in /usr/bin/konica206-native /usr/bin/konica-native /usr/bin/konica-send /usr/bin/labwc /usr/bin/waybar /usr/bin/foot /usr/bin/tuigreet /usr/bin/zapfast /usr/bin/pdfcraft /usr/bin/wordcraft /usr/bin/deckcraft /usr/bin/gridcraft; do
+            for b in /usr/bin/konica206-native /usr/bin/konica-native /usr/bin/konica-send /usr/bin/labwc /usr/bin/waybar /usr/bin/foot /usr/bin/tuigreet /usr/bin/zapfast; do
               test -x "$b"
             done
             /usr/bin/konica206-native --version
@@ -308,10 +261,6 @@ jobs:
             KONICA_NATIVE_REF=${{ steps.refs.outputs.native }}
             KONICA_RETROFIT_REF=${{ steps.refs.outputs.retrofit }}
             ZAPFAST_VERSION=${{ steps.zapfast.outputs.version }}
-            PDFCRAFT_VERSION=${{ steps.storytold.outputs.pdfcraft_version }}
-            WORDCRAFT_VERSION=${{ steps.storytold.outputs.wordcraft_version }}
-            DECKCRAFT_VERSION=${{ steps.storytold.outputs.deckcraft_version }}
-            GRIDCRAFT_VERSION=${{ steps.storytold.outputs.gridcraft_version }}
           cache-from: type=gha,scope=bootc-image
           # Build goes to a tar (not directly to the registry) so the next
           # step can rechunk it. Only the rechunked image is published.

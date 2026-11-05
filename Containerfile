@@ -43,13 +43,6 @@ ARG KONICA_RETROFIT_REF=main
 # weekly workflow resolves the latest tag automatically.
 ARG ZAPFAST_VERSION=v0.20.1
 
-# Storytold Crafting Apps versions. Bump for new releases; the weekly workflow
-# resolves the latest tags automatically.
-ARG PDFCRAFT_VERSION=v0.18.0
-ARG WORDCRAFT_VERSION=v0.15.0
-ARG DECKCRAFT_VERSION=v0.15.0
-ARG GRIDCRAFT_VERSION=v0.16.0
-
 # ---------------------------------------------------------------------------
 # Build the printer application and the native encoder.
 # ---------------------------------------------------------------------------
@@ -218,13 +211,6 @@ ARG KONICA_RETROFIT_REF=main
 # weekly workflow can resolve the latest tag automatically.
 ARG ZAPFAST_VERSION=v0.20.1
 
-# Storytold Crafting Apps versions. Bump for new releases; the weekly workflow
-# can resolve the latest tags automatically.
-ARG PDFCRAFT_VERSION=v0.18.0
-ARG WORDCRAFT_VERSION=v0.15.0
-ARG DECKCRAFT_VERSION=v0.15.0
-ARG GRIDCRAFT_VERSION=v0.16.0
-
 # Buys a fresh resolution of the third-party app layer below (see the
 # "Third-party desktop applications" section). Bump it for a local rebuild that
 # must fetch the current ONLYOFFICE RPM; the weekly workflow passes a unique
@@ -376,19 +362,6 @@ RUN set -eux; \
         https://github.com/cyanfish/naps2/releases/download/v8.6.0/naps2-8.6.0-linux-x64.rpm; \
     dnf install -y \
         https://github.com/crmne/zapfast/releases/download/${ZAPFAST_VERSION}/zapfast-${ZAPFAST_VERSION#v}-1.x86_64.rpm; \
-    dnf clean all
-
-# Storytold Crafting Apps (official GitHub release RPMs).
-# These are glibc-linked x86_64 RPMs from the upstream storytold repos.
-# Versions are controlled by PDFCRAFT_VERSION, WORDCRAFT_VERSION, DECKCRAFT_VERSION,
-# GRIDCRAFT_VERSION args; the weekly workflow resolves latest release tags.
-RUN set -eux; \
-    echo "installing storytold crafting apps"; \
-    dnf install -y \
-        https://github.com/storytold/pdfcraft/releases/download/${PDFCRAFT_VERSION}/pdfcraft-${PDFCRAFT_VERSION#v}-linux-x86_64.rpm \
-        https://github.com/storytold/wordcraft/releases/download/${WORDCRAFT_VERSION}/wordcraft-${WORDCRAFT_VERSION#v}-linux-x86_64.rpm \
-        https://github.com/storytold/deckcraft/releases/download/${DECKCRAFT_VERSION}/deckcraft-${DECKCRAFT_VERSION#v}-linux-x86_64.rpm \
-        https://github.com/storytold/gridcraft/releases/download/${GRIDCRAFT_VERSION}/gridcraft-${GRIDCRAFT_VERSION#v}-linux-x86_64.rpm; \
     dnf clean all
 
 # Epson Printer Utility for Linux is only distributed through Epson's download
