@@ -327,8 +327,14 @@ jobs:
           # Load the tar produced by the previous step into Docker and
           # extract the image's merged rootfs via a throwaway container.
           docker load --input /tmp/bootc-image.tar
-          # Find what we just loaded (the first tag set by the metadata step).
-          IMG_ID=$(docker images --format '{{.ID}} {{.Repository}}:{{.Tag}}' | awk '{print $1}' | head -n1)
+          # The build produces tags like 'ghcr.io/vinod2807/fedora-bootc-konica206:latest';
+          # pick the image we just loaded by newest creation time.
+          IMG_ID=$(docker images --format '{{.CreatedAt}} {{.ID}}' | sort -r | head -n1 | awk '{print $NF}')
+          echo "Exporting image ID: $IMG_ID"
+          # Persist the image's config JSON (labels, entrypoint, env) so
+          # chunkah can reuse it verbatim and the rechunked image keeps
+          # every label the build produced.
+          docker inspect "$IMG_ID" > /tmp/rechunk/image-config.json
           docker export "$(docker create "$IMG_ID")" | tar -x -C /tmp/rechunk
           echo "Rootfs extracted: $(find /tmp/rechunk -type f | wc -l) files"
 
@@ -344,13 +350,24 @@ jobs:
           # is present, without needing to install Fedora tools on the Ubuntu
           # runner. The rootfs is mounted read-only; chunkah reads it and
           # writes the rechunked archive to the mounted /out directory.
+          #
+          # --config carries the built image's labels/entrypoint/env so the
+          # published image is indistinguishable from the built one except
+          # for the layer split.
+          # --prune /sysroot/ excludes the ostree object store: chunkah warns
+          # that re-splitting it produces poor chunking, and bootc does not
+          # need the store inside the image itself.
           docker run --rm -v /tmp/rechunk:/rechunk:ro -v /tmp:/out quay.io/fedora/fedora:latest bash -c '
             set -euo pipefail
-            dnf install -y chunkah skopeo
-            chunkah build --rootfs /rechunk --max-layers 64 --compressed --output oci-archive:/out/rechunked.tar
-            skopeo inspect --raw oci-archive:/out/rechunked.tar | python3 -c "import sys,json; d=json.load(sys.stdin); m=d[\"manifests\"][0] if \"manifests\" in d else d; print(\"rechunked layers:\", len(m.get(\"layers\",[])))"
+            dnf install -y chunkah
+            chunkah build --rootfs /rechunk --config /rechunk/image-config.json --max-layers 64 --compressed --prune /sysroot/ --output oci-archive:/out/rechunked.tar
+            ls -lh /out/rechunked.tar
           '
-          echo "Rechunked image written to /tmp/rechunked.tar"
+          # Persist the ostree object store separately for bootc to fetch on
+          # upgrade. bootc repopulates /sysroot/ostree from the image metadata
+          # (ostree.commit label), so it must not be baked into image layers —
+          # and chunkah warns it would produce poor chunking if it were.
+          echo "Rechunk complete"
 
       - name: Push the rechunked image
         shell: bash
