@@ -679,6 +679,51 @@ as the native queue. The two applications open USB interface 1 per job, so a
 job goes through whichever queue it was sent to; see `docs/PRINTER.md` for the
 manual checks.
 
+### Duplicate prints after USB re-enumeration (fixed 2026-11-04)
+
+**Symptom.** One `lp` job produced two copies, usually after the printer slept
+and re-appeared on USB. `cupsd` logged `Job ... restarted because the printer
+was modified`, and the PAPPL log showed two `Starting print job` entries for a
+single CUPS job.
+
+There were two independent causes:
+
+1. **PPD reload during a job.** `70-konica206.rules` starts the queue services
+   on every USB add. The scripts used to run `lpadmin -P` unconditionally, and
+   CUPS restarts an active job whenever a printer's PPD changes
+   (`need_restart_job` in `scheduler/ipp.c`). `scripts/ensure-queue`,
+   `ensure-classic-queue` and `ensure-legacy-queue` now:
+   - compare the installed PPD with the shipped one (`cmp -s`) and reload only
+     when it really differs;
+   - defer any reload while the queue has pending or processing jobs;
+   - apply the A4/simplex defaults only when the queue is created.
+2. **Pause/resume during a job.** The USB presence watcher
+   (`konica-cups-watch.sh`, built from `konica-retrofit`) ran `cupsdisable` on
+   remove and `cupsenable` on add, plus every five minutes via its timer.
+   `cupsdisable` sets a processing job back to `PENDING`, and the later
+   `cupsenable` restarts it from page 1. `disable_queues` now skips any queue
+   with a pending or processing job; PAPPL already pauses its own queue and
+   retries the USB device until the printer returns.
+
+**Confirming the fix is active.**
+
+```bash
+# Queue scripts must say "up to date" or "deferring PPD update"; they must
+# never say "refreshed" while a job is printing.
+journalctl -u konica206-queue -u konica206-classic-queue -u konica206uri-queue -b
+
+# The watcher must skip busy queues.
+tail -20 /var/log/konica-cups-watch.log
+# expected: "disable konica206 skipped (queue has a job)"
+```
+
+Regression test: start a long job, then trigger a USB add event with
+`sudo udevadm trigger --action=add --subsystem-match=usb --sysname-match=3-2`
+(or run the watcher by hand). The PAPPL log must show one `Starting print job`,
+not two. Full detail:
+[`docs/PRINTER.md`](docs/PRINTER.md#why-the-ppd-is-never-reloaded-mid-job) and
+[`docs/PRINTER.md`](docs/PRINTER.md#konica-retrofit-integration).
+
 ### Vendor runtime data — required, not redistributed
 
 The native encoder loads three **Konica Minolta-owned** files at runtime,
