@@ -323,44 +323,32 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Load the tar produced by the previous step into Docker and
-          # extract the image's merged rootfs via a throwaway container.
-          docker load --input /tmp/bootc-image.tar
-          # The build produces tags like 'ghcr.io/vinod2807/fedora-bootc-konica206:latest';
-          # pick the image we just loaded by newest creation time.
-          IMG_ID=$(docker images --format '{{.CreatedAt}} {{.ID}}' | sort -r | head -n1 | awk '{print $NF}')
-          echo "Exporting image ID: $IMG_ID"
-          # Persist the image's config JSON (labels, entrypoint, env) so
-          # chunkah can reuse it verbatim and the rechunked image keeps
-          # every label the build produced. Keep it OUTSIDE the rootfs so it
-          # does not become /image-config.json in the published image.
-          docker inspect "$IMG_ID" > /tmp/image-config.json
-          # Extract as root. A non-root tar silently rewrites ownership to the
-          # runner user (UID 1001) and drops setuid/setgid bits and
-          # security.capability xattrs. The resulting image boots to greetd but
-          # cannot start a session (sudo/passwd lose setuid, ping/newuidmap
-          # lose capabilities), which looks like broken autologin. --xattrs and
-          # --acls keep the metadata the build produced.
-          sudo rm -rf /tmp/rechunk
-          sudo mkdir -p /tmp/rechunk
-          docker export "$(docker create "$IMG_ID")" | \
-            sudo tar --numeric-owner --xattrs --xattrs-include='*' --acls \
-              -xpf - -C /tmp/rechunk
-          # The image's / is root-owned, but docker export has no "." entry and
-          # tar does not change the ownership of an existing directory. Set it
-          # explicitly because chunkah uses this directory as the root inode.
-          sudo chown 0:0 /tmp/rechunk
-          sudo chmod 0755 /tmp/rechunk
-          echo "Rootfs extracted: $(sudo find /tmp/rechunk -type f | wc -l) files"
+          # Unpack the image into containers/storage with buildah and hand the
+          # mounted rootfs to chunkah. buildah applies the OCI layers itself,
+          # preserving ownership, setuid/setgid bits and security.capability
+          # xattrs. `docker export | tar -x` is not usable here: docker export
+          # does not emit security.capability at all, so the result boots to
+          # greetd but cannot start a session (autologin dies, sudo/passwd lose
+          # setuid, ping/newuidmap lose capabilities).
+          sudo buildah rm bootc-rechunk >/dev/null 2>&1 || true
+          sudo skopeo copy --quiet docker-archive:/tmp/bootc-image.tar \
+            containers-storage:localhost/bootc-build:latest
+          # Capture the image config in podman-inspect format, which chunkah
+          # understands (labels, entrypoint, env, ...). Keep it OUTSIDE the
+          # rootfs so it does not become /image-config.json in the image.
+          sudo podman inspect localhost/bootc-build:latest > /tmp/image-config.json
+          sudo buildah from --name bootc-rechunk containers-storage:localhost/bootc-build:latest >/dev/null
+          ROOTFS=$(sudo buildah mount bootc-rechunk)
+          echo "ROOTFS=$ROOTFS" >> "$GITHUB_ENV"
+          echo "Rootfs mounted at $ROOTFS"
           # Fail fast if metadata did not survive. A rootfs owned by anything
           # other than root, or missing setuid/capabilities, cannot boot.
-          sudo python3 - <<'PY'
-          import os, stat
-          root = "/tmp/rechunk"
+          sudo python3 - "$ROOTFS" <<'PY'
+          import os, stat, sys
+          root = sys.argv[1]
           st = os.stat(root)
           assert (st.st_uid, st.st_gid) == (0, 0), f"rootfs owned by {st.st_uid}:{st.st_gid}"
-          sudo_mode = os.stat(f"{root}/usr/bin/sudo").st_mode
-          assert sudo_mode & stat.S_ISUID, "sudo lost its setuid bit"
+          assert os.stat(f"{root}/usr/bin/sudo").st_mode & stat.S_ISUID, "sudo lost its setuid bit"
           caps = os.getxattr(f"{root}/usr/bin/newuidmap", "security.capability")
           assert caps, "newuidmap lost its capabilities"
           print("rootfs metadata OK: root-owned, setuid and capabilities intact")
@@ -392,7 +380,7 @@ jobs:
           # is to prune /sysroot/ and drop the ostree labels, which turns the
           # image into a plain (non-OSTree) bootc image. bootc imports those
           # directly from the rootfs; `containers.bootc=1` is kept.
-          docker run --rm -v /tmp/rechunk:/rechunk:ro -v /tmp:/out quay.io/fedora/fedora:latest bash -c '
+          docker run --rm -v "$ROOTFS":/rechunk:ro -v /tmp:/out quay.io/fedora/fedora:latest bash -c '
             set -euo pipefail
             dnf install -y chunkah
             chunkah build --rootfs /rechunk --config /out/image-config.json \
@@ -401,6 +389,9 @@ jobs:
               --output oci-archive:/out/rechunked.tar
             ls -lh /out/rechunked.tar
           '
+          # Release the buildah mount now that chunkah has read the rootfs.
+          sudo buildah umount bootc-rechunk
+          sudo buildah rm bootc-rechunk
           echo "Rechunk complete"
 
       - name: Verify the rechunked image is bootable
