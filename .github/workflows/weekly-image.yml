@@ -354,20 +354,46 @@ jobs:
           # --config carries the built image's labels/entrypoint/env so the
           # published image is indistinguishable from the built one except
           # for the layer split.
-          # --prune /sysroot/ excludes the ostree object store: chunkah warns
-          # that re-splitting it produces poor chunking, and bootc does not
-          # need the store inside the image itself.
+          #
+          # bootc/OSTree note (see chunkah README, "Compatibility with
+          # bootable (bootc) images"): an OSTree-based bootc image stores its
+          # ostree repo under /sysroot and records the layer holding it in the
+          # `ostree.final-diffid` label. Rechunking re-lays every layer, so
+          # that label would point at a layer that no longer exists and bootc
+          # would fail with "Missing ostree.final-diffid". The supported fix
+          # is to prune /sysroot/ and drop the ostree labels, which turns the
+          # image into a plain (non-OSTree) bootc image. bootc imports those
+          # directly from the rootfs; `containers.bootc=1` is kept.
           docker run --rm -v /tmp/rechunk:/rechunk:ro -v /tmp:/out quay.io/fedora/fedora:latest bash -c '
             set -euo pipefail
             dnf install -y chunkah
-            chunkah build --rootfs /rechunk --config /rechunk/image-config.json --max-layers 64 --compressed --prune /sysroot/ --output oci-archive:/out/rechunked.tar
+            chunkah build --rootfs /rechunk --config /rechunk/image-config.json \
+              --max-layers 64 --compressed --prune /sysroot/ \
+              --label ostree.commit- --label ostree.final-diffid- \
+              --output oci-archive:/out/rechunked.tar
             ls -lh /out/rechunked.tar
           '
-          # Persist the ostree object store separately for bootc to fetch on
-          # upgrade. bootc repopulates /sysroot/ostree from the image metadata
-          # (ostree.commit label), so it must not be baked into image layers —
-          # and chunkah warns it would produce poor chunking if it were.
           echo "Rechunk complete"
+
+      - name: Verify the rechunked image is bootable
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Refuse to publish an image bootc cannot import. In particular, an
+          # ostree.final-diffid label whose layer was re-laid by chunkah makes
+          # `bootc upgrade` fail with "Missing ostree.final-diffid".
+          skopeo inspect --config oci-archive:/tmp/rechunked.tar > /tmp/rechunked-config.json
+          python3 - <<'PY'
+          import json, sys
+          cfg = json.load(open("/tmp/rechunked-config.json"))
+          labels = (cfg.get("config") or {}).get("Labels") or {}
+          if labels.get("containers.bootc") != "1":
+              sys.exit("rechunked image lost containers.bootc=1")
+          for stale in ("ostree.commit", "ostree.final-diffid"):
+              if stale in labels:
+                  sys.exit(f"rechunked image still has {stale} label")
+          print("rechunked image labels OK:", sorted(labels))
+          PY
 
       - name: Push the rechunked image
         shell: bash
