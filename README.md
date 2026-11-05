@@ -48,6 +48,11 @@ Published image:
 ghcr.io/vinod2807/fedora-bootc-konica206:latest
 ```
 
+The published image is post-processed with **chunkah** into 64 content-based
+layers. The image size is unchanged, but `bootc upgrade` only downloads the
+layers whose content changed — see
+[Image rechunking (chunkah)](#image-rechunking-chunkah).
+
 The installed machine tracks that reference and updates with `bootc upgrade`.
 **A new ISO is not needed for routine updates.**
 
@@ -92,7 +97,7 @@ smbclient -L localhost -U vinod
 | Path | Purpose |
 |---|---|
 | `Containerfile` | Multi-stage bootc image build (printer binaries built in a builder stage of the same Fedora release) |
-| `.github/workflows/weekly-image.yml` | Weekly (Sunday 03:00 UTC) + manual image build/publish; never builds an ISO |
+| `.github/workflows/weekly-image.yml` | Weekly (Sunday 03:00 IST) + manual build → smoke test → chunkah rechunk → verify → publish; never builds an ISO |
 | `.github/workflows/build-iso.yml` | Manual or Fedora-major-release Anaconda installer ISO build with El Torito and QEMU SeaBIOS checks |
 | `.github/iso/Containerfile` | Anaconda installer container consumed by image-builder `bootc-generic-iso` |
 | `.github/iso/iso.yaml` | GRUB/ISO label and kernel command line for the installer media |
@@ -120,7 +125,8 @@ smbclient -L localhost -U vinod
 
 `.github/workflows/weekly-image.yml`
 
-- Cron `0 3 * * 0` (Sunday 03:00 UTC) and `workflow_dispatch`
+- Cron `30 21 * * 6` (Sunday 03:00 IST / Saturday 21:30 UTC) and
+  `workflow_dispatch`
 - Builds `linux/amd64`
 - Runs `dnf upgrade --refresh` so the image picks up the current Fedora updates
 - Base image is `quay.io/fedora/fedora-bootc:latest` with `pull: true`, so the
@@ -133,14 +139,67 @@ smbclient -L localhost -U vinod
   - `make check-native` (PAPPL job path with a stand-in filter)
   - `konica-native`: `make check` (raster reader cross-check, CMM table,
     geometry, MEDIATYPE, failure modes)
-- Builds the image locally, runs a container smoke test, then pushes to GHCR
-  only if the smoke test passed.
+- Builds the image locally, runs a container smoke test, then **rechunks** it
+  with chunkah and publishes only the rechunked image (see
+  [Image rechunking (chunkah)](#image-rechunking-chunkah)).
+- Verifies the rechunked image before pushing: `containers.bootc=1` is present
+  and `ostree.commit` / `ostree.final-diffid` are absent.
 - Tags: `latest`, `main`, and `sha-<full-commit>` (rolling + traceable)
 - Concurrency group per branch, `cancel-in-progress: false`
 - `permissions: contents: read`, `packages: write`
 - Uses Buildx/GHA cache; the cache key includes the resolved source SHAs, so a
   new upstream commit cannot be hidden by an old cache.
 - **Does not build an ISO.**
+
+### Image rechunking (chunkah)
+
+The image is not published as BuildKit produced it. After the smoke test, CI
+re-lays the rootfs into **content-based layers** with
+[chunkah](https://github.com/coreos/chunkah) and pushes only that result.
+
+A Dockerfile-derived image creates one layer per `RUN`, so a single package
+update invalidates a layer much larger than the package itself. chunkah groups
+related files and packages into layers that are reused across builds. The image
+size stays about the same (64 layers, ~3.33 GiB compressed), but `bootc upgrade`
+only downloads layers whose content changed.
+
+Pipeline (all in `.github/workflows/weekly-image.yml`):
+
+1. Buildx writes the image to `/tmp/bootc-image.tar` (`type=docker`).
+2. `skopeo copy` imports it into `containers-storage`.
+3. `podman inspect` captures the config in the format chunkah parses.
+4. `buildah from` + `buildah mount` expose the merged rootfs.
+5. chunkah runs in a throwaway `quay.io/fedora/fedora:latest` container:
+
+   ```bash
+   chunkah build --rootfs /rechunk --config /out/image-config.json \
+     --max-layers 64 --compressed --prune /sysroot/ \
+     --label ostree.commit- --label ostree.final-diffid- \
+     --output oci-archive:/out/rechunked.tar
+   ```
+
+6. CI verifies the result and `skopeo copy`s it to every metadata tag.
+
+Two details matter:
+
+- **`--prune /sysroot/` + dropped OSTree labels.** An OSTree-based bootc image
+  records the layer holding `/sysroot` in `ostree.final-diffid`. Rechunking
+  re-lays that layer, so the label would point at a layer that no longer
+  exists and `bootc upgrade` would fail with `Missing ostree.final-diffid`.
+  Pruning `/sysroot/` and dropping the labels produces a plain-OCI bootc image
+  that bootc imports from the rootfs; `containers.bootc=1` is kept.
+- **buildah mount, not `docker export`.** The rootfs must keep ownership,
+  setuid/setgid bits and `security.capability` xattrs. `docker export` does not
+  emit capabilities, and extracting its tar as a non-root user rewrites every
+  file to the runner UID and strips setuid. Either mistake produces an image
+  that boots to greetd but cannot start a session (autologin dies,
+  `sudo`/`passwd` lose setuid, `ping`/`newuidmap` lose capabilities). The
+  workflow mounts the image with buildah and asserts the metadata before
+  rechunking.
+
+chunkah is **not** installed in the published image; it only runs in the CI
+throwaway container. The runtime image contains the re-laid layers, nothing
+else.
 
 ### ISO (manual, or once per Fedora major release)
 
@@ -284,7 +343,7 @@ installer environment. Making it public is the documented path.
 ### Real-hardware checklist for this PC
 
 Before you start: the target disk will be erased, and the installer needs the
-internet (it pulls the image, roughly 1 GiB compressed, from GHCR).
+internet (it pulls the image, roughly 3.3 GiB compressed, from GHCR).
 
 1. **Network:** use a **wired Ethernet** connection on the i5 650. Wi-Fi on this
    generation is usually unsupported in the installer; wired avoids that.
@@ -410,6 +469,11 @@ sudo systemctl reboot            # activates it
 `bootc upgrade` stages by default; it does **not** reboot, which is exactly how
 the automatic update below behaves. Passing `--apply` (not used here) would
 reboot immediately.
+
+Because the published image is chunkah-rechunked, an upgrade only downloads the
+layers whose content changed. The first upgrade from a pre-rechunk image was a
+full download because the layer layout was different; later upgrades are
+incremental.
 
 To change the tracked image (for example to a frozen SHA tag):
 
@@ -840,6 +904,10 @@ See [`docs/CRASH-FIXES.md`](docs/CRASH-FIXES.md).
   Pin `BASE_IMAGE`/`BUILDER_IMAGE` to a numbered tag if that is not wanted.
 - **Fedora updates:** each weekly build runs `dnf upgrade --refresh`, so it
   picks up the current Fedora packages for whatever release `:latest` points at.
+- **Image layering:** every published image is rechunked with chunkah
+  (`--max-layers 64 --compressed`). chunkah runs only in CI; it is not part of
+  the runtime image. The layer count is a trade-off between update granularity
+  and push/pull overhead.
 - **Printer sources:** built from `main` each week. The workflow resolves
   `main` to a full SHA and records it in image labels/summary. This gives
   reproducibility per published image without freezing future weekly builds.
@@ -862,11 +930,14 @@ machine. It is updated after workflow runs.
 
 | Check | Status |
 |---|---|
-| Containerfile builds `linux/amd64` | **Passed** — `weekly-image` run [40684026498](https://github.com/vinod2807/fedora-bootc-konica206/actions/runs/40684026498) |
+| Containerfile builds `linux/amd64` | **Passed** — `weekly-image` run [41966537577](https://github.com/vinod2807/fedora-bootc-konica206/actions/runs/41966537577) |
 | Upstream printer `make check` / `make check-native` | **Passed** — same run (builder stage) |
 | `konica-native` vendor-free test suite | **Passed** — same run (builder stage) |
 | Container smoke test (packages, units, binary versions, no vendor files, `/usr/local` symlink, `pdftoraster`) | **Passed** — same run, before the push |
-| Weekly push to GHCR + traceable tags | **Passed** — tags `latest`, `main`, `sha-ff563ecb6e91280d01cf3bf0412c588468319837`; all resolve to `sha256:73dee69ab2a2756636a8d680c7941cef0f4516da12fa44e8f473d84ecb325ae9`. Anonymous pull works (public package). |
+| chunkah rechunk (64 content-based layers) | **Passed** — same run; published `latest` is `sha256:3fc26b60008bda7b1ee7650e166dbe3cee72fb5359a5199c6106373cdaa1c5b7` with 64 layers, `containers.bootc=1`, and no `ostree.commit`/`ostree.final-diffid` |
+| Rechunk preserves ownership, setuid and capabilities | **Passed** — build-time assertion (`/` = `0:0`, `sudo` setuid, `newuidmap` `cap_setuid=ep`) plus post-deploy verification |
+| `bootc upgrade` into the rechunked image on real hardware | **Passed** — staged `86434254…`, booted 2026-11-05; autologin and the desktop work |
+| Weekly push to GHCR + traceable tags | **Passed** — tags `latest`, `main`, `sha-eaa96f776aea3d8aff70ef723221ed9cf0eefda3`; `latest` resolves to `sha256:3fc26b60…`; anonymous pull works (public package) |
 | ISO El Torito BIOS metadata | **Passed** — `build-iso` run [40688027094](https://github.com/vinod2807/fedora-bootc-konica206/actions/runs/40688027094): `-b '/images/eltorito.img'`, `Boot record: El Torito, grub2-mbr, GPT` |
 | ISO boots under QEMU SeaBIOS to Linux userspace | **Passed** — same run; serial log reaches the Anaconda installer UI |
 | Full BIOS installation on real hardware | **Passed** — installed on the i5-650 desktop (BIOS boot, NTFS partition preserved) |
