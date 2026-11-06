@@ -64,9 +64,6 @@
       <item label="Firefox">
         <action name="Execute" command="firefox" />
       </item>
-      <item label="Transmission">
-        <action name="Execute" command="transmission-gtk" />
-      </item>
       <item label="WeeChat">
         <action name="Execute" command="foot -e weechat" />
       </item>
@@ -83,9 +80,6 @@
       </item>
     </menu>
     <menu id="settings" label="Settings">
-      <item label="Appearance (GTK)">
-        <action name="Execute" command="lxappearance" />
-      </item>
       <item label="Wallpaper">
         <action name="Execute" command="wpg --gtk" />
       </item>

@@ -244,7 +244,6 @@ RUN set -eux; \
         evince \
         firefox \
         flatpak \
-        gpodder \
         gh \
         gh \
         foot \
@@ -300,7 +299,6 @@ RUN set -eux; \
         slurp \
         swaybg \
         tuigreet \
-        transmission \
         udiskie \
         usbutils \
         vlc \
@@ -323,7 +321,6 @@ RUN set -eux; \
         mako \
         swayidle \
         brightnessctl \
-        lxappearance \
         adw-gtk3-theme \
         kvantum \
         qt5ct \
@@ -334,7 +331,11 @@ RUN set -eux; \
         NetworkManager-openvpn \
         gnome-font-viewer \
         gparted \
-        thunderbird \
+    # xfce4-panel ships with Thunar's libxfce4panel dep; hide its
+    # Settings entries (Panel) that labwc/sfwbar ignore. The package
+    # itself must stay, only the menu entries go.
+    && rm -f /usr/share/applications/panel-preferences.desktop \
+             /usr/share/applications/panel-desktop-handler.desktop \
     && dnf clean all
 
 # Third-party desktop applications, from their vendor repository / official
@@ -351,13 +352,9 @@ RUN set -eux; \
 # --refresh additionally expires any metadata that survived into a partial cache.
 RUN set -eux; \
     echo "resolving third-party apps (cache epoch: ${BUILD_EPOCH})"; \
-    curl --retry 3 --retry-delay 5 -fsSL \
-        -o /etc/yum.repos.d/brave-browser.repo \
-        https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo; \
     dnf install -y --nogpgcheck \
         https://download.onlyoffice.com/repo/centos/main/noarch/onlyoffice-repo.noarch.rpm; \
     dnf install -y --refresh onlyoffice-desktopeditors; \
-    dnf install -y brave-browser; \
     dnf install -y \
         https://github.com/cyanfish/naps2/releases/download/v8.6.0/naps2-8.6.0-linux-x64.rpm; \
     dnf install -y \

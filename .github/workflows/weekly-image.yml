@@ -142,12 +142,19 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm --entrypoint /bin/bash localhost/fedora-bootc-konica206:smoke -euo pipefail -x -c '
-             rpm -q labwc waybar foot firefox brave-browser ffmpeg libavcodec-freeworld gstreamer1-plugin-libav gstreamer1-plugins-ugly gpodder retroarch vlc greetd tuigreet NetworkManager pappl cups ghostscript Thunar qt5-qtwayland gnome-keyring-pam lxpolkit swayidle >/dev/null
+             rpm -q labwc waybar foot firefox ffmpeg libavcodec-freeworld gstreamer1-plugin-libav gstreamer1-plugins-ugly retroarch vlc greetd tuigreet NetworkManager pappl cups ghostscript Thunar qt5-qtwayland gnome-keyring-pam lxpolkit swayidle >/dev/null
             rpm -q zram-generator >/dev/null
             # The Wine stack was removed from the image; none of it may come back.
             for p in wine wine-core wine-mono winetricks; do
               ! rpm -q "$p" >/dev/null 2>&1
             done
+            # Removed apps must not sneak back in (explicitly or via branding).
+            for p in lxappearance lxsession brave-browser thunderbird gpodder transmission transmission-qt transmission-gtk; do
+              ! rpm -q "$p" >/dev/null 2>&1
+            done
+            ! grep -qi "lxappearance" /etc/xdg/labwc/menu.xml /usr/share/sfwbar/sfwbar.config
+            ! grep -qi "transmission" /etc/xdg/labwc/menu.xml /etc/xdg/labwc/rc.xml
+            ! grep -qi "thunderbird" /etc/xdg/labwc/menu.xml /etc/xdg/labwc/rc.xml
             ! rpm -q pcmanfm >/dev/null 2>&1
             ! rpm -q swaylock >/dev/null 2>&1
             ! grep -qi "swaylock" /etc/xdg/labwc/autostart

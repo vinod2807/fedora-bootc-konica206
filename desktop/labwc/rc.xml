@@ -151,12 +151,6 @@
         <command>firefox</command>
       </action>
     </keybind>
-    <!-- Thunderbird -->
-    <keybind key="W-t">
-      <action name="Execute">
-        <command>thunderbird</command>
-      </action>
-    </keybind>
     <!-- Flatpak Permissions -->
     <keybind key="W-S-p">
       <action name="Execute">
