@@ -409,6 +409,7 @@ COPY systemd/flatpak-update.timer     /usr/lib/systemd/system/flatpak-update.tim
 COPY systemd/user/flatpak-update.service /usr/lib/systemd/user/flatpak-update.service
 COPY systemd/user/flatpak-update.timer   /usr/lib/systemd/user/flatpak-update.timer
 COPY systemd/zram-generator.conf      /etc/systemd/zram-generator.conf
+COPY systemd/zram-setup-no-fail-on-stop.conf /usr/lib/systemd/system/systemd-zram-setup@zram0.service.d/10-no-fail-on-stop.conf
 COPY udev/70-konica206.rules          /usr/lib/udev/rules.d/70-konica206.rules
 COPY greetd/config.toml               /etc/greetd/config.toml
 COPY greetd/pam.d/greetd              /etc/pam.d/greetd
@@ -489,6 +490,35 @@ RUN set -eux; \
     ln -sf /usr/libexec/konica206/install-vendor-data /usr/bin/konica206-install-vendor-data; \
     ln -sf /usr/libexec/konica206/preflight /usr/bin/konica206-preflight; \
     install -d -m 0755 /usr/share/konica206
+
+# Enable CUPS printer sharing at build time instead of at boot.  cupsd is a
+# systemd on-demand service (cupsd -l); when samba-setup.service called
+# "cupsctl --share-printers" on every boot, the resulting config PUT made cupsd
+# exit and restart, which systemd logged as a cups.service failure ("Scheduler
+# shutting down due to program error").  Apply the same settings cupsctl writes
+# (LAN listener, Browsing On, DNS-SD, and Allow @LOCAL on <Location />) to the
+# packaged config so cupsd starts already shared and the boot log stays clean.
+RUN set -eux; \
+    conf=/etc/cups/cupsd.conf; \
+    test -f "$conf"; \
+    sed -i -E \
+        -e 's/^[[:space:]]*Browsing[[:space:]].*/Browsing On/' \
+        -e 's/^[[:space:]]*BrowseLocalProtocols[[:space:]].*/BrowseLocalProtocols dnssd/' \
+        -e '/^[[:space:]]*Listen[[:space:]]+localhost:631[[:space:]]*$/d' \
+        "$conf"; \
+    grep -qE '^[[:space:]]*Browsing[[:space:]]+On[[:space:]]*$' "$conf" || \
+        printf '\nBrowsing On\n' >> "$conf"; \
+    grep -qE '^[[:space:]]*BrowseLocalProtocols[[:space:]]+.*dnssd' "$conf" || \
+        printf 'BrowseLocalProtocols dnssd\n' >> "$conf"; \
+    grep -qE '^[[:space:]]*Port[[:space:]]+631[[:space:]]*$' "$conf" || \
+        printf 'Port 631\n' >> "$conf"; \
+    if ! sed -n '/^<Location \/>$/,/^<\/Location>$/p' "$conf" | grep -qx '[[:space:]]*Allow @LOCAL'; then \
+        sed -i '/^<Location \/>$/,/^<\/Location>$/ s/^[[:space:]]*Order allow,deny[[:space:]]*$/  Order allow,deny\n  Allow @LOCAL/' "$conf"; \
+    fi; \
+    grep -qE '^[[:space:]]*Browsing[[:space:]]+On[[:space:]]*$' "$conf"; \
+    grep -qE '^[[:space:]]*BrowseLocalProtocols[[:space:]]+.*dnssd' "$conf"; \
+    grep -qE '^[[:space:]]*Port[[:space:]]+631[[:space:]]*$' "$conf"; \
+    sed -n '/^<Location \/>$/,/^<\/Location>$/p' "$conf" | grep -qx '[[:space:]]*Allow @LOCAL'
 
 # Flathub is a system remote out of the box. flatpak imports entries from
 # /etc/flatpak/remotes.d into /var/lib/flatpak the first time it runs, so no

@@ -17,8 +17,16 @@ if command -v semanage >/dev/null 2>&1; then
 fi
 
 # CUPS must advertise its queues to Samba, but it need not expose its admin UI.
+# Printer sharing is baked into /etc/cups/cupsd.conf at image build time; only
+# fall back to cupsctl when that configuration is missing (for example on an
+# older deployment).  cupsd runs as a systemd on-demand service (cupsd -l), and
+# every cupsctl config PUT makes it exit and restart -- which shows up in the
+# boot log as "Scheduler shutting down due to program error" and a failed
+# cups.service job.  The check itself only reads the settings, it does not PUT.
 if command -v cupsctl >/dev/null 2>&1; then
-    cupsctl --share-printers || true
+    if ! cupsctl 2>/dev/null | grep -qx '_share_printers=1'; then
+        cupsctl --share-printers || true
+    fi
 fi
 
 exit 0
