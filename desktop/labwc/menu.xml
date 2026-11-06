@@ -10,9 +10,6 @@
     <item label="Terminal">
       <action name="Execute" command="foot" />
     </item>
-    <item label="Firefox">
-      <action name="Execute" command="firefox" />
-    </item>
     <separator />
     <menu id="accessories" label="Accessories">
       <item label="Image Viewer">
@@ -34,21 +31,6 @@
         <action name="Execute" command="wl-paste" />
       </item>
     </menu>
-    <menu id="office" label="Office">
-      <item label="LibreOffice Writer">
-        <action name="Execute" command="libreoffice --writer" />
-      </item>
-      <item label="LibreOffice Calc">
-        <action name="Execute" command="libreoffice --calc" />
-      </item>
-      <item label="LibreOffice Impress">
-        <action name="Execute" command="libreoffice --impress" />
-      </item>
-      <separator />
-      <item label="ONLYOFFICE Desktop Editors">
-        <action name="Execute" command="onlyoffice-desktopeditors" />
-      </item>
-    </menu>
     <menu id="graphics" label="Graphics">
       <item label="GThumb">
         <action name="Execute" command="gthumb" />
@@ -61,20 +43,11 @@
       </item>
     </menu>
     <menu id="internet" label="Internet">
-      <item label="Firefox">
-        <action name="Execute" command="firefox" />
-      </item>
       <item label="WeeChat">
         <action name="Execute" command="foot -e weechat" />
       </item>
     </menu>
     <menu id="multimedia" label="Multimedia">
-      <item label="VLC">
-        <action name="Execute" command="vlc" />
-      </item>
-      <item label="MPV">
-        <action name="Execute" command="mpv" />
-      </item>
       <item label="PulseAudio Volume Control">
         <action name="Execute" command="pavucontrol" />
       </item>

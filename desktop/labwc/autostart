@@ -1,16 +1,14 @@
 #!/bin/sh
 # Started by labwc at the beginning of every session.
 
-# Set system-wide dark theme (GTK3/GTK4) — wait for dconf to be ready
+# Set system-wide dark theme (GTK3/GTK4) — wait for dconf to be ready.
+# Built-in Adwaita-dark; the adw-gtk3/Qt theme stack is gone (minimal image).
 if command -v gsettings >/dev/null 2>&1; then
-    (sleep 2; gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark'; gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark') &
+    (sleep 2; gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita-dark'; gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark') &
 fi
-export GTK_THEME=adw-gtk3-dark
-# Qt theme via kvantum (requires qt5ct/qt6ct config)
-export QT_QPA_PLATFORMTHEME=qt5ct
+export GTK_THEME=Adwaita-dark
 
 # Panel: sfwbar — start menu, task buttons, tray (openbox/tint2 style).
-# Waybar stays installed as a fallback; run "waybar &" by hand to use it.
 sfwbar &
 
 # Solid background (no wallpaper asset shipped). Optional; harmless if absent.

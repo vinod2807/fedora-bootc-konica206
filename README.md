@@ -9,14 +9,10 @@ A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
   [Fedora major version](#fedora-major-version-follows-latest))
 - **Labwc** Wayland compositor, **sfwbar** panel (openbox-style start menu and
   task buttons), **Foot** terminal
-- **Firefox** browser with FFmpeg/GStreamer multimedia codecs, including
-  RPM Fusion codec support
-- **Brave** browser installed from Brave's official RPM repository
-- Native Fedora packages for **gPodder**, **RetroArch**, and **VLC**
+- **Flatpak** with the **Flathub** remote preinstalled — browsers, office
+  suites and media players are expected as Flatpaks, not RPMs (minimal image)
 - A desktop with **Thunar**, **gthumb**, **evince**, **mousepad**,
   **xarchiver**, **pavucontrol**, GVFS/udisks2, and a right-click menu
-- **LibreOffice** (full suite) and **ONLYOFFICE Desktop Editors** (official
-  vendor repository)
 - **NAPS2** scanning front-end plus **simple-scan**, with **sane-airscan** for
   driverless (eSCL/AirScan) network scanners
 - **ZapFast** native WhatsApp client (official GitHub release RPM)
@@ -104,7 +100,7 @@ smbclient -L localhost -U vinod
 | `systemd/` | Printer/queue units, the stage-only (never reboots) bootc update timer, and the daily Flatpak update timers (system + user) |
 | `udev/70-konica206.rules` | USB permissions for `132b:232b` (group `lp`, `uaccess`) |
 | `greetd/config.toml` | tuigreet → labwc login session |
-| `desktop/` | labwc autostart/environment/menu, sfwbar panel config, Waybar fallback config |
+| `desktop/` | labwc autostart/environment/menu, sfwbar panel config |
 | `scripts/install-vendor-data` | Post-install installer for the licensed Konica runtime data |
 | `scripts/ensure-queue` | Creates the PAPPL queue and the local CUPS queue with the PPD shim |
 | `scripts/ensure-legacy-queue` | Creates the legacy `konica206uri` printer and its two CUPS proxy queues |
@@ -272,19 +268,19 @@ podman build --pull=always --platform linux/amd64 -t localhost/fedora-bootc-koni
 
 ### Third-party app versions and the layer cache
 
-ONLYOFFICE Desktop Editors is installed from ONLYOFFICE's own repository, not
-from Fedora, so its version is whatever is current **when the image is built**.
-The instruction that installs it never changes, which means BuildKit would
-replay it from cache and keep the old RPM. To prevent that, the `Containerfile`
-takes a `BUILD_EPOCH` build arg that is only used to change this layer's cache
-key, and `weekly-image.yml` passes the workflow run id:
+NAPS2 is installed from an official GitHub release asset so its version is
+whatever is current **when the image is built**. The instruction that installs
+it never changes, which means BuildKit would replay it from cache and keep the
+old RPM. To prevent that, the `Containerfile` takes a `BUILD_EPOCH` build arg
+that is only used to change this layer's cache key, and `weekly-image.yml`
+passes the workflow run id:
 
 ```dockerfile
 ARG BUILD_EPOCH=local
 ...
 RUN set -eux; \
     echo "resolving third-party apps (cache epoch: ${BUILD_EPOCH})"; \
-    dnf install -y onlyoffice-desktopeditors; ...
+    dnf install -y <naps2-rpm>; ...
 ```
 
 For a local build that must fetch the current RPM instead of reusing your local
@@ -304,10 +300,10 @@ GitHub release tag (`crmne/zapfast/releases/latest`) and passes it as
 `ZAPFAST_VERSION`. To pin a specific version, set the arg in `Containerfile`
 or override it in the workflow dispatch.
 
-On an installed system this is the *only* update path for ONLYOFFICE and
-ZapFast: `/` is read-only, so `dnf upgrade onlyoffice-desktopeditors zapfast`
-cannot change them. A new version arrives when a new image is published, is
-staged by `bootc-upgrade.timer`, and takes effect on the next reboot.
+On an installed system this is the *only* update path for NAPS2 and
+ZapFast: `/` is read-only, so `dnf upgrade zapfast` cannot change them.
+A new version arrives when a new image is published, is staged by
+`bootc-upgrade.timer`, and takes effect on the next reboot.
 
 ---
 
@@ -399,8 +395,7 @@ internet (it pulls the image, roughly 3.3 GiB compressed, from GHCR).
   buttons, a window list (click = focus/minimise, middle-click = close,
   right-click = window menu), tray, network, volume, battery and clock.
   Window buttons and the window menu use the compositor's foreign-toplevel
-  protocol, so they track labwc windows directly. Waybar is still installed as
-  a fallback (`waybar &`).
+  protocol, so they track labwc windows directly.
   The packaged sfwbar (1.0~beta16.1) has no `edge` setting: the bar is placed
   at the bottom by `window { -GtkWidget-direction: bottom; }` in the CSS
   section. Sizing/layout notes that matter when
@@ -412,18 +407,15 @@ internet (it pulls the image, roughly 3.3 GiB compressed, from GHCR).
     freed width to the window buttons and one window stretches across the bar.
     A spacer label does the right-side alignment instead.
 - **Desktop menu:** right-click the desktop for Files, Terminal, Image viewer,
-  Text editor, Archive manager, Document viewer, an **Office** submenu
-  (LibreOffice Writer/Calc/Impress, ONLYOFFICE), a **Scanning** submenu, Volume,
+  Text editor, Archive manager, Document viewer, a **Scanning** submenu, Volume,
   Network and Session actions (`/etc/xdg/labwc/menu.xml`).
 - **Application menu:** the **Applications** button opens sfwbar's `app_menu_system`
   menu, built from `/usr/share/applications` (so newly installed and Flatpak
   apps appear automatically). `fuzzel` is still available as a keyboard
   launcher (`fuzzel`, or `fuzzel dmenu` for stdin).
-- **Applications:** `pcmanfm` (files, with GVFS/udisks2 automount),
-  `gthumb` (images), `evince` (PDF), `mousepad` (text), `xarchiver`,
-  `pavucontrol`, `nm-connection-editor`, `foot` (terminal),
-  **LibreOffice** (Writer/Calc/Impress/Draw/Base/Math) and
-  **ONLYOFFICE Desktop Editors** (installed from ONLYOFFICE's own repository).
+- **Applications:** `gthumb` (images), `evince` (PDF), `mousepad` (text),
+  `xarchiver`, `pavucontrol`, `nm-connection-editor`, `foot` (terminal).
+  Browsers, office suites and media players are Flatpaks (minimal bootc image).
 - **Scanning:** `simple-scan` and **NAPS2**, both backed by `sane-airscan` for
   driverless eSCL/AirScan devices (the Epson L3260 scanner and most modern
   network MFPs).

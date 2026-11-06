@@ -145,12 +145,6 @@
     <keybind key="W-S-f">
       <action name="ToggleFullscreen"/>
     </keybind>
-    <!-- Firefox -->
-    <keybind key="W-f">
-      <action name="Execute">
-        <command>firefox</command>
-      </action>
-    </keybind>
     <!-- Flatpak Permissions -->
     <keybind key="W-S-p">
       <action name="Execute">

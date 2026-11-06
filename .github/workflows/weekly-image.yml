@@ -142,25 +142,33 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm --entrypoint /bin/bash localhost/fedora-bootc-konica206:smoke -euo pipefail -x -c '
-             rpm -q labwc waybar foot firefox ffmpeg libavcodec-freeworld gstreamer1-plugin-libav gstreamer1-plugins-ugly retroarch vlc greetd tuigreet NetworkManager pappl cups ghostscript Thunar qt5-qtwayland gnome-keyring-pam lxpolkit swayidle >/dev/null
+             rpm -q labwc foot greetd tuigreet NetworkManager pappl cups ghostscript Thunar gnome-keyring-pam lxpolkit swayidle >/dev/null
             rpm -q zram-generator >/dev/null
             # The Wine stack was removed from the image; none of it may come back.
             for p in wine wine-core wine-mono winetricks; do
               ! rpm -q "$p" >/dev/null 2>&1
             done
             # Removed apps must not sneak back in (explicitly or via branding).
-            for p in lxappearance lxsession brave-browser thunderbird gpodder transmission transmission-qt transmission-gtk; do
+            for p in lxappearance lxsession brave-browser thunderbird gpodder transmission transmission-qt transmission-gtk onlyoffice-desktopeditors firefox waybar vlc mpv ffmpeg libavcodec-freeworld gstreamer1-plugin-libav gstreamer1-plugins-ugly retroarch libretro-nestopia libreoffice libreoffice-core kvantum qt5ct qt6ct qt5-qtwayland adw-gtk3-theme rpmfusion-free-release rpmfusion-nonfree-release; do
               ! rpm -q "$p" >/dev/null 2>&1
             done
+            test -z "$(rpm -qa | grep -i '^libretro' || true)"
+            ! test -e /etc/retroarch.cfg
+            ! test -d /usr/share/libretro
+            ! test -e /etc/xdg/waybar/config
+            ! test -e /usr/share/applications/mpv.desktop
             ! grep -qi "lxappearance" /etc/xdg/labwc/menu.xml /usr/share/sfwbar/sfwbar.config
             ! grep -qi "transmission" /etc/xdg/labwc/menu.xml /etc/xdg/labwc/rc.xml
             ! grep -qi "thunderbird" /etc/xdg/labwc/menu.xml /etc/xdg/labwc/rc.xml
+            ! grep -qi "firefox" /etc/xdg/labwc/menu.xml /etc/xdg/labwc/rc.xml /usr/share/sfwbar/sfwbar.config
+            ! grep -qi "libreoffice" /etc/xdg/labwc/menu.xml /usr/share/sfwbar/sfwbar.config
+            ! grep -qi "onlyoffice" /etc/xdg/labwc/menu.xml /usr/share/sfwbar/sfwbar.config
+            ! grep -qi "vlc" /etc/xdg/labwc/menu.xml
             ! rpm -q pcmanfm >/dev/null 2>&1
             ! rpm -q swaylock >/dev/null 2>&1
             ! grep -qi "swaylock" /etc/xdg/labwc/autostart
             # MATE was removed; no MATE app or setting panel may sneak back in.
             ! rpm -q mate-control-center mate-polkit >/dev/null 2>&1
-            test -f /usr/lib64/qt5/plugins/platforms/libqwayland-generic.so
             test -f /usr/lib64/security/pam_gnome_keyring.so
             rpm -q zapfast >/dev/null
             # wgpu-based apps (zapfast) abort with
@@ -169,14 +177,13 @@ jobs:
             # Vulkan), which works on GPUs without a Vulkan driver (e.g. Ironlake).
             rpm -q mesa-vulkan-drivers vulkan-loader >/dev/null
             test -f /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
-            for b in /usr/bin/konica206-native /usr/bin/konica-native /usr/bin/konica-send /usr/bin/labwc /usr/bin/waybar /usr/bin/foot /usr/bin/tuigreet /usr/bin/zapfast; do
+            for b in /usr/bin/konica206-native /usr/bin/konica-native /usr/bin/konica-send /usr/bin/labwc /usr/bin/foot /usr/bin/tuigreet /usr/bin/zapfast; do
               test -x "$b"
             done
             /usr/bin/konica206-native --version
             /usr/bin/konica-native --help >/dev/null 2>&1 || true
             /usr/bin/labwc --version
             /usr/bin/foot --version
-            /usr/bin/waybar --version
             /usr/bin/tuigreet --version
             test -f /etc/greetd/config.toml
             grep -q "tuigreet --time --remember --cmd /usr/bin/labwc" /etc/greetd/config.toml

@@ -229,10 +229,6 @@ LABEL org.opencontainers.image.title="Fedora bootc - Labwc + Konica bizhub 206" 
 RUN set -eux; \
     dnf -y upgrade --refresh; \
     dnf install -y --setopt=install_weak_deps=False \
-        https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
-        https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm; \
-    dnf -y upgrade --refresh; \
-    dnf install -y --setopt=install_weak_deps=False \
         adwaita-cursor-theme \
         adwaita-icon-theme \
         avahi \
@@ -242,7 +238,6 @@ RUN set -eux; \
         default-fonts \
         desktop-file-utils \
         evince \
-        firefox \
         flatpak \
         gh \
         gh \
@@ -250,11 +245,7 @@ RUN set -eux; \
         fuse \
         fuse-libs \
         fuzzel \
-        ffmpeg \
         fastfetch \
-        gstreamer1-libav \
-        gstreamer1-plugins-bad-free \
-        gstreamer1-plugins-ugly \
         ghostscript \
         gnome-keyring \
         gnome-keyring-pam \
@@ -269,8 +260,6 @@ RUN set -eux; \
         hicolor-icon-theme \
         labwc \
         legacy-printer-app \
-        libavcodec-freeworld \
-        libreoffice \
         libusb1 \
         lxpolkit \
         mesa-dri-drivers \
@@ -289,8 +278,6 @@ RUN set -eux; \
         pipewire-pulseaudio \
         policycoreutils-python-utils \
         qt5-qtbase-gui \
-        qt5-qtwayland \
-        retroarch \
         sane-airscan \
         samba \
         samba-client \
@@ -301,9 +288,6 @@ RUN set -eux; \
         tuigreet \
         udiskie \
         usbutils \
-        vlc \
-        mpv \
-        waybar \
         wdisplays \
         weechat \
         wl-clipboard \
@@ -321,10 +305,6 @@ RUN set -eux; \
         mako \
         swayidle \
         brightnessctl \
-        adw-gtk3-theme \
-        kvantum \
-        qt5ct \
-        qt6ct \
         flatseal \
         network-manager-applet \
         NetworkManager-openconnect \
@@ -340,21 +320,14 @@ RUN set -eux; \
 
 # Third-party desktop applications, from their vendor repository / official
 # release assets. Kept in their own layer so a failure is isolated:
-#   - ONLYOFFICE Desktop Editors: official repo RPM (it also installs its own
-#     GPG key at /etc/pki/rpm-gpg/RPM-GPG-KEY-ONLYOFFICE).
 #   - NAPS2: official GitHub release asset, pinned to an exact version.
 #   - ZapFast: official GitHub release asset, version from ZAPFAST_VERSION arg.
 #
-# This instruction never changes, so BuildKit would happily replay it from the
-# cache and keep whatever ONLYOFFICE version the cache was built with. BUILD_EPOCH
-# is only there to change the cache key: the weekly workflow passes the run id,
-# so the RPM is re-resolved from ONLYOFFICE's repo on every published image.
+# BUILD_EPOCH busts this layer's cache: the weekly workflow passes the run id,
+# so NAPS2/ZapFast are re-resolved from GitHub on every published image.
 # --refresh additionally expires any metadata that survived into a partial cache.
 RUN set -eux; \
     echo "resolving third-party apps (cache epoch: ${BUILD_EPOCH})"; \
-    dnf install -y --nogpgcheck \
-        https://download.onlyoffice.com/repo/centos/main/noarch/onlyoffice-repo.noarch.rpm; \
-    dnf install -y --refresh onlyoffice-desktopeditors; \
     dnf install -y \
         https://github.com/cyanfish/naps2/releases/download/v8.6.0/naps2-8.6.0-linux-x64.rpm; \
     dnf install -y \
@@ -445,9 +418,6 @@ COPY desktop/labwc/menu.xml           /etc/xdg/labwc/menu.xml
 COPY desktop/labwc/rc.xml             /etc/xdg/labwc/rc.xml
 COPY desktop/applications/konica206-reboot.desktop   /usr/share/applications/konica206-reboot.desktop
 COPY desktop/applications/konica206-poweroff.desktop /usr/share/applications/konica206-poweroff.desktop
-COPY desktop/applications/mpv.desktop                /usr/share/applications/mpv.desktop
-COPY desktop/waybar/config            /etc/xdg/waybar/config
-COPY desktop/waybar/style.css         /etc/xdg/waybar/style.css
 # sfwbar reads its system-wide default from the XDG *data* dir, not /etc/xdg.
 COPY desktop/sfwbar/sfwbar.config     /usr/share/sfwbar/sfwbar.config
 COPY scripts/install-vendor-data      /usr/libexec/konica206/install-vendor-data
@@ -513,7 +483,6 @@ RUN set -eux; \
         /usr/share/sfwbar/sfwbar.config \
         /usr/share/applications/konica206-reboot.desktop \
         /usr/share/applications/konica206-poweroff.desktop \
-        /usr/share/applications/mpv.desktop \
         /usr/share/ppd/konica206/konica206.ppd; \
     chmod 0755 /etc/xdg/labwc/autostart; \
     chmod 0644 /etc/xdg/labwc/rc.xml; \
