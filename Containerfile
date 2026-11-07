@@ -419,6 +419,13 @@ COPY desktop/labwc/menu.xml           /etc/xdg/labwc/menu.xml
 COPY desktop/labwc/rc.xml             /etc/xdg/labwc/rc.xml
 COPY desktop/applications/konica206-reboot.desktop   /usr/share/applications/konica206-reboot.desktop
 COPY desktop/applications/konica206-poweroff.desktop /usr/share/applications/konica206-poweroff.desktop
+# Upstream weechat.desktop uses Exec=weechat with Terminal=true. sfwbar's
+# appmenu (g_app_info_launch) cannot find a terminal emulator for
+# Terminal=true apps ("Unable to find terminal required"), so clicking
+# WeeChat in the sfwbar start menu silently does nothing. Point Exec at
+# foot (the session terminal, same as desktop/labwc/menu.xml) and mark
+# Terminal=false so gio/sfwbar/fuzzel all spawn it in a foot window.
+COPY desktop/applications/weechat.desktop /usr/share/applications/weechat.desktop
 # sfwbar reads its system-wide default from the XDG *data* dir, not /etc/xdg.
 COPY desktop/sfwbar/sfwbar.config     /usr/share/sfwbar/sfwbar.config
 COPY scripts/install-vendor-data      /usr/libexec/konica206/install-vendor-data
@@ -484,7 +491,9 @@ RUN set -eux; \
         /usr/share/sfwbar/sfwbar.config \
         /usr/share/applications/konica206-reboot.desktop \
         /usr/share/applications/konica206-poweroff.desktop \
+        /usr/share/applications/weechat.desktop \
         /usr/share/ppd/konica206/konica206.ppd; \
+    update-desktop-database /usr/share/applications; \
     chmod 0755 /etc/xdg/labwc/autostart; \
     chmod 0644 /etc/xdg/labwc/rc.xml; \
     ln -sf /usr/libexec/konica206/install-vendor-data /usr/bin/konica206-install-vendor-data; \

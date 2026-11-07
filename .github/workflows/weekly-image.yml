@@ -157,6 +157,11 @@ jobs:
             ! test -d /usr/share/libretro
             ! test -e /etc/xdg/waybar/config
             ! test -e /usr/share/applications/mpv.desktop
+            # sfwbar start-menu WeeChat must open in foot: upstream uses
+            # Terminal=true which gio cannot launch without a terminal.
+            grep -qx "Exec=foot -e weechat %u" /usr/share/applications/weechat.desktop
+            grep -qx "Terminal=false" /usr/share/applications/weechat.desktop
+            desktop-file-validate /usr/share/applications/weechat.desktop
             ! grep -qi "lxappearance" /etc/xdg/labwc/menu.xml /usr/share/sfwbar/sfwbar.config
             ! grep -qi "transmission" /etc/xdg/labwc/menu.xml /etc/xdg/labwc/rc.xml
             ! grep -qi "thunderbird" /etc/xdg/labwc/menu.xml /etc/xdg/labwc/rc.xml

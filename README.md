@@ -414,7 +414,11 @@ internet (it pulls the image, roughly 3.3 GiB compressed, from GHCR).
   apps appear automatically). `fuzzel` is still available as a keyboard
   launcher (`fuzzel`, or `fuzzel dmenu` for stdin).
 - **Applications:** `gthumb` (images), `evince` (PDF), `mousepad` (text),
-  `xarchiver`, `pavucontrol`, `nm-connection-editor`, `foot` (terminal).
+  `xarchiver`, `pavucontrol`, `nm-connection-editor`, `foot` (terminal),
+  `weechat` (IRC/IRCv3 client in `foot`: upstream `Terminal=true` cannot be
+  launched by gio/sfwbar without a terminal emulator, so
+  `desktop/applications/weechat.desktop` overrides it to
+  `Exec=foot -e weechat %u, Terminal=false`).
   Browsers, office suites and media players are Flatpaks (minimal bootc image).
 - **Scanning:** `simple-scan` and **NAPS2**, both backed by `sane-airscan` for
   driverless eSCL/AirScan devices (the Epson L3260 scanner and most modern
