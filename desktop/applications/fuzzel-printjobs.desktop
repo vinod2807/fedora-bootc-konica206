@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Print Jobs
+GenericName=CUPS print job manager
+Comment=View and cancel CUPS print jobs, or restart a printer queue
+Exec=fuzzel-printjobs
+Icon=printer
+Terminal=false
+Categories=System;Printing;
+Keywords=print;jobs;cancel;restart;cups;printer;
+StartupNotify=false

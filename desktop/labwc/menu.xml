@@ -42,6 +42,17 @@
         <action name="Execute" command="naps2" />
       </item>
     </menu>
+    <menu id="printing" label="Printing">
+      <item label="Print Jobs (cancel)">
+        <action name="Execute" command="fuzzel-printjobs" />
+      </item>
+      <item label="Cancel All Print Jobs">
+        <action name="Execute" command="foot -e fuzzel-printjobs cancel-all" />
+      </item>
+      <item label="Manage Printing (CUPS)">
+        <action name="Execute" command="xdg-open http://localhost:631/" />
+      </item>
+    </menu>
     <menu id="internet" label="Internet">
       <item label="WeeChat">
         <action name="Execute" command="foot -e weechat" />

@@ -75,6 +75,12 @@
         <command>fuzzel</command>
       </action>
     </keybind>
+    <!-- Print jobs (cancel/restart) -->
+    <keybind key="W-e">
+      <action name="Execute">
+        <command>fuzzel-printjobs</command>
+      </action>
+    </keybind>
     <!-- Close window -->
     <keybind key="W-q">
       <action name="Close"/>

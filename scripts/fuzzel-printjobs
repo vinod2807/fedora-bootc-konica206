@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+# fuzzel-printjobs - view and cancel CUPS print jobs; restart a print queue.
+#
+# Fedora/labwc reimplementation of the Alpine script
+#   /home/vinod/bin/rofi-printjobs   (rofi-based, cancel-only)
+# Differences here (this host has fuzzel, no rofi):
+#   * rofi -> fuzzel dmenu (falls back to rofi when rofi is installed).
+#   * modal "rofi -e" messages -> notify-send.
+#   * added: cancel-all, restart [PRINTER], and a system-wide .desktop
+#     launcher (/usr/share/applications/fuzzel-printjobs.desktop) plus a
+#     labwc W-e keybind and Printing-menu entry (see desktop/).
+#
+# Original Alpine behaviour, unchanged:
+#   fuzzel-printjobs          menu of active jobs; selecting one cancels it
+#   fuzzel-printjobs list     print active jobs to stdout
+#   fuzzel-printjobs JOBID    cancel JOBID directly
+#
+# Added verbs:
+#   fuzzel-printjobs cancel-all           cancel every queued job
+#   fuzzel-printjobs restart [PRINTER]    cancel that printer's jobs (all
+#                                         printers when omitted), then
+#                                         re-enable the printer queue.
+#                                         CUPS has no per-job "resume"
+#                                         operation: a cancelled job is gone;
+#                                         restart means flush + re-enable.
+#   fuzzel-printjobs help                 this text
+set -euo pipefail
+
+list_jobs() {
+  lpstat -o 2>/dev/null || true
+}
+
+notify() {
+  # notify-send is present on both hosts; fall back to stderr on failure.
+  if ! notify-send "$1" "$2" 2>/dev/null; then
+    printf '%s: %s\n' "$1" "$2" >&2
+  fi
+}
+
+cancel_job() {
+  local job_id="$1"
+  if cancel "$job_id" 2>/dev/null; then
+    notify "Print Jobs" "$job_id cancelled"
+    echo "Cancelled $job_id"
+  else
+    notify "Print Jobs" "Failed to cancel $job_id"
+    echo "Failed to cancel $job_id" >&2
+    return 1
+  fi
+}
+
+cancel_all() {
+  local target="${1:-}"
+  if [ -n "$target" ]; then
+    # "cancel -a PRINTER" cancels all jobs for that printer.
+    if cancel -a "$target" 2>/dev/null; then
+      notify "Print Jobs" "All jobs on $target cancelled"
+      echo "Cancelled all jobs on $target"
+    else
+      notify "Print Jobs" "Failed to cancel jobs on $target"
+      echo "Failed to cancel jobs on $target" >&2
+      return 1
+    fi
+  else
+    if cancel -a 2>/dev/null; then
+      notify "Print Jobs" "All print jobs cancelled"
+      echo "Cancelled all print jobs"
+    else
+      notify "Print Jobs" "Failed to cancel all print jobs"
+      echo "Failed to cancel all print jobs" >&2
+      return 1
+    fi
+  fi
+}
+
+list_printers() {
+  # Printer names from lpstat -p: first token of each non-indented line.
+  lpstat -p 2>/dev/null | awk '!/^[[:space:]]/ { if ($1 == "printer") print $2; else print $1 }' | sort -u
+}
+
+enable_printer() {
+  local printer="$1"
+  if cupsenable "$printer" 2>/dev/null; then
+    return 0
+  fi
+  # Single-printer enable needs privilege on some setups; sudo is
+  # passwordless for wheel on this host.
+  sudo -n cupsenable "$printer" 2>/dev/null
+}
+
+restart_queue() {
+  local target="${1:-}"
+  local printers=()
+  if [ -n "$target" ]; then
+    printers=("$target")
+  else
+    mapfile -t printers < <(list_printers)
+  fi
+
+  if [ "${#printers[@]}" -eq 0 ]; then
+    notify "Print Jobs" "No printers found"
+    echo "No printers found" >&2
+    return 1
+  fi
+
+  local p
+  for p in "${printers[@]}"; do
+    [ -n "$p" ] || continue
+    cancel_all "$p" || return 1
+    if enable_printer "$p"; then
+      notify "Print Jobs" "Queue restarted: $p"
+      echo "Restarted $p (queue re-enabled)"
+    else
+      notify "Print Jobs" "Failed to re-enable $p"
+      echo "Failed to re-enable $p" >&2
+      return 1
+    fi
+  done
+}
+
+show_menu() {
+  local prompt="$1"
+  if command -v rofi >/dev/null 2>&1; then
+    rofi -dmenu -p "$prompt" -i -l 15 -no-custom 2>/dev/null || true
+  elif command -v fuzzel >/dev/null 2>&1; then
+    fuzzel --dmenu --prompt "$prompt: " 2>/dev/null || true
+  else
+    echo "No launcher found (need rofi or fuzzel)" >&2
+    return 1
+  fi
+}
+
+usage() {
+  cat <<'EOF'
+Usage: fuzzel-printjobs [list|JOBID|cancel-all|restart [PRINTER]|help]
+  (no args)          interactive menu of active jobs; select one to cancel
+  list               print active jobs to stdout
+  JOBID              cancel JOBID directly
+  cancel-all         cancel every queued job
+  restart [PRINTER]  cancel that printer's jobs (all printers when omitted),
+                     then re-enable the printer queue
+  help               show this text
+
+Fedora reimplementation of Alpine ~/bin/rofi-printjobs.
+EOF
+}
+
+case "${1:-}" in
+  list|-l|--list)
+    jobs=$(list_jobs)
+    if [ -n "$jobs" ]; then
+      printf '%s\n' "$jobs"
+    fi
+    ;;
+  cancel-all|--cancel-all)
+    cancel_all
+    ;;
+  restart|-r|--restart)
+    restart_queue "${2:-}"
+    ;;
+  help|-h|--help)
+    usage
+    ;;
+  "")
+    jobs=$(list_jobs)
+    if [ -z "$jobs" ]; then
+      notify "Print Jobs" "No active print jobs"
+      exit 0
+    fi
+
+    selection=$(printf '%s\n' "$jobs" | show_menu "Print jobs (select to cancel)")
+    [ -z "${selection:-}" ] && exit 0
+
+    job_id=$(printf '%s\n' "$selection" | awk '{print $1}')
+    if cancel_job "$job_id" >/dev/null; then
+      notify "Print Jobs" "Cancelled $job_id"
+    else
+      notify "Print Jobs" "Failed to cancel $job_id"
+      exit 1
+    fi
+    ;;
+  *)
+    cancel_job "$1" >/dev/null
+    ;;
+esac

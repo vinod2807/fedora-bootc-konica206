@@ -13,6 +13,8 @@ A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
   suites and media players are expected as Flatpaks, not RPMs (minimal image)
 - A desktop with **Thunar**, **gthumb**, **evince**, **mousepad**,
   **xarchiver**, **pavucontrol**, GVFS/udisks2, and a right-click menu
+- A print-job manager (**W-e** or the Printing menu) to view, cancel, or
+  restart CUPS queues
 - **NAPS2** scanning front-end plus **simple-scan**, with **sane-airscan** for
   driverless (eSCL/AirScan) network scanners
 - **ZapFast** native WhatsApp client (official GitHub release RPM)

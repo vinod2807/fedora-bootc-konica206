@@ -2,6 +2,7 @@
 #
 # Fedora bootc image with:
 #   - Labwc / Waybar / Foot Wayland desktop + greetd/tuigreet login
+#   - fuzzel-printjobs desktop helper (CUPS job cancel/restart, W-e)
 #   - Konica Minolta bizhub 206 PAPPL printer application
 #   - konica-native (C11) device-stream encoder
 #   - konica-retrofit CUPS integration assets (USB queue-presence watcher and
@@ -419,6 +420,11 @@ COPY desktop/labwc/menu.xml           /etc/xdg/labwc/menu.xml
 COPY desktop/labwc/rc.xml             /etc/xdg/labwc/rc.xml
 COPY desktop/applications/konica206-reboot.desktop   /usr/share/applications/konica206-reboot.desktop
 COPY desktop/applications/konica206-poweroff.desktop /usr/share/applications/konica206-poweroff.desktop
+COPY desktop/applications/fuzzel-printjobs.desktop  /usr/share/applications/fuzzel-printjobs.desktop
+# User-facing print-job manager (no service, no privileges beyond the user's
+# own queued jobs). Installed system-wide so every login gets the W-e
+# keybind, the Printing menu, and the fuzzel application entry.
+COPY scripts/fuzzel-printjobs         /usr/local/bin/fuzzel-printjobs
 # Upstream weechat.desktop uses Exec=weechat with Terminal=true. sfwbar's
 # appmenu (g_app_info_launch) cannot find a terminal emulator for
 # Terminal=true apps ("Unable to find terminal required"), so clicking
@@ -457,6 +463,7 @@ RUN set -eux; \
      chmod 0755 /usr/libexec/konica206/ensure-classic-queue; \
      chmod 0755 /usr/libexec/setup-samba; \
     chmod 0755 /usr/local/bin/konica-cups-watch.sh \
+                /usr/local/bin/fuzzel-printjobs \
                /usr/local/sbin/check-wineps-route.sh \
                /usr/local/libexec/konica-backend/usb; \
     chmod 0644 /etc/greetd/config.toml \
@@ -491,6 +498,7 @@ RUN set -eux; \
         /usr/share/sfwbar/sfwbar.config \
         /usr/share/applications/konica206-reboot.desktop \
         /usr/share/applications/konica206-poweroff.desktop \
+        /usr/share/applications/fuzzel-printjobs.desktop \
         /usr/share/applications/weechat.desktop \
         /usr/share/ppd/konica206/konica206.ppd; \
     update-desktop-database /usr/share/applications; \
