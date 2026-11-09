@@ -252,7 +252,6 @@ RUN set -eux; \
         gnome-keyring-pam \
         greetd \
         grim \
-        gthumb \
         gvfs \
         gvfs-fuse \
         gvfs-gphoto2 \

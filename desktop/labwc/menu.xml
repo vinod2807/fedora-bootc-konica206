@@ -12,9 +12,6 @@
     </item>
     <separator />
     <menu id="accessories" label="Accessories">
-      <item label="Image Viewer">
-        <action name="Execute" command="gthumb" />
-      </item>
       <item label="Text Editor">
         <action name="Execute" command="mousepad" />
       </item>
@@ -32,9 +29,6 @@
       </item>
     </menu>
     <menu id="graphics" label="Graphics">
-      <item label="GThumb">
-        <action name="Execute" command="gthumb" />
-      </item>
       <item label="Simple Scan">
         <action name="Execute" command="simple-scan" />
       </item>

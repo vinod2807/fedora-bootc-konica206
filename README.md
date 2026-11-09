@@ -11,7 +11,7 @@ A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
   task buttons), **Foot** terminal
 - **Flatpak** with the **Flathub** remote preinstalled — browsers, office
   suites and media players are expected as Flatpaks, not RPMs (minimal image)
-- A desktop with **Thunar**, **gthumb**, **evince**, **mousepad**,
+- A desktop with **Thunar**, **evince**, **mousepad**,
   **xarchiver**, **pavucontrol**, GVFS/udisks2, and a right-click menu
 - A print-job manager (**W-e** or the Printing menu) to view, cancel, or
   restart CUPS queues
@@ -408,14 +408,14 @@ internet (it pulls the image, roughly 3.3 GiB compressed, from GHCR).
   - never put `-GtkWidget-hexpand: true` on the taskbar: the flow grid gives the
     freed width to the window buttons and one window stretches across the bar.
     A spacer label does the right-side alignment instead.
-- **Desktop menu:** right-click the desktop for Files, Terminal, Image viewer,
+- **Desktop menu:** right-click the desktop for Files, Terminal,
   Text editor, Archive manager, Document viewer, a **Scanning** submenu, Volume,
   Network and Session actions (`/etc/xdg/labwc/menu.xml`).
 - **Application menu:** the **Applications** button opens sfwbar's `app_menu_system`
   menu, built from `/usr/share/applications` (so newly installed and Flatpak
   apps appear automatically). `fuzzel` is still available as a keyboard
   launcher (`fuzzel`, or `fuzzel dmenu` for stdin).
-- **Applications:** `gthumb` (images), `evince` (PDF), `mousepad` (text),
+- **Applications:** `evince` (PDF), `mousepad` (text),
   `xarchiver`, `pavucontrol`, `nm-connection-editor`, `foot` (terminal),
   `weechat` (IRC/IRCv3 client in `foot`: upstream `Terminal=true` cannot be
   launched by gio/sfwbar without a terminal emulator, so
