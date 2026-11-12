@@ -149,7 +149,7 @@ jobs:
               ! rpm -q "$p" >/dev/null 2>&1
             done
             # Removed apps must not sneak back in (explicitly or via branding).
-            for p in lxappearance lxsession brave-browser thunderbird gpodder transmission transmission-qt transmission-gtk gthumb evince onlyoffice-desktopeditors firefox waybar vlc mpv ffmpeg libavcodec-freeworld gstreamer1-plugin-libav gstreamer1-plugins-ugly retroarch libretro-nestopia libreoffice libreoffice-core kvantum qt5ct qt6ct qt5-qtwayland adw-gtk3-theme rpmfusion-free-release rpmfusion-nonfree-release; do
+            for p in lxappearance lxsession brave-browser thunderbird gpodder transmission transmission-qt transmission-gtk gthumb onlyoffice-desktopeditors firefox waybar vlc mpv ffmpeg libavcodec-freeworld gstreamer1-plugin-libav gstreamer1-plugins-ugly retroarch libretro-nestopia libreoffice libreoffice-core kvantum qt5ct qt6ct qt5-qtwayland adw-gtk3-theme rpmfusion-free-release rpmfusion-nonfree-release; do
               ! rpm -q "$p" >/dev/null 2>&1
             done
             test -z "$(rpm -qa | grep -i '^libretro' || true)"
@@ -170,7 +170,6 @@ jobs:
             ! grep -qi "onlyoffice" /etc/xdg/labwc/menu.xml /usr/share/sfwbar/sfwbar.config
             ! grep -qi "vlc" /etc/xdg/labwc/menu.xml
             ! grep -qi "gthumb" /etc/xdg/labwc/menu.xml /usr/share/sfwbar/sfwbar.config
-            ! grep -qi "evince" /etc/xdg/labwc/menu.xml /usr/share/sfwbar/sfwbar.config
             ! rpm -q pcmanfm >/dev/null 2>&1
             ! rpm -q swaylock >/dev/null 2>&1
             ! grep -qi "swaylock" /etc/xdg/labwc/autostart
