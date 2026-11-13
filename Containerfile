@@ -157,6 +157,7 @@ RUN set -eux; \
     sed -e 's#^\*cupsFilter: .*#*cupsFilter: "application/vnd.cups-raster 0 /usr/bin/konica-native"#' \
         -e 's#^\*DefaultDuplex:.*#*DefaultDuplex: None#' \
         -e 's#^\*cupsManualCopies:.*#*cupsManualCopies: True#' \
+        -e 's#^\*cupsBackSide:.*#*cupsBackSide: Normal#' \
         -e '/^\*OCM_resourceDir:/d' \
         retrofit/backup/var/lib/legacy-printer-app/ppd/KonicaMinolta-206-fullbleed.ppd \
         > "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd"; \
@@ -164,12 +165,13 @@ RUN set -eux; \
         "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd"; \
     grep -qxF '*DefaultDuplex: None' \
         "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd"; \
+    grep -qxF '*cupsBackSide: Normal' \
+        "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd"; \
     ! grep -q '^\*OCM_resourceDir:' \
         "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd"; \
     install -d -m 0755 "$root/usr/share/konica206/ppd"; \
-    sed -e 's#^\*cupsBackSide:.*#*cupsBackSide: Normal#' \
-        "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd" \
-        > "$root/usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-normal.ppd"; \
+    cp "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd" \
+        "$root/usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-normal.ppd"; \
     grep -qxF '*cupsBackSide: Normal' \
         "$root/usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-normal.ppd"; \
     gcc -O2 -std=gnu17 -Wall -Wextra \
