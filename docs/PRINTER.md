@@ -295,6 +295,19 @@ twice on 2026-11-13; the same rule is documented for the `245igdirf` chain in
 under `/var/lib/legacy-printer-app/ppd/` (vendor `Rotated`); do not add a
 `KONICA_PPD` override that points at a derived `Normal` copy.
 
+Measured with `pdftoraster` on a 2-page A4 portrait marker PDF
+(`-o sides=two-sided-long-edge`, ink centroid relative to the page):
+
+| PPD `*cupsBackSide` | page 1 centroid | page 2 centroid | effect |
+|---|---|---|---|
+| `Rotated` | `(0.288, 0.581)` | `(0.707, 0.419)` | exactly 180° rotated |
+| `Normal` | `(0.288, 0.581)` | `(0.293, 0.581)` | not rotated |
+
+`(0.707, 0.419)` is `(1−0.288, 1−0.581)`, so `Rotated` rotates page 2 by 180°.
+`konica-native` derives `BINDING` from the raster header and options only, and
+emits `SHORTEDGE` for this job either way — so `Normal` removes the pre-rotation
+while the printer still flips, which is the upside-down back page.
+
 For the CUPS queue the image ships its **own** hand-written PPD
 (`/usr/share/ppd/konica206/konica206.ppd`). It contains no Konica data: it
 describes the ten media sizes the application itself advertises (A3, A4, A5,
