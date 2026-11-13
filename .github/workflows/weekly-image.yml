@@ -220,7 +220,7 @@ jobs:
             test -f /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
             grep -qxF "*cupsFilter: \"application/vnd.cups-raster 0 /usr/bin/konica-native\"" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
             grep -qxF "*DefaultDuplex: None" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
-            ! grep -q "^[*]OCM_resourceDir:" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
+            grep -L "OCM_resourceDir:" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd >/dev/null
             # cupsBackSide must stay Rotated on every PPD. CUPS's pdftoraster (invoked
             # via the shim PPD's raster filter chain) honors cupsBackSide and rotates the
             # back side for long-edge jobs. The native app reads the same Rotated PPD via
@@ -244,10 +244,10 @@ jobs:
             for t in suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target; do
               test "$(readlink "/etc/systemd/system/$t")" = /dev/null
             done
-            ! grep -q "systemctl suspend" /etc/xdg/labwc/autostart
+            grep -L "systemctl suspend" /etc/xdg/labwc/autostart >/dev/null
             # labwc takes attribute syntax; Openbox child-element form logs red
             # "Invalid action" errors on every login.
-            ! grep -Eq "name=\"Desktop\"|name=\"MoveResizeTo\"|<edge>|context=\"Menu\"" /etc/xdg/labwc/rc.xml
+            grep -L -E "name=\"Desktop\"|name=\"MoveResizeTo\"|<edge>|context=\"Menu\"" /etc/xdg/labwc/rc.xml >/dev/null
             # zram: config must produce a swap unit for /dev/zram0.
             test -f /etc/systemd/zram-generator.conf
             grep -qx "zram-size = min(ram / 2, 4096)" /etc/systemd/zram-generator.conf
