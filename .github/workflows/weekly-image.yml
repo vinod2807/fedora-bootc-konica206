@@ -222,19 +222,19 @@ jobs:
             grep -qxF "*DefaultDuplex: None" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
             ! grep -q "^[*]OCM_resourceDir:" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
             # cupsBackSide must stay Rotated on every PPD. CUPS's pdftoraster (invoked
-# via the shim PPD's raster filter chain) honors cupsBackSide and rotates the
-# back side for long-edge jobs. The native app reads the same Rotated PPD via
-# KONICA_PPD so its built-in PDF renderer applies the same rule for direct-IPP
-# clients. The shim PPD has no PDF filter, forcing CUPS to use the raster path.
-# Regression guard.
-grep -qxF "*cupsBackSide: Rotated" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
-grep -qxF "*cupsBackSide: Rotated" /usr/share/ppd/konica206/konica206.ppd
-# The native app must read the derived Rotated PPD.
-test -f /usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd
-grep -qxF "*cupsBackSide: Rotated" /usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd
-grep -qx "Environment=KONICA_PPD=/usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd" /usr/lib/systemd/system/konica206-native.service
-# The shim PPD must not accept PDF (forces CUPS raster path via pdftoraster).
-! grep -q "application/vnd.cups-pdf" /usr/share/ppd/konica206/konica206.ppd
+            # via the shim PPD's raster filter chain) honors cupsBackSide and rotates the
+            # back side for long-edge jobs. The native app reads the same Rotated PPD via
+            # KONICA_PPD so its built-in PDF renderer applies the same rule for direct-IPP
+            # clients. The shim PPD has no PDF filter, forcing CUPS to use the raster path.
+            # Regression guard.
+            grep -qxF "*cupsBackSide: Rotated" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
+            grep -qxF "*cupsBackSide: Rotated" /usr/share/ppd/konica206/konica206.ppd
+            # The native app must read the derived Rotated PPD.
+            test -f /usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd
+            grep -qxF "*cupsBackSide: Rotated" /usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd
+            grep -qx "Environment=KONICA_PPD=/usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd" /usr/lib/systemd/system/konica206-native.service
+            # The shim PPD must not accept PDF (forces CUPS raster path via pdftoraster).
+            ! grep -q "application/vnd.cups-pdf" /usr/share/ppd/konica206/konica206.ppd
             grep -qx "Environment=PPD_PATHS=/usr/share/konica206/legacy-ppd:/usr/share/cups/model:/usr/lib/cups/driver" /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf
             grep -q "server-port=8000" /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf
             ! grep -q "server-port=8001" /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf
