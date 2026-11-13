@@ -760,8 +760,13 @@ Without these files the service still starts, but every print job fails
 non-zero before writing the first byte). The printer feature is therefore
 **incomplete until you supply the licensed data**.
 
-The PPD is optional: page geometry, tray mapping and the duplex rule are
-compiled into the application. No vendor PPD is installed or redistributed.
+The PPD is optional for the PAPPL side: page geometry, tray mapping and the
+duplex rule are compiled into the application. The application does read
+`*cupsBackSide` from a PPD at job time, so the image derives a copy with
+`cupsBackSide: Normal` and points `KONICA_PPD` at it. The 206's duplexer binds
+the long edge itself from the encoder's `@PJL SET BINDING=` line, so
+pre-rotating back pages double-compensates and prints a long-edge back page
+upside down (details in `docs/PRINTER.md`).
 
 ### Test print
 
@@ -782,7 +787,11 @@ lp -d konica206 /path/to/test.pdf                          # A4, 1-sided
 lp -d konica206 -o PageSize=A3 file.pdf                    # A3
 lp -d konica206 -o Duplex=DuplexNoTumble file.pdf          # long-edge duplex
 lp -d konica206 -o Duplex=DuplexTumble file.pdf            # short-edge duplex
+lp -d konica206 -o sides=two-sided-long-edge file.pdf      # long-edge duplex (IPP form)
 ```
+
+Both duplex spellings reach the application as `sides=two-sided-long-edge`; the
+IPP `sides=` form and the PPD `Duplex=` form were both confirmed on A4 paper.
 
 Change the persistent defaults:
 
@@ -987,7 +996,8 @@ machine. It is updated after workflow runs.
 | Graphical login (greetd → labwc → sfwbar) on real hardware | **Passed** — graphical session in daily use |
 | Real USB printing on bizhub 206 | **Passed** — real A4 simplex job printed from the `konica206` queue (2026-10-28) |
 | Printer works with vendor assets installed | **Passed** — same job, licensed runtime data installed |
-| Duplex, A3 and other media sizes on real paper | **Not tested** — options are present and selectable, but only A4 simplex has been printed |
+| Duplex, A4, long edge, on real paper | **Passed** — 2026-11-13: 2-page marker sheet, both sides upright in reading order, with `-o sides=two-sided-long-edge` and with `-o Duplex=DuplexNoTumble` |
+| A3, other media sizes and short-edge duplex on real paper | **Not tested** — options are present and selectable |
 
 Do not treat “ISO file exists” or “compilation succeeded” as proof of a working
 BIOS install or a working printer.
