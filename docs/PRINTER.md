@@ -294,6 +294,14 @@ back page upside down. The path under `/var/lib` is created on first start and
 is not rewritten on upgrade, which is why the unit sets the image-owned copy
 explicitly.
 
+The legacy `konica206uri` queue (served by `legacy-printer-app`) uses the same
+`konica-native` encoder. Its PPD at
+`/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd` is also
+built with `*cupsBackSide: Normal` at image build time. The legacy app stages
+this PPD into `/var/lib/legacy-printer-app/ppd/` from `PPD_PATHS` on startup,
+so the correct value must be in the image — it cannot rely on the compiled-in
+default.
+
 For the CUPS queue the image ships its **own** hand-written PPD
 (`/usr/share/ppd/konica206/konica206.ppd`). It contains no Konica data: it
 describes the ten media sizes the application itself advertises (A3, A4, A5,
