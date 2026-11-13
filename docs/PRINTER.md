@@ -283,30 +283,30 @@ The PPD is optional for the PAPPL side. Page geometry, the tray map and the
 duplex back-side rule are compiled into the application, and this repository
 does **not** install or redistribute a vendor PPD.
 
-**Both chains must use `*cupsBackSide: Normal`.** CUPS's `pdftopdf` filter
-already rotates the back side of a long-edge duplex job by 180° when it sees
-`sides=two-sided-long-edge` (the default for duplex). If the app also rotates
-(vendor PPD says `Rotated`), the two cancel and the back page prints upside
-down. The image derives Normal-backside PPDs for both the native and legacy
-chains and points the native app at the Normal copy via `KONICA_PPD`. A
-readable PPD under `/var/lib` always wins over the compiled-in fallback, so an
-upgrade that stages the vendor `Rotated` PPD there would silently bring the bug
-back; do not drop the `KONICA_PPD` override.
+**Both chains must use `*cupsBackSide: Rotated`.** The bizhub 206's duplexer
+binds the short edge; for long-edge output the back side must be pre-rotated
+180°. CUPS's `pdftoraster` (used for the raster path that the shim PPD forces)
+honors `cupsBackSide` and performs this rotation. The native app also renders
+PDF directly for direct-IPP clients (Papers, Evince, etc.); it reads the same
+Rotated PPD via `KONICA_PPD` so its built-in renderer applies the identical
+back-side rule.
+
+The shim PPD (`/usr/share/ppd/konica206/konica206.ppd`) has **no PDF filter**
+(`cupsFilter2` for `application/vnd.cups-pdf` is omitted). This forces CUPS to
+use the raster path: PDF → `pdftoraster` (which reads `cupsBackSide: Rotated`
+and rotates page 2 for long-edge) → raster → `konica-native` encoder. The
+legacy chain (`konica206uri` on port 8000) uses the same Rotated PPD under
+`/usr/share/konica206/legacy-ppd/`.
 
 Measured end-to-end on a 2-page A4 portrait marker PDF
 (`-o sides=two-sided-long-edge`, ink centroid relative to the page):
 
-| Path | `*cupsBackSide` in app PPD | page 2 centroid | effect |
+| Path | `*cupsBackSide` | page 2 centroid | effect |
 |---|---|---|---|
-| Native (PDF→app) | `Rotated` | `(0.288, 0.581)` | not rotated (double-rotate) |
-| Native (PDF→app) | `Normal` | `(0.707, 0.419)` | exactly 180° rotated ✓ |
-| Legacy (pdftoraster) | `Rotated` | `(0.707, 0.419)` | rotated 180° by pdftoraster |
-| Legacy (pdftoraster) | `Normal` | `(0.288, 0.581)` | not rotated by pdftoraster |
-
-In the native chain CUPS's `pdftopdf` pre-rotates (first row), so the app must
-not rotate (`Normal`). In the legacy chain CUPS runs `pdftoraster` which reads
-the PPD; the image ships both PPDs as `Normal`, so the legacy chain receives
-one rotation from pdftopdf and none from pdftoraster — total one rotation ✓.
+| CUPS raster (pdftoraster) | `Rotated` | `(0.707, 0.419)` | exactly 180° rotated ✓ |
+| CUPS raster (pdftoraster) | `Normal` | `(0.288, 0.581)` | not rotated ✗ |
+| Native PDF (direct IPP) | `Rotated` | `(0.707, 0.419)` | exactly 180° rotated ✓ |
+| Native PDF (direct IPP) | `Normal` | `(0.288, 0.581)` | not rotated ✗ |
 
 For the CUPS queue the image ships its **own** hand-written PPD
 (`/usr/share/ppd/konica206/konica206.ppd`). It contains no Konica data: it
@@ -314,6 +314,9 @@ describes the ten media sizes the application itself advertises (A3, A4, A5,
 A6, ISO B4, ISO B5, Letter, Legal, Executive, Statement) with realistic
 4.2 mm margins, and simplex + long-edge/short-edge duplex. The alternatives are
 the CUPS-generated `*.Borderless` names, which the hardware does not support.
+Crucially, this PPD **omits the PDF `cupsFilter2`**, so CUPS cannot pass PDF
+through and must convert to raster via `pdftoraster`, which correctly applies
+the `cupsBackSide: Rotated` rule.
 
 If the runtime data is missing:
 
