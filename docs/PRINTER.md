@@ -283,17 +283,6 @@ The PPD is optional for the PAPPL side. Page geometry, the tray map and the
 duplex back-side rule are compiled into the application, and this repository
 does **not** install or redistribute a vendor PPD.
 
-The one exception is the application's back-side rule, which is read from a PPD
-at job time. The image derives
-`/usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-normal.ppd` from the
-retrofit PPD, changing only `*cupsBackSide` to `Normal`, and points
-`KONICA_PPD` in `konica206-native.service` at it. The 206's duplexer binds the
-long edge itself from the `@PJL SET BINDING=` line that `konica-native` emits,
-so any pre-rotation on top of that double-compensates and prints a long-edge
-back page upside down. The path under `/var/lib` is created on first start and
-is not rewritten on upgrade, which is why the unit sets the image-owned copy
-explicitly.
-
 For the CUPS queue the image ships its **own** hand-written PPD
 (`/usr/share/ppd/konica206/konica206.ppd`). It contains no Konica data: it
 describes the ten media sizes the application itself advertises (A3, A4, A5,
@@ -384,7 +373,7 @@ konica206-native printers -u ipp://localhost:8001
 | Two copies after the printer sleeps | the USB watcher must not pause a queue with an active job; `/var/log/konica-cups-watch.log` should say “disable … skipped (queue has a job)” |
 | App starts but no queue | `konica206-native printers -u ipp://localhost:8001` |
 | CUPS queue disabled | re-create with `lpadmin -E`; check `cupsaccept` |
-| Duplex wrong | `systemctl show konica206-native -p Environment` must show `KONICA_PPD` pointing at `/usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-normal.ppd`; the app must not pre-rotate back sides (`cupsBackSide: Normal`) |
+| Duplex wrong | app uses compiled-in `cupsBackSide: Rotated`; file a test case |
 | Service restarts | expected: `Restart=always`; check `journalctl` and state dir ownership (`/var/lib/konica206`) |
 
 After changing the udev rule:

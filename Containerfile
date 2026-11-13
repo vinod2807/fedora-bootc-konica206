@@ -166,12 +166,6 @@ RUN set -eux; \
         "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd"; \
     ! grep -q '^\*OCM_resourceDir:' \
         "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd"; \
-    install -d -m 0755 "$root/usr/share/konica206/ppd"; \
-    sed -e 's#^\*cupsBackSide:.*#*cupsBackSide: Normal#' \
-        "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd" \
-        > "$root/usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-normal.ppd"; \
-    grep -qxF '*cupsBackSide: Normal' \
-        "$root/usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-normal.ppd"; \
     gcc -O2 -std=gnu17 -Wall -Wextra \
         -o "$root/usr/local/libexec/konica-backend/usb" \
         retrofit/backup/source/konica-usb-backend/konica-usb-backend.c \
