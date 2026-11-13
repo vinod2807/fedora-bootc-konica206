@@ -768,11 +768,6 @@ the long edge itself from the encoder's `@PJL SET BINDING=` line, so
 pre-rotating back pages double-compensates and prints a long-edge back page
 upside down (details in `docs/PRINTER.md`).
 
-The legacy `konica206uri` queue (served by `legacy-printer-app`) uses the same
-`konica-native` encoder. Its PPD at
-`/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd` is also
-built with `*cupsBackSide: Normal` at image build time.
-
 ### Test print
 
 A CUPS queue named **`konica206`** is created automatically (by
