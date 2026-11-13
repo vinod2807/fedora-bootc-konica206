@@ -283,6 +283,18 @@ The PPD is optional for the PAPPL side. Page geometry, the tray map and the
 duplex back-side rule are compiled into the application, and this repository
 does **not** install or redistribute a vendor PPD.
 
+**Do not set `*cupsBackSide` to `Normal` here.** The vendor PPD says `Rotated`
+and that is the correct value: the renderer pre-rotates back-side pages 180°
+from the PPD setting, while the 206's duplexer binds the long edge itself from
+the `@PJL SET BINDING=` line `konica-native` emits. The two cancel, so a
+long-edge back page is upright. `Normal` removes the pre-rotation but leaves the
+binding in place, which prints the back upside down. Attempted and reverted
+twice on 2026-11-13; the same rule is documented for the `245igdirf` chain in
+`konica-retrofit` and `ubuntu-printing`, where
+`gs -scupsBackSideOrientation=Rotated` is required. The app must read the PPD
+under `/var/lib/legacy-printer-app/ppd/` (vendor `Rotated`); do not add a
+`KONICA_PPD` override that points at a derived `Normal` copy.
+
 For the CUPS queue the image ships its **own** hand-written PPD
 (`/usr/share/ppd/konica206/konica206.ppd`). It contains no Konica data: it
 describes the ten media sizes the application itself advertises (A3, A4, A5,
