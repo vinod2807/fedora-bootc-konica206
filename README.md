@@ -763,18 +763,15 @@ non-zero before writing the first byte). The printer feature is therefore
 The PPD is optional: page geometry, tray mapping and the duplex rule are
 compiled into the application. No vendor PPD is installed or redistributed.
 
-**Do not override `*cupsBackSide` to `Normal` for this printer.** The vendor
-PPD says `Rotated`, and that value is required. The renderer pre-rotates
-back-side pages 180° from the PPD setting, and the 206's duplexer binds the
-long edge itself from the `@PJL SET BINDING=` line `konica-native` emits —
-with `Rotated` the two cancel and a long-edge back page is upright. Setting
-`Normal` removes the pre-rotation but keeps the binding, so the back page
-prints upside down. This was tried twice (2026-11-13) and reverted both times;
-`konica-retrofit/backup/**` and `ubuntu-printing` record the same rule for the
-`245igdirf` chain, where `gs -scupsBackSideOrientation=Rotated` is likewise
-required. The app must read the PPD under `/var/lib/legacy-printer-app/ppd/`
-(vendor `Rotated`); do not add a `KONICA_PPD` override pointing at a derived
-`Normal` copy.
+**The app must read a PPD with `*cupsBackSide: Normal`.** CUPS's `pdftopdf`
+filter already rotates the back side of a long-edge duplex job by 180° when it
+sees `sides=two-sided-long-edge` (the default for duplex). If the app also
+rotates (vendor PPD says `Rotated`), the two cancel and the back page prints
+upside down. The image derives Normal-backside PPDs for both the native and
+legacy chains and points the native app at the Normal copy via `KONICA_PPD`.
+A readable PPD under `/var/lib` always wins over the compiled-in fallback, so an
+upgrade that stages the vendor `Rotated` PPD there would silently bring the bug
+back; do not drop the `KONICA_PPD` override.
 
 ### Test print
 
@@ -1001,7 +998,7 @@ machine. It is updated after workflow runs.
 | Real USB printing on bizhub 206 | **Passed** — real A4 simplex job printed from the `konica206` queue (2026-10-28) |
 | Printer works with vendor assets installed | **Passed** — same job, licensed runtime data installed |
 | Duplex, A3 and other media sizes on real paper | **Not tested** — options are present and selectable, but only A4 simplex has been printed |
-| Duplex back-side orientation rule | **Passed** — `*cupsBackSide: Rotated` is required; `Normal` prints a long-edge back page upside down (attempted and reverted 2026-11-13). See "Do not override `*cupsBackSide`" above. |
+| Duplex back-side orientation | **Passed** — CUPS `pdftopdf` pre-rotates the back side for `sides=two-sided-long-edge`; the app PPD is `Normal` so it does not rotate again. The single 180° rotation matches the 206's short-edge flip mechanism. Earlier `Rotated` double-rotated and printed upside down (fixed 2026-11-13). |
 
 Do not treat “ISO file exists” or “compilation succeeded” as proof of a working
 BIOS install or a working printer.

@@ -16,7 +16,7 @@
 *cupsVersion: 2.4
 *cupsSNMPSupplies: False
 *cupsLanguages: "en_US"
-*cupsBackSide: Rotated
+*cupsBackSide: Normal
 *APSupplies: "http://127.0.0.1:8001/konica206/"
 *cupsFilter: "application/vnd.cups-raster 0 /usr/bin/konica-native"
 *cupsFilter2: "image/jpeg image/jpeg 0 -"

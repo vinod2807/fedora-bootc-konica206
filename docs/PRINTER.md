@@ -283,30 +283,30 @@ The PPD is optional for the PAPPL side. Page geometry, the tray map and the
 duplex back-side rule are compiled into the application, and this repository
 does **not** install or redistribute a vendor PPD.
 
-**Do not set `*cupsBackSide` to `Normal` here.** The vendor PPD says `Rotated`
-and that is the correct value: the renderer pre-rotates back-side pages 180°
-from the PPD setting, while the 206's duplexer binds the long edge itself from
-the `@PJL SET BINDING=` line `konica-native` emits. The two cancel, so a
-long-edge back page is upright. `Normal` removes the pre-rotation but leaves the
-binding in place, which prints the back upside down. Attempted and reverted
-twice on 2026-11-13; the same rule is documented for the `245igdirf` chain in
-`konica-retrofit` and `ubuntu-printing`, where
-`gs -scupsBackSideOrientation=Rotated` is required. The app must read the PPD
-under `/var/lib/legacy-printer-app/ppd/` (vendor `Rotated`); do not add a
-`KONICA_PPD` override that points at a derived `Normal` copy.
+**Both chains must use `*cupsBackSide: Normal`.** CUPS's `pdftopdf` filter
+already rotates the back side of a long-edge duplex job by 180° when it sees
+`sides=two-sided-long-edge` (the default for duplex). If the app also rotates
+(vendor PPD says `Rotated`), the two cancel and the back page prints upside
+down. The image derives Normal-backside PPDs for both the native and legacy
+chains and points the native app at the Normal copy via `KONICA_PPD`. A
+readable PPD under `/var/lib` always wins over the compiled-in fallback, so an
+upgrade that stages the vendor `Rotated` PPD there would silently bring the bug
+back; do not drop the `KONICA_PPD` override.
 
-Measured with `pdftoraster` on a 2-page A4 portrait marker PDF
+Measured end-to-end on a 2-page A4 portrait marker PDF
 (`-o sides=two-sided-long-edge`, ink centroid relative to the page):
 
-| PPD `*cupsBackSide` | page 1 centroid | page 2 centroid | effect |
+| Path | `*cupsBackSide` in app PPD | page 2 centroid | effect |
 |---|---|---|---|
-| `Rotated` | `(0.288, 0.581)` | `(0.707, 0.419)` | exactly 180° rotated |
-| `Normal` | `(0.288, 0.581)` | `(0.293, 0.581)` | not rotated |
+| Native (PDF→app) | `Rotated` | `(0.288, 0.581)` | not rotated (double-rotate) |
+| Native (PDF→app) | `Normal` | `(0.707, 0.419)` | exactly 180° rotated ✓ |
+| Legacy (pdftoraster) | `Rotated` | `(0.707, 0.419)` | rotated 180° by pdftoraster |
+| Legacy (pdftoraster) | `Normal` | `(0.288, 0.581)` | not rotated by pdftoraster |
 
-`(0.707, 0.419)` is `(1−0.288, 1−0.581)`, so `Rotated` rotates page 2 by 180°.
-`konica-native` derives `BINDING` from the raster header and options only, and
-emits `SHORTEDGE` for this job either way — so `Normal` removes the pre-rotation
-while the printer still flips, which is the upside-down back page.
+In the native chain CUPS's `pdftopdf` pre-rotates (first row), so the app must
+not rotate (`Normal`). In the legacy chain CUPS runs `pdftoraster` which reads
+the PPD; the image ships both PPDs as `Normal`, so the legacy chain receives
+one rotation from pdftopdf and none from pdftoraster — total one rotation ✓.
 
 For the CUPS queue the image ships its **own** hand-written PPD
 (`/usr/share/ppd/konica206/konica206.ppd`). It contains no Konica data: it

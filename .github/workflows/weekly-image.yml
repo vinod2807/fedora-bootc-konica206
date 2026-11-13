@@ -219,13 +219,17 @@ jobs:
             grep -qxF "*cupsFilter: \"application/vnd.cups-raster 0 /usr/bin/konica-native\"" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
             grep -qxF "*DefaultDuplex: None" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
             ! grep -q "^[*]OCM_resourceDir:" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
-            # cupsBackSide must stay Rotated on every PPD: Normal prints a long-edge
-            # back page upside down (see docs/PRINTER.md). Regression guard.
-            grep -qxF "*cupsBackSide: Rotated" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
-            grep -qxF "*cupsBackSide: Rotated" /usr/share/ppd/konica206/konica206.ppd
-            # The app must read that vendor PPD; no KONICA_PPD override to a Normal copy.
-            ! grep -q "^Environment=KONICA_PPD=" /usr/lib/systemd/system/konica206-native.service
-            ! test -e /usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-normal.ppd
+            # cupsBackSide must stay Normal on every PPD. CUPS itself rotates the
+            # back side of a long-edge job (pdftopdf on sides=two-sided-long-edge),
+            # so a Rotated PPD double-rotates and prints the back page upside down.
+            # Regression guard for the vendor Rotated default.
+            grep -qxF "*cupsBackSide: Normal" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
+            grep -qxF "*cupsBackSide: Normal" /usr/share/ppd/konica206/konica206.ppd
+            # The native app must read the derived Normal PPD; the vendor PPD under
+            # /var/lib is staged at first start and would override the fallback.
+            test -f /usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-normal.ppd
+            grep -qxF "*cupsBackSide: Normal" /usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-normal.ppd
+            grep -qx "Environment=KONICA_PPD=/usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-normal.ppd" /usr/lib/systemd/system/konica206-native.service
             grep -qx "Environment=PPD_PATHS=/usr/share/konica206/legacy-ppd:/usr/share/cups/model:/usr/lib/cups/driver" /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf
             grep -q "server-port=8000" /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf
             ! grep -q "server-port=8001" /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf
