@@ -3,8 +3,8 @@
 # Fedora bootc image with:
 #   - Labwc / Waybar / Foot Wayland desktop + greetd/tuigreet login
 #   - fuzzel-printjobs desktop helper (CUPS job cancel/restart, W-e)
-#   - Epson L3260 network printer queue (driverless IPP)
-#   - authenticated Samba folder and CUPS printer sharing
+#   - CUPS and Samba printer sharing (print queues are created locally at
+#     runtime, not baked into this image)
 #
 # The Konica Minolta bizhub 206 is provided at runtime by a restored podman
 # container (CUPS on port 6632, queue Konica_Via_Podman); it is intentionally
@@ -38,7 +38,7 @@ ARG ZAPFAST_VERSION=v0.20.1
 ARG BUILD_EPOCH=local
 
 LABEL org.opencontainers.image.title="Fedora bootc - Labwc desktop" \
-      org.opencontainers.image.description="Fedora bootc (base follows :latest), Linux/amd64, Labwc/Waybar/Foot desktop, Epson L3260 network printing" \
+      org.opencontainers.image.description="Fedora bootc (base follows :latest), Linux/amd64, Labwc/Waybar/Foot desktop, CUPS printer sharing" \
       org.opencontainers.image.source="https://github.com/vinod2807/fedora-bootc-konica206" \
       org.opencontainers.image.licenses="NOASSERTION"
 
@@ -155,7 +155,7 @@ RUN set -eux; \
 #
 # Scriptlets are skipped on purpose: the RPM's %post launches the ecbd daemon in
 # the foreground, which never returns inside a container build (the build would
-# hang). ecbd is only needed for USB-attached Epson printers; the network queue
+# hang). ecbd is only needed for USB-attached Epson printers; network printing
 # and the utility itself work without it. Enable it by hand on such a machine:
 #   sudo systemctl enable --now ecbd.service
 COPY local-rpms/ /tmp/local-rpms/
@@ -183,7 +183,6 @@ RUN set -eux; \
 COPY bootc/90-linux-pc-crash-fixes.toml /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
 COPY modprobe.d/90-linux-pc-crash-fixes.conf /etc/modprobe.d/90-linux-pc-crash-fixes.conf
 COPY modprobe.d/90-usblp-blacklist.conf      /etc/modprobe.d/90-usblp-blacklist.conf
-COPY systemd/epson-l3260-queue.service /usr/lib/systemd/system/epson-l3260-queue.service
 COPY systemd/samba-setup.service    /usr/lib/systemd/system/samba-setup.service
 COPY systemd/nmb.service.d/10-wait-for-interface.conf /usr/lib/systemd/system/nmb.service.d/10-wait-for-interface.conf
 COPY systemd/bootc-upgrade.service    /usr/lib/systemd/system/bootc-upgrade.service
@@ -216,7 +215,6 @@ COPY scripts/fuzzel-printjobs         /usr/local/bin/fuzzel-printjobs
 COPY desktop/applications/weechat.desktop /usr/share/applications/weechat.desktop
 # sfwbar reads its system-wide default from the XDG *data* dir, not /etc/xdg.
 COPY desktop/sfwbar/sfwbar.config     /usr/share/sfwbar/sfwbar.config
-COPY scripts/ensure-epson-queue       /usr/libexec/epson-l3260/ensure-queue
 COPY scripts/setup-samba              /usr/libexec/setup-samba
 COPY samba/smb.conf                   /etc/samba/smb.conf
 RUN install -d -m 0755 /etc/flatpak/overrides
@@ -234,14 +232,12 @@ RUN set -eux; \
     grep -qx 'set timeout=10' "$cfg"
 
 RUN set -eux; \
-    chmod 0755 /usr/libexec/epson-l3260/ensure-queue; \
     chmod 0755 /usr/libexec/setup-samba; \
     chmod 0755 /usr/local/bin/fuzzel-printjobs; \
     chmod 0644 /etc/greetd/config.toml \
         /etc/pam.d/greetd \
         /etc/systemd/zram-generator.conf \
         /etc/modprobe.d/90-usblp-blacklist.conf \
-        /usr/lib/systemd/system/epson-l3260-queue.service \
         /usr/lib/systemd/system/samba-setup.service \
         /usr/lib/systemd/system/nmb.service.d/10-wait-for-interface.conf \
         /etc/samba/smb.conf \
@@ -320,7 +316,6 @@ RUN set -eux; \
     systemctl --global enable flatpak-update.timer; \
     systemctl enable NetworkManager.service; \
     systemctl enable greetd.service; \
-    systemctl enable epson-l3260-queue.service; \
     systemctl enable samba-setup.service; \
     systemctl enable avahi-daemon.service; \
     systemctl enable smb.service nmb.service; \

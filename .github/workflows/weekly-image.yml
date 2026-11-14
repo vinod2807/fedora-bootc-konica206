@@ -71,7 +71,7 @@ jobs:
             type=ref,event=branch
           labels: |
             org.opencontainers.image.title=Fedora bootc - Labwc desktop
-            org.opencontainers.image.description=Fedora bootc (base follows :latest) linux/amd64 with Labwc, sfwbar, Foot and the Epson L3260 network printer
+            org.opencontainers.image.description=Fedora bootc (base follows :latest) linux/amd64 with Labwc, sfwbar, Foot and CUPS printer sharing
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -213,9 +213,13 @@ jobs:
             ZRAM_GENERATOR_ROOT=/ /usr/lib/systemd/system-generators/zram-generator "$zgen" "$zgen" "$zgen" >/dev/null 2>&1
             test -f "$zgen/dev-zram0.swap"
             rm -rf "$zgen"
-            systemd-analyze verify /usr/lib/systemd/system/epson-l3260-queue.service \
-                                   /usr/lib/systemd/system/bootc-upgrade.service \
+            systemd-analyze verify /usr/lib/systemd/system/bootc-upgrade.service \
                                    /usr/lib/systemd/system/bootc-upgrade.timer
+            # Print queues are local-only: no queue unit or helper is baked in.
+            for f in /usr/lib/systemd/system/epson-l3260-queue.service \
+                     /usr/libexec/epson-l3260/ensure-queue; do
+              ! test -e "$f"
+            done
             # nmbd must be allowed to wait for a NIC that appears after boot.
             grep -qx 'TimeoutStartSec=0' /usr/lib/systemd/system/nmb.service.d/10-wait-for-interface.conf
             # Konica vendor runtime data and its fixed /usr/local path are gone.

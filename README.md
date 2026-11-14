@@ -25,8 +25,8 @@ A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
 - The **Konica Minolta bizhub 206** served by a restored Podman CUPS
   container on `localhost:6632` (host queue `Konica_Via_Podman`); its drivers
   are intentionally not part of this image
-- A driverless **Epson L3260** network queue (`ipp://192.168.1.19/ipp/print`,
-  IPP Everywhere) created automatically at boot
+- **No print queues are baked in**: CUPS is installed and shared, and queues
+  are created locally on the installed machine (driverless IPP)
 - The Intel i5 650 crash/freeze kernel arguments from
   [linux-pc-crash-fixes](https://github.com/vinod2807/linux-pc-crash-fixes)
 - Authenticated **Samba** sharing for the local home directory, `/srv/samba/shared`,
@@ -52,8 +52,8 @@ Samba is enabled in the image with SMB2+ authentication. It shares:
 
 - `\\<machine-name>\vinod` — the `vinod` home directory
 - `\\<machine-name>\shared` — `/srv/samba/shared`
-- CUPS queues, including `EPSON_L3260` and — when the restored container is
-  installed — `Konica_Via_Podman`, as network printers
+- the local CUPS queues through Samba's generated `[printers]` collection
+  (for example `Konica_Via_Podman` from the restored container)
 
 Because bootc images must not contain reusable passwords, create the Samba
 credential once on the installed machine. The local Linux account `vinod` must
@@ -91,10 +91,9 @@ smbclient -L localhost -U vinod
 | `.github/workflows/build-iso.yml` | Manual or Fedora-major-release Anaconda installer ISO build with El Torito and QEMU SeaBIOS checks |
 | `.github/iso/Containerfile` | Anaconda installer container consumed by image-builder `bootc-generic-iso` |
 | `.github/iso/iso.yaml` | GRUB/ISO label and kernel command line for the installer media |
-| `systemd/` | Epson queue unit, the stage-only (never reboots) bootc update timer, and the daily Flatpak update timers (system + user) |
+| `systemd/` | The stage-only (never reboots) bootc update timer and the daily Flatpak update timers (system + user) |
 | `greetd/config.toml` | tuigreet → labwc login session |
 | `desktop/` | labwc autostart/environment/menu, sfwbar panel config |
-| `scripts/ensure-epson-queue` | Creates the driverless Epson L3260 network queue |
 | `local-rpms/` | Vendored vendor RPMs installed at build time (Epson Printer Utility) |
 | `bootc/`, `modprobe.d/` | i5 650 C-state/audio crash fixes |
 | `docs/CRASH-FIXES.md` | Crash/freeze fix notes |
@@ -335,8 +334,9 @@ internet (it pulls the image, roughly 3.3 GiB compressed, from GHCR).
    If the user account is unexpectedly missing, log in as `root` on that text
    console and run `useradd -m -G wheel -s /bin/bash <name>` then
    `passwd <name>`.
-7. **Post-install:** verify the crash fixes (`cat /proc/cmdline`). The Epson
-   queue is created automatically at boot. The Konica queue comes from the
+7. **Post-install:** verify the crash fixes (`cat /proc/cmdline`). No print
+   queue is created by the image: add the Epson queue locally (see
+   [Epson L3260](#epson-l3260-local-queue)). The Konica queue comes from the
    restored Podman container described below; install it with `revert_fedora.sh`
    from the backup directory if you want it.
 
@@ -412,10 +412,10 @@ internet (it pulls the image, roughly 3.3 GiB compressed, from GHCR).
 - **Networking:** NetworkManager is enabled. Use `nmcli device status` and
   `nmcli connection up <name>`; Wi-Fi needs `NetworkManager-wifi` +
   `wpa_supplicant`, both installed.
-- **Printer:** the Epson queue is created at boot by
-  `epson-l3260-queue.service`. The Konica `Konica_Via_Podman` queue is provided
-  by the restored container (Quadlet unit `container-podman-cups-server`), not
-  by this image.
+- **Printers:** no queue is baked into the image. Add one locally with
+  `lpadmin` (driverless `-m everywhere`). The Konica `Konica_Via_Podman` queue
+  comes from the restored container (Quadlet unit
+  `container-podman-cups-server`), not from this image.
 
 No SSH server is installed by default. No default password, SSH key, or
 credential is embedded in the image.
@@ -625,14 +625,12 @@ the 10-month-old Debian CUPS setup and its driver intact:
 - The USB printer is reached through `/dev/bus/usb`; the host blacklists the
   in-kernel `usblp` driver so the container's libusb backend can claim it.
 
-The Epson L3260 remains the only printer baked into the image itself.
+## Epson L3260 (local queue)
 
-## Epson L3260 (network printer)
-
-The Epson L3260 at **192.168.1.19** is configured as a **driverless
-(IPP Everywhere / Mopria 2.1)** queue. Nothing Epson-specific is installed: CUPS
-reads the printer's own IPP attributes and generates the PPD itself, exactly
-like AirPrint.
+The image ships **no printer queues**; the Epson L3260 is configured on the
+installed machine as a **driverless (IPP Everywhere / Mopria 2.1)** queue.
+Nothing Epson-specific is installed: CUPS reads the printer's own IPP
+attributes and generates the PPD itself, like AirPrint.
 
 ```
 queue name   EPSON_L3260
@@ -640,24 +638,14 @@ device URI   ipp://192.168.1.19/ipp/print
 model        IPP Everywhere (auto-generated PPD)
 ```
 
-`epson-l3260-queue.service` (oneshot, enabled at boot) waits for the printer to
-answer on port 631 and then creates the queue. It is idempotent, and a printer
-that is switched off at boot is not treated as a failure — the unit logs it and
-exits successfully.
-
-### Manual setup / repair
-
-```bash
-sudo systemctl start epson-l3260-queue      # create it now
-lpstat -v EPSON_L3260                       # must show ipp://192.168.1.19/ipp/print
-```
-
-Or by hand:
+Create it once (it lives in `/etc/cups/printers.conf`, which persists across
+`bootc upgrade`):
 
 ```bash
 sudo lpadmin -p EPSON_L3260 -E \
   -v ipp://192.168.1.19/ipp/print -m everywhere \
   -D "Epson L3260 Series" -L "Network"
+lpstat -v EPSON_L3260                       # must show ipp://192.168.1.19/ipp/print
 ```
 
 Test print:
@@ -705,19 +693,12 @@ To update it later, drop the newer file into `local-rpms/`, delete the old one,
 commit. Printing and scanning do not depend on the utility — the queue is
 driverless.
 
-Different address or name, without rebuilding the image:
-
-```bash
-sudo EPSON_HOST=192.168.1.50 EPSON_QUEUE=EPSON_L3260_2 \
-  /usr/libexec/epson-l3260/ensure-queue
-```
-
 The printer is colour, A4/legal, no duplex, and reports
 `marker-supply-low-warning` when ink is low. CUPS web UI: `http://localhost:631`
 (cups.socket is enabled, so cupsd starts on demand).
 
 Note: the queue lives in `/etc/cups/printers.conf`, which persists across
-`bootc upgrade`; if you ever delete it, the boot unit recreates it.
+`bootc upgrade`; if you ever delete it, re-run the `lpadmin` command above.
 
 ---
 
@@ -758,8 +739,9 @@ See [`docs/CRASH-FIXES.md`](docs/CRASH-FIXES.md).
   (`--max-layers 64 --compressed`). chunkah runs only in CI; it is not part of
   the runtime image. The layer count is a trade-off between update granularity
   and push/pull overhead.
-- **Printer drivers:** not built into this image. The Epson queue is
-  driverless IPP; the Konica queue comes from the restored Podman container.
+- **Printer queues and drivers:** not built into this image. Queues are
+  created locally with driverless IPP; the Konica queue comes from the restored
+  Podman container.
 - **GitHub Actions:** pinned to full commit SHAs (commented with the release
   tag). Update deliberately and re-run the smoke test.
 - **image-builder CLI:** pinned by digest in `build-iso.yml`. Update the digest
@@ -778,7 +760,7 @@ machine. It is updated after workflow runs.
 | Check | Status |
 |---|---|
 | Containerfile builds `linux/amd64` | **Passed** — `weekly-image` run [41966537577](https://github.com/vinod2807/fedora-bootc-konica206/actions/runs/41966537577) |
-| Container smoke test (packages, units, desktop files, Epson queue assets) | **Passed** — same run, before the push |
+| Container smoke test (packages, units, desktop files, no baked print queues) | **Passed** — same run, before the push |
 | chunkah rechunk (64 content-based layers) | **Passed** — same run; published `latest` is `sha256:3fc26b60008bda7b1ee7650e166dbe3cee72fb5359a5199c6106373cdaa1c5b7` with 64 layers, `containers.bootc=1`, and no `ostree.commit`/`ostree.final-diffid` |
 | Rechunk preserves ownership, setuid and capabilities | **Passed** — build-time assertion (`/` = `0:0`, `sudo` setuid, `newuidmap` `cap_setuid=ep`) plus post-deploy verification |
 | `bootc upgrade` into the rechunked image on real hardware | **Passed** — staged `86434254…`, booted 2026-11-05; autologin and the desktop work |
