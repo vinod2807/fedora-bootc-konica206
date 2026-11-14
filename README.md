@@ -1,4 +1,4 @@
-# Fedora bootc — Labwc desktop + Konica Minolta bizhub 206
+# Fedora bootc — Labwc desktop
 
 A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
 (the target is an Intel Core i5 650). It provides:
@@ -22,17 +22,9 @@ A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
   GTK/wlr portals for file choosers and screen sharing)
 - A real graphical login path: **greetd** on VT1 → **tuigreet** → **labwc**
 - NetworkManager, PipeWire/WirePlumber, portals, polkit, XWayland
-- The **Konica Minolta bizhub 206** PAPPL printer application
-  ([konica206-native-alpine](https://github.com/vinod2807/konica206-native-alpine))
-  built for Fedora, with the
-  [konica-native](https://github.com/vinod2807/konica-native-musl) C11
-  device-stream encoder as the filter stage, plus the USB queue-presence
-  watcher and Wine/Adobe PostScript rule from
-  [konica-retrofit](https://github.com/vinod2807/konica-retrofit)
-- The **legacy `konica206uri`** path: `pappl-retrofit`'s Legacy Printer
-  Application on port 8000, driving the retrofit full-bleed PPD through the
-  same `konica-native` encoder, with `konica206uri` and `konica206uri-ppd`
-  CUPS queues
+- The **Konica Minolta bizhub 206** served by a restored Podman CUPS
+  container on `localhost:6632` (host queue `Konica_Via_Podman`); its drivers
+  are intentionally not part of this image
 - A driverless **Epson L3260** network queue (`ipp://192.168.1.19/ipp/print`,
   IPP Everywhere) created automatically at boot
 - The Intel i5 650 crash/freeze kernel arguments from
@@ -60,8 +52,8 @@ Samba is enabled in the image with SMB2+ authentication. It shares:
 
 - `\\<machine-name>\vinod` — the `vinod` home directory
 - `\\<machine-name>\shared` — `/srv/samba/shared`
-- CUPS queues, including `konica206`, `konica206uri`, `konica206uri-ppd` and
-  `EPSON_L3260`, as network printers
+- CUPS queues, including `EPSON_L3260` and — when the restored container is
+  installed — `Konica_Via_Podman`, as network printers
 
 Because bootc images must not contain reusable passwords, create the Samba
 credential once on the installed machine. The local Linux account `vinod` must
@@ -94,26 +86,18 @@ smbclient -L localhost -U vinod
 
 | Path | Purpose |
 |---|---|
-| `Containerfile` | Multi-stage bootc image build (printer binaries built in a builder stage of the same Fedora release) |
+| `Containerfile` | Single-stage bootc image build |
 | `.github/workflows/weekly-image.yml` | Weekly (Sunday 03:00 IST) + manual build → smoke test → chunkah rechunk → verify → publish; never builds an ISO |
 | `.github/workflows/build-iso.yml` | Manual or Fedora-major-release Anaconda installer ISO build with El Torito and QEMU SeaBIOS checks |
 | `.github/iso/Containerfile` | Anaconda installer container consumed by image-builder `bootc-generic-iso` |
 | `.github/iso/iso.yaml` | GRUB/ISO label and kernel command line for the installer media |
-| `systemd/` | Printer/queue units, the stage-only (never reboots) bootc update timer, and the daily Flatpak update timers (system + user) |
-| `udev/70-konica206.rules` | USB permissions for `132b:232b` (group `lp`, `uaccess`) |
+| `systemd/` | Epson queue unit, the stage-only (never reboots) bootc update timer, and the daily Flatpak update timers (system + user) |
 | `greetd/config.toml` | tuigreet → labwc login session |
 | `desktop/` | labwc autostart/environment/menu, sfwbar panel config |
-| `scripts/install-vendor-data` | Post-install installer for the licensed Konica runtime data |
-| `scripts/ensure-queue` | Creates the PAPPL queue and the local CUPS queue with the PPD shim |
-| `scripts/ensure-legacy-queue` | Creates the legacy `konica206uri` printer and its two CUPS proxy queues |
-| `systemd/legacy-printer-app.service.d/90-konica206uri.conf` | Legacy Printer Application on port 8000, with the retrofit PPD path |
-| `systemd/tmpfiles.d/konica206uri.conf` | Seeds the legacy application's `/var` state and spool at boot |
 | `scripts/ensure-epson-queue` | Creates the driverless Epson L3260 network queue |
-| `scripts/preflight` | Read-only diagnostic (`sudo konica206-preflight`) |
-| `ppd/konica206.ppd` | Hand-written PPD shim: real media sizes, duplex, A4/simplex defaults |
 | `local-rpms/` | Vendored vendor RPMs installed at build time (Epson Printer Utility) |
 | `bootc/`, `modprobe.d/` | i5 650 C-state/audio crash fixes |
-| `docs/PRINTER.md`, `docs/CRASH-FIXES.md` | Detailed notes |
+| `docs/CRASH-FIXES.md` | Crash/freeze fix notes |
 
 ---
 
@@ -129,14 +113,6 @@ smbclient -L localhost -U vinod
 - Runs `dnf upgrade --refresh` so the image picks up the current Fedora updates
 - Base image is `quay.io/fedora/fedora-bootc:latest` with `pull: true`, so the
   build follows the current Fedora release (major-version jumps included)
-- Resolves `konica206-native-alpine` and `konica-native-musl` `main` to full
-  commit SHAs with `git ls-remote`, and passes those SHAs as build args. The
-  SHAs are baked into image labels and the workflow summary.
-- Runs the upstream vendor-free tests in the builder stage:
-  - `make check` (chunking + PPD parser)
-  - `make check-native` (PAPPL job path with a stand-in filter)
-  - `konica-native`: `make check` (raster reader cross-check, CMM table,
-    geometry, MEDIATYPE, failure modes)
 - Builds the image locally, runs a container smoke test, then **rechunks** it
   with chunkah and publishes only the rechunked image (see
   [Image rechunking (chunkah)](#image-rechunking-chunkah)).
@@ -145,8 +121,7 @@ smbclient -L localhost -U vinod
 - Tags: `latest`, `main`, and `sha-<full-commit>` (rolling + traceable)
 - Concurrency group per branch, `cancel-in-progress: false`
 - `permissions: contents: read`, `packages: write`
-- Uses Buildx/GHA cache; the cache key includes the resolved source SHAs, so a
-  new upstream commit cannot be hidden by an old cache.
+- Uses the Buildx/GHA cache.
 - **Does not build an ISO.**
 
 ### Image rechunking (chunkah)
@@ -360,10 +335,10 @@ internet (it pulls the image, roughly 3.3 GiB compressed, from GHCR).
    If the user account is unexpectedly missing, log in as `root` on that text
    console and run `useradd -m -G wheel -s /bin/bash <name>` then
    `passwd <name>`.
-7. **Post-install:** verify the crash fixes (`cat /proc/cmdline`), then install
-   the licensed printer runtime data
-   (`sudo konica206-install-vendor-data <path>`) and run
-   `sudo konica206-preflight`.
+7. **Post-install:** verify the crash fixes (`cat /proc/cmdline`). The Epson
+   queue is created automatically at boot. The Konica queue comes from the
+   restored Podman container described below; install it with `revert_fedora.sh`
+   from the backup directory if you want it.
 
 ### BIOS installation notes
 
@@ -437,10 +412,10 @@ internet (it pulls the image, roughly 3.3 GiB compressed, from GHCR).
 - **Networking:** NetworkManager is enabled. Use `nmcli device status` and
   `nmcli connection up <name>`; Wi-Fi needs `NetworkManager-wifi` +
   `wpa_supplicant`, both installed.
-- **Printer:** `konica206-native.service` is enabled and restarts on failure;
-  `konica206-queue.service` creates the CUPS queue when the printer is
-  attached. Install the licensed runtime data with
-  `sudo konica206-install-vendor-data <path>`.
+- **Printer:** the Epson queue is created at boot by
+  `epson-l3260-queue.service`. The Konica `Konica_Via_Podman` queue is provided
+  by the restored container (Quadlet unit `container-podman-cups-server`), not
+  by this image.
 
 No SSH server is installed by default. No default password, SSH key, or
 credential is embedded in the image.
@@ -629,211 +604,28 @@ printer operation. Keep the previous deployment (bootc rollback) available.
 
 ---
 
-## Konica Minolta bizhub 206
+## Konica Minolta bizhub 206 (runtime container)
 
-Full details: [`docs/PRINTER.md`](docs/PRINTER.md).
+The Konica stack is **not built into this image**. It runs as a Podman container
+restored from the `docker_backup/debian-cups-server_*` directory, which keeps
+the 10-month-old Debian CUPS setup and its driver intact:
 
-### What is built
+- CUPS inside the container listens on port **6632**.
+- The host queue is **`Konica_Via_Podman`**
+  (`ipp://localhost:6632/printers/KONICA_MINOLTA_206`), driverless, with 24 real
+  media sizes (no borderless variants) and A4 / simplex defaults.
+- The container image lives in rootful Podman storage (`/var/lib/containers`).
+  It is started by the Quadlet unit `container-podman-cups-server` in
+  `/etc/containers/systemd/`.
+- The queue and its PPD live in `/etc/cups`, and the container image and volumes
+  live in `/var/lib/containers`; all of that is persistent and survives
+  `bootc upgrade`.
+- To recreate the container and queue after a reinstall or `podman system
+  reset`, run `sudo ./revert_fedora.sh` from the backup directory.
+- The USB printer is reached through `/dev/bus/usb`; the host blacklists the
+  in-kernel `usblp` driver so the container's libusb backend can claim it.
 
-| Component | Source | Installed as |
-|---|---|---|
-| PAPPL printer application | `konica206-native-alpine` `main` | `/usr/bin/konica206-native`, `/usr/bin/konica-send`, `/usr/bin/konica-render` |
-| C11 device-stream encoder | `konica-native-musl` `main` | `/usr/bin/konica-native` (the app’s `KONICA_VENDOR_FILTER`) |
-
-Both are compiled from source in the Fedora builder stage, so no Alpine/musl
-binary or OpenRC unit is used. The app runs as the unprivileged `konica` system
-user (member of `lp`), under systemd, with the queue served at:
-
-```
-ipp://127.0.0.1:8001/ipp/print/konica206
-```
-
-USB ID: `132b:232b`. The udev rule sets mode `0660`, group `lp`, and `uaccess`.
-The service is not run as root.
-
-The queue is created automatically at boot or on plug-in by
-`konica206-queue.service` when the printer’s USB serial is visible. Manual
-trigger:
-
-```bash
-sudo systemctl start konica206-queue.service
-konica206-native printers -u ipp://localhost:8001
-```
-
-### Legacy konica206uri queues
-
-The legacy stack from `konica-retrofit` is installed alongside the native app.
-`legacy-printer-app.service` (pappl-retrofit 1.0b2) serves a PPD driver on
-loopback port 8000, using the retrofit full-bleed PPD with `/usr/bin/konica-native`
-as its filter, and `konica206uri-queue.service` creates the CUPS proxy queues:
-
-```
-konica206uri      -> ipp://localhost:8000/ipp/print/konica206uri
-konica206uri-ppd  -> ipp://localhost:8000/ipp/print/konica206uri
-```
-
-Both default to A4 and simplex. They need the same licensed vendor runtime data
-as the native queue. The two applications open USB interface 1 per job, so a
-job goes through whichever queue it was sent to; see `docs/PRINTER.md` for the
-manual checks.
-
-### Duplicate prints after USB re-enumeration (fixed 2026-11-04)
-
-**Symptom.** One `lp` job produced two copies, usually after the printer slept
-and re-appeared on USB. `cupsd` logged `Job ... restarted because the printer
-was modified`, and the PAPPL log showed two `Starting print job` entries for a
-single CUPS job.
-
-There were two independent causes:
-
-1. **PPD reload during a job.** `70-konica206.rules` starts the queue services
-   on every USB add. The scripts used to run `lpadmin -P` unconditionally, and
-   CUPS restarts an active job whenever a printer's PPD changes
-   (`need_restart_job` in `scheduler/ipp.c`). `scripts/ensure-queue`,
-   `ensure-classic-queue` and `ensure-legacy-queue` now:
-   - compare the installed PPD with the shipped one (`cmp -s`) and reload only
-     when it really differs;
-   - defer any reload while the queue has pending or processing jobs;
-   - apply the A4/simplex defaults only when the queue is created.
-2. **Pause/resume during a job.** The USB presence watcher
-   (`konica-cups-watch.sh`, built from `konica-retrofit`) ran `cupsdisable` on
-   remove and `cupsenable` on add, plus every five minutes via its timer.
-   `cupsdisable` sets a processing job back to `PENDING`, and the later
-   `cupsenable` restarts it from page 1. `disable_queues` now skips any queue
-   with a pending or processing job; PAPPL already pauses its own queue and
-   retries the USB device until the printer returns.
-
-**Confirming the fix is active.**
-
-```bash
-# Queue scripts must say "up to date" or "deferring PPD update"; they must
-# never say "refreshed" while a job is printing.
-journalctl -u konica206-queue -u konica206-classic-queue -u konica206uri-queue -b
-
-# The watcher must skip busy queues.
-tail -20 /var/log/konica-cups-watch.log
-# expected: "disable konica206 skipped (queue has a job)"
-```
-
-Regression test: start a long job, then trigger a USB add event with
-`sudo udevadm trigger --action=add --subsystem-match=usb --sysname-match=3-2`
-(or run the watcher by hand). The PAPPL log must show one `Starting print job`,
-not two. Full detail:
-[`docs/PRINTER.md`](docs/PRINTER.md#why-the-ppd-is-never-reloaded-mid-job) and
-[`docs/PRINTER.md`](docs/PRINTER.md#konica-retrofit-integration).
-
-### Vendor runtime data — required, not redistributed
-
-The native encoder loads three **Konica Minolta-owned** files at runtime,
-before it writes any output. It resolves them at its compiled-in path, which is
-a symlink into persistent writable state because `/usr` is immutable on bootc:
-
-```
-/usr/local/lib/konica  ->  /var/lib/konica206/vendor
-
-/usr/local/lib/konica/KonicaMinolta/245igdi/Halftones/COPA.DEFAULT.600x600.hft
-/usr/local/lib/konica/KonicaMinolta/245igdi/Profiles/sRGB.icm
-/usr/local/lib/konica/KonicaMinolta/245igdi/Profiles/sGrayInv.icm
-```
-
-The upstream `vendor/NOTICE` says these files remain Konica Minolta property
-and are **not** covered by the repository license; redistribution needs the
-vendor’s permission. Therefore this repository and the public image contain
-**none of them**, and the image build never copies the upstream `vendor/`
-directory. The source clone exists only in the builder stage.
-
-Supply them after installation from your own licensed 245igdi driver copy:
-
-```bash
-sudo konica206-install-vendor-data /path/to/245igdi-or-archive
-sudo konica206-preflight
-```
-
-The installer accepts a directory containing `KonicaMinolta/245igdi/...`,
-`245igdi/...`, or `Halftones/` + `Profiles/`, or a `.tar/.tar.gz/.tgz/.tar.xz/.zip`
-archive. It copies only the required runtime data (plus optional extra `.icm`
-and 1200×600 screen if present), restarts the service, and creates the queue if
-the printer is attached. It never prints file contents.
-
-Without these files the service still starts, but every print job fails
-**clearly and with no output sent to the printer** (`konica-native` exits
-non-zero before writing the first byte). The printer feature is therefore
-**incomplete until you supply the licensed data**.
-
-The PPD is optional: page geometry, tray mapping and the duplex rule are
-compiled into the application. No vendor PPD is installed or redistributed.
-
-**The app must read a PPD with `*cupsBackSide: Rotated`.** The bizhub 206's
-duplexer binds the short edge; for long-edge output the back side must be
-pre-rotated 180°. CUPS's `pdftoraster` (used for the raster path that the
-shim PPD forces) honors `cupsBackSide` and performs this rotation. The native
-app also renders PDF directly for direct-IPP clients (Papers, Evince, etc.); it
-reads the same Rotated PPD via `KONICA_PPD` so its built-in renderer applies
-the identical back-side rule. The shim PPD has no PDF filter, forcing CUPS to
-use the raster path (PDF → pdftoraster → raster → encoder).
-
-A readable PPD under `/var/lib` always wins over the compiled-in fallback, so
-an upgrade that stages the vendor Rotated PPD there would be correct; do not
-drop the `KONICA_PPD` override.
-
-### Test print
-
-A CUPS queue named **`konica206`** is created automatically (by
-`konica206-queue.service`) once the PAPPL queue exists. It points at
-`ipp://127.0.0.1:8001/ipp/print/konica206` and uses the shipped PPD shim
-`/usr/share/ppd/konica206/konica206.ppd`, which lists the ten real media sizes
-(A3, A4, A5, A6, ISO B4, ISO B5, Letter, Legal, Executive, Statement) with the
-device's ~4.2 mm hardware margins — CUPS' auto-generated "everywhere" PPD
-labels every size `*.Borderless`, which this printer does not support.
-**The shim PPD omits the PDF filter, forcing CUPS to use the raster path where
-`pdftoraster` applies the `cupsBackSide: Rotated` rule.**
-
-Defaults are **A4 and simplex** (`PageSize=A4`, `Duplex=None`). They are applied
-when the queue is first created and are never re-applied by a USB event, so a
-re-enumeration cannot restart an active job. Duplex is available per job:
-
-```bash
-lp -d konica206 /path/to/test.pdf                          # A4, 1-sided
-lp -d konica206 -o PageSize=A3 file.pdf                    # A3
-lp -d konica206 -o Duplex=DuplexNoTumble file.pdf          # long-edge duplex
-lp -d konica206 -o Duplex=DuplexTumble file.pdf            # short-edge duplex
-```
-
-Change the persistent defaults:
-
-```bash
-sudo lpadmin -p konica206 -o PageSize=Letter -o Duplex=DuplexNoTumble
-lpoptions -p konica206 -l          # list every option and its current default
-```
-
-Print a **PDF**, not PostScript (the driver deliberately does not advertise
-`application/postscript`). A real USB print is required to confirm paper
-output; compilation and the offline tests cannot prove the printer works.
-
-Troubleshooting:
-
-```bash
-journalctl -u konica206-native -b
-systemctl status konica206-native konica206-queue
-sudo konica206-preflight
-lsusb -d 132b:232b
-konica206-native printers -u ipp://localhost:8001
-```
-
-Only one process may own the printer’s USB interface at a time. Do not run a
-second legacy Konica queue against the same device.
-
-### Licensing status
-
-- Code binaries: built from the upstream repositories at build time.
-- Vendor runtime data: **not** redistributed; post-install supply only.
-- Vendor PPD: **not** redistributed; not required.
-- No vendor files are committed, baked into the image, or uploaded as public
-  artifacts.
-- The image license metadata is `NOASSERTION`; review the upstream licenses
-  before redistributing the image further.
-
----
+The Epson L3260 remains the only printer baked into the image itself.
 
 ## Epson L3260 (network printer)
 
@@ -959,25 +751,22 @@ See [`docs/CRASH-FIXES.md`](docs/CRASH-FIXES.md).
 
 - **Fedora major version:** follows `:latest` automatically (see
   [Fedora major version follows :latest](#fedora-major-version-follows-latest)).
-  Pin `BASE_IMAGE`/`BUILDER_IMAGE` to a numbered tag if that is not wanted.
+  Pin `BASE_IMAGE` to a numbered tag if that is not wanted.
 - **Fedora updates:** each weekly build runs `dnf upgrade --refresh`, so it
   picks up the current Fedora packages for whatever release `:latest` points at.
 - **Image layering:** every published image is rechunked with chunkah
   (`--max-layers 64 --compressed`). chunkah runs only in CI; it is not part of
   the runtime image. The layer count is a trade-off between update granularity
   and push/pull overhead.
-- **Printer sources:** built from `main` each week. The workflow resolves
-  `main` to a full SHA and records it in image labels/summary. This gives
-  reproducibility per published image without freezing future weekly builds.
-  To pin a specific source revision, run the workflow with build args changed
-  (or edit the `KONICA_*_REF` defaults) to a SHA.
+- **Printer drivers:** not built into this image. The Epson queue is
+  driverless IPP; the Konica queue comes from the restored Podman container.
 - **GitHub Actions:** pinned to full commit SHAs (commented with the release
   tag). Update deliberately and re-run the smoke test.
 - **image-builder CLI:** pinned by digest in `build-iso.yml`. Update the digest
   only after checking the current upstream ISO docs and re-running the QEMU
   SeaBIOS test.
-- **CPU flags:** no `-march=native` or CPU-specific flags. The printer
-  Makefiles use upstream `-O2`; the image targets generic x86_64.
+- **CPU flags:** no `-march=native` or CPU-specific flags; the image targets
+  generic x86_64.
 
 ---
 
@@ -989,9 +778,7 @@ machine. It is updated after workflow runs.
 | Check | Status |
 |---|---|
 | Containerfile builds `linux/amd64` | **Passed** — `weekly-image` run [41966537577](https://github.com/vinod2807/fedora-bootc-konica206/actions/runs/41966537577) |
-| Upstream printer `make check` / `make check-native` | **Passed** — same run (builder stage) |
-| `konica-native` vendor-free test suite | **Passed** — same run (builder stage) |
-| Container smoke test (packages, units, binary versions, no vendor files, `/usr/local` symlink, `pdftoraster`) | **Passed** — same run, before the push |
+| Container smoke test (packages, units, desktop files, Epson queue assets) | **Passed** — same run, before the push |
 | chunkah rechunk (64 content-based layers) | **Passed** — same run; published `latest` is `sha256:3fc26b60008bda7b1ee7650e166dbe3cee72fb5359a5199c6106373cdaa1c5b7` with 64 layers, `containers.bootc=1`, and no `ostree.commit`/`ostree.final-diffid` |
 | Rechunk preserves ownership, setuid and capabilities | **Passed** — build-time assertion (`/` = `0:0`, `sudo` setuid, `newuidmap` `cap_setuid=ep`) plus post-deploy verification |
 | `bootc upgrade` into the rechunked image on real hardware | **Passed** — staged `86434254…`, booted 2026-11-05; autologin and the desktop work |
@@ -1000,10 +787,7 @@ machine. It is updated after workflow runs.
 | ISO boots under QEMU SeaBIOS to Linux userspace | **Passed** — same run; serial log reaches the Anaconda installer UI |
 | Full BIOS installation on real hardware | **Passed** — installed on the i5-650 desktop (BIOS boot, NTFS partition preserved) |
 | Graphical login (greetd → labwc → sfwbar) on real hardware | **Passed** — graphical session in daily use |
-| Real USB printing on bizhub 206 | **Passed** — real A4 simplex job printed from the `konica206` queue (2026-10-28) |
-| Printer works with vendor assets installed | **Passed** — same job, licensed runtime data installed |
-| Duplex, A3 and other media sizes on real paper | **Not tested** — options are present and selectable, but only A4 simplex has been printed |
-| Duplex back-side orientation | **Passed** — CUPS `pdftoraster` (via shim PPD's forced raster path) reads `cupsBackSide: Rotated` and pre-rotates the back side 180° for long-edge jobs. The native app reads the same Rotated PPD via `KONICA_PPD` for direct-IPP clients. Both paths apply exactly one 180° rotation, matching the 206's short-edge flip mechanism. |
+| Konica printing via the restored container | **Passed** — real A4 simplex job printed from `Konica_Via_Podman` (2026-11-14) |
 
 Do not treat “ISO file exists” or “compilation succeeded” as proof of a working
 BIOS install or a working printer.

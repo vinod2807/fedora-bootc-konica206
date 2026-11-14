@@ -3,25 +3,15 @@
 # Fedora bootc image with:
 #   - Labwc / Waybar / Foot Wayland desktop + greetd/tuigreet login
 #   - fuzzel-printjobs desktop helper (CUPS job cancel/restart, W-e)
-#   - Konica Minolta bizhub 206 PAPPL printer application
-#   - konica-native (C11) device-stream encoder
-#   - konica-retrofit CUPS integration assets (USB queue-presence watcher and
-#     the Wine/Adobe PostScript MIME rule), retargeted at the native queue
-#   - the legacy konica206uri stack (pappl-retrofit Legacy Printer Application
-#     plus the konica206uri and konica206uri-ppd CUPS queues), driven from the
-#     retrofit PPD through the open konica-native encoder
+#   - Epson L3260 network printer queue (driverless IPP)
 #   - authenticated Samba folder and CUPS printer sharing
 #
-# Vendor-owned runtime data (halftone screen + ICC profiles) is deliberately
-# NOT copied into this image. See docs/PRINTER.md and scripts/install-vendor-data.
+# The Konica Minolta bizhub 206 is provided at runtime by a restored podman
+# container (CUPS on port 6632, queue Konica_Via_Podman); it is intentionally
+# not built into this image.
 #
 # Build:
 #   podman build --platform linux/amd64 -t localhost/fedora-bootc-konica206 .
-#
-# The two printer source refs default to the upstream default branches. The
-# weekly GitHub workflow resolves each branch to a commit SHA and passes the
-# SHAs as build args, so every published image is traceable while the next
-# weekly run still picks up new upstream commits.
 #
 # The base follows the moving :latest tag on purpose: each weekly build picks
 # up the current Fedora release, so a new Fedora major version lands a few days
@@ -31,190 +21,11 @@
 # following the release train, pin both args (e.g. :45) and bump them by hand.
 
 ARG BASE_IMAGE=quay.io/fedora/fedora-bootc:latest
-ARG BUILDER_IMAGE=quay.io/fedora/fedora:latest
-
-ARG KONICA_APP_REPO=https://github.com/vinod2807/konica206-native-alpine.git
-ARG KONICA_NATIVE_REPO=https://github.com/vinod2807/konica-native-musl.git
-ARG KONICA_RETROFIT_REPO=https://github.com/vinod2807/konica-retrofit.git
-ARG KONICA_APP_REF=main
-ARG KONICA_NATIVE_REF=main
-ARG KONICA_RETROFIT_REF=main
-
-# ZapFast version to install from GitHub releases. Bump for a new release; the
-# weekly workflow resolves the latest tag automatically.
-ARG ZAPFAST_VERSION=v0.20.1
-
-# ---------------------------------------------------------------------------
-# Build the printer application and the native encoder.
-# ---------------------------------------------------------------------------
-FROM ${BUILDER_IMAGE} AS printer-builder
-
-ARG KONICA_APP_REPO
-ARG KONICA_NATIVE_REPO
-ARG KONICA_RETROFIT_REPO
-ARG KONICA_APP_REF
-ARG KONICA_NATIVE_REF
-ARG KONICA_RETROFIT_REF
-
-ENV LANG=C.UTF-8
-
-# util-linux provides runuser, which the non-root check-native test below uses.
-# Fedora 45 moved runuser out of util-linux-core, the only util-linux piece the
-# base image ships, so install the full package explicitly.
-RUN dnf install -y --setopt=install_weak_deps=False \
-        ca-certificates \
-        cups-devel \
-        gcc \
-        ghostscript \
-        git \
-        libusb1-devel \
-        make \
-        pappl-devel \
-        pkgconf-pkg-config \
-        findutils \
-        diffutils \
-        python3 \
-        util-linux \
-    && dnf clean all
-
-WORKDIR /src
-
-RUN set -eux; \
-    git clone --depth 1 "${KONICA_APP_REPO}" app; \
-    git -C app fetch --depth 1 origin "${KONICA_APP_REF}"; \
-    git -C app checkout --detach FETCH_HEAD; \
-    git -C app rev-parse HEAD > /src/app-commit
-
-RUN set -eux; \
-    git clone --depth 1 "${KONICA_NATIVE_REPO}" native; \
-    git -C native fetch --depth 1 origin "${KONICA_NATIVE_REF}"; \
-    git -C native checkout --detach FETCH_HEAD; \
-    git -C native rev-parse HEAD > /src/native-commit
-
-# konica-retrofit is a legacy CUPS/legacy-printer-app kit. This image consumes
-# both its hardening pieces (the USB queue-presence watcher and the Wine/Adobe
-# PostScript retype rule) and the assets of its legacy konica206uri stack: the
-# full-bleed PPD, and the chunked USB backend that keeps the bizhub 206 from
-# dropping off the bus on large writes.
-RUN set -eux; \
-    git clone --depth 1 "${KONICA_RETROFIT_REPO}" retrofit; \
-    git -C retrofit fetch --depth 1 origin "${KONICA_RETROFIT_REF}"; \
-    git -C retrofit checkout --detach FETCH_HEAD; \
-    git -C retrofit rev-parse HEAD > /src/retrofit-commit
-
-COPY cups/wineps.convs /tmp/retrofit-wineps.convs
-COPY udev/71-konica206-usb-presence.rules /tmp/retrofit-usb-presence.rules
-COPY scripts/ensure-legacy-queue /tmp/retrofit-ensure-legacy-queue
-COPY systemd/konica206uri-queue.service /tmp/retrofit-konica206uri-queue.service
-COPY systemd/legacy-printer-app.service.d/90-konica206uri.conf /tmp/retrofit-legacy-app.conf
-COPY systemd/tmpfiles.d/konica206uri.conf /tmp/retrofit-konica206uri.tmpfiles.conf
-
-# Assemble and patch the retrofit files in the builder stage, laid out exactly
-# as they must appear in the final image. The final stage then needs a single
-# COPY: each extra layer counts against Docker's 125-layer overlay2 limit, and
-# the published image is already near it.
-RUN set -eux; \
-    root=/out/retrofit-root; \
-    install -d "$root/etc/cups" \
-               "$root/etc/systemd/system/legacy-printer-app.service.d" \
-               "$root/usr/local/bin" \
-               "$root/usr/local/sbin" \
-               "$root/usr/local/libexec/konica-backend" \
-               "$root/usr/local/share/konica-retrofit" \
-               "$root/usr/lib/systemd/system" \
-               "$root/usr/lib/tmpfiles.d" \
-               "$root/usr/lib/udev/rules.d" \
-               "$root/usr/libexec/konica206" \
-               "$root/usr/share/konica206/legacy-ppd"; \
-    sed 's/^QUEUES="konica206uri konica206uri-ppd"$/QUEUES="konica206 konica206uri konica206uri-ppd"/' \
-        retrofit/konica-cups-watch.sh > "$root/usr/local/bin/konica-cups-watch.sh"; \
-    grep -qx 'QUEUES="konica206 konica206uri konica206uri-ppd"' \
-        "$root/usr/local/bin/konica-cups-watch.sh"; \
-    sed 's#/etc/cups/ppd/konica206uri.ppd#/etc/cups/ppd/konica206.ppd#' \
-        retrofit/check-wineps-route.sh > "$root/usr/local/sbin/check-wineps-route.sh"; \
-    grep -q '/etc/cups/ppd/konica206.ppd' "$root/usr/local/sbin/check-wineps-route.sh"; \
-    chmod 0755 "$root/usr/local/bin/konica-cups-watch.sh" \
-               "$root/usr/local/sbin/check-wineps-route.sh"; \
-    install -m 0644 retrofit/tests/min-ar.ps \
-        "$root/usr/local/share/konica-retrofit/min-ar.ps"; \
-    install -m 0644 retrofit/konica-cups-watch.service \
-                    retrofit/konica-cups-watch.timer \
-        "$root/usr/lib/systemd/system/"; \
-    install -m 0644 /tmp/retrofit-wineps.convs \
-        "$root/etc/cups/wineps.convs"; \
-    install -m 0644 /tmp/retrofit-usb-presence.rules \
-        "$root/usr/lib/udev/rules.d/71-konica206-usb-presence.rules"; \
-    install -m 0644 /src/retrofit-commit \
-        "$root/usr/share/konica206/retrofit-commit"; \
-    install -m 0755 /tmp/retrofit-ensure-legacy-queue \
-        "$root/usr/libexec/konica206/ensure-legacy-queue"; \
-    install -m 0644 /tmp/retrofit-konica206uri-queue.service \
-        "$root/usr/lib/systemd/system/konica206uri-queue.service"; \
-    install -m 0644 /tmp/retrofit-legacy-app.conf \
-        "$root/etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf"; \
-    install -m 0644 /tmp/retrofit-konica206uri.tmpfiles.conf \
-        "$root/usr/lib/tmpfiles.d/konica206uri.conf"; \
-    sed -e 's#^\*cupsFilter: .*#*cupsFilter: "application/vnd.cups-raster 0 /usr/bin/konica-native"#' \
-        -e 's#^\*DefaultDuplex:.*#*DefaultDuplex: None#' \
-        -e 's#^\*cupsManualCopies:.*#*cupsManualCopies: True#' \
-        -e 's#^\*cupsBackSide:.*#*cupsBackSide: Rotated#' \
-        -e '/^\*OCM_resourceDir:/d' \
-        retrofit/backup/var/lib/legacy-printer-app/ppd/KonicaMinolta-206-fullbleed.ppd \
-        > "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd"; \
-    grep -qxF '*cupsFilter: "application/vnd.cups-raster 0 /usr/bin/konica-native"' \
-        "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd"; \
-    grep -qxF '*DefaultDuplex: None' \
-        "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd"; \
-    grep -qxF '*cupsBackSide: Rotated' \
-        "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd"; \
-    ! grep -q '^\*OCM_resourceDir:' \
-        "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd"; \
-    install -d -m 0755 "$root/usr/share/konica206/ppd"; \
-    cp "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd" \
-        "$root/usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd"; \
-    grep -qxF '*cupsBackSide: Rotated' \
-        "$root/usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd"; \
-    gcc -O2 -std=gnu17 -Wall -Wextra \
-        -o "$root/usr/local/libexec/konica-backend/usb" \
-        retrofit/backup/source/konica-usb-backend/konica-usb-backend.c \
-        $(pkg-config --cflags --libs libusb-1.0); \
-    chmod 0755 "$root/usr/local/libexec/konica-backend/usb"; \
-    test -x "$root/usr/local/libexec/konica-backend/usb"
-
-# Upstream tests that need no printer, no USB device and no vendor runtime data.
-# make check        -> chunking + PPD parser regression
-# make check-native -> full PAPPL job path against a stand-in filter
-RUN set -eux; \
-    make -C /src/app -j"$(nproc)"; \
-    make -C /src/app check
-
-# check-native must not run as root (root would use the real service's PAPPL
-# state file), so run that one test as an unprivileged builder user.
-RUN set -eux; \
-    useradd --create-home --shell /bin/bash tester; \
-    runuser -u tester -- env HOME=/home/tester make -C /src/app check-native
-
-# konica-native: reader/CMM/geometry/mediatype/failure-mode tests are vendor-free.
-RUN set -eux; \
-    make -C /src/native -j"$(nproc)"; \
-    make -C /src/native check
-
-# Collect only the binaries. The upstream clone (which contains a vendor/
-# directory in the public source tree) is never copied into the final image.
-RUN set -eux; \
-    install -D -m 0755 /src/app/konica206-native /out/usr/bin/konica206-native; \
-    install -D -m 0755 /src/app/konica-send     /out/usr/bin/konica-send; \
-    install -D -m 0755 /src/app/konica-render   /out/usr/bin/konica-render; \
-    install -D -m 0755 /src/native/konica-native /out/usr/bin/konica-native
 
 # ---------------------------------------------------------------------------
 # Final bootc image.
 # ---------------------------------------------------------------------------
 FROM ${BASE_IMAGE}
-
-ARG KONICA_APP_REF=main
-ARG KONICA_NATIVE_REF=main
-ARG KONICA_RETROFIT_REF=main
 
 # ZapFast version to install from GitHub releases. Bump for a new release; the
 # weekly workflow can resolve the latest tag automatically.
@@ -226,15 +37,12 @@ ARG ZAPFAST_VERSION=v0.20.1
 # value per run.
 ARG BUILD_EPOCH=local
 
-LABEL org.opencontainers.image.title="Fedora bootc - Labwc + Konica bizhub 206" \
-      org.opencontainers.image.description="Fedora bootc (base follows :latest), Linux/amd64, Labwc/Waybar/Foot desktop, PAPPL printer application with the konica-native C11 encoder" \
+LABEL org.opencontainers.image.title="Fedora bootc - Labwc desktop" \
+      org.opencontainers.image.description="Fedora bootc (base follows :latest), Linux/amd64, Labwc/Waybar/Foot desktop, Epson L3260 network printing" \
       org.opencontainers.image.source="https://github.com/vinod2807/fedora-bootc-konica206" \
-      org.opencontainers.image.licenses="NOASSERTION" \
-      org.vinod2807.konica.app-ref="${KONICA_APP_REF}" \
-      org.vinod2807.konica.native-ref="${KONICA_NATIVE_REF}" \
-      org.vinod2807.konica.retrofit-ref="${KONICA_RETROFIT_REF}"
+      org.opencontainers.image.licenses="NOASSERTION"
 
-# Weekly builds update the base packages as well as the two printer sources.
+# Weekly builds refresh the base image and packages.
 RUN set -eux; \
     dnf -y upgrade --refresh; \
     dnf install -y --setopt=install_weak_deps=False \
@@ -267,7 +75,6 @@ RUN set -eux; \
         gvfs-smb \
         hicolor-icon-theme \
         labwc \
-        legacy-printer-app \
         libusb1 \
         lxpolkit \
         mesa-dri-drivers \
@@ -279,7 +86,6 @@ RUN set -eux; \
         mousepad \
         NetworkManager-wifi \
         nm-connection-editor \
-        pappl \
         pavucontrol \
         Thunar \
         pipewire \
@@ -374,40 +180,10 @@ RUN set -eux; \
                /usr/share/applications/epson-printer-utility.desktop; \
     fi
 
-# Dedicated unprivileged account for the printer application. USB access comes
-# from the udev rule (group lp, mode 0660), not from running as root.
-RUN set -eux; \
-    useradd --system --user-group --no-create-home \
-            --home-dir /var/lib/konica206 --shell /usr/sbin/nologin konica; \
-    usermod -aG lp konica
-
-# The encoder looks for its Konica-owned runtime data at a fixed absolute path
-# under /usr/local/lib.  On bootc /usr is immutable, so that path is a symlink
-# into persistent writable state: the licensed files are installed after the
-# fact by konica206-install-vendor-data, never baked into the image.
-RUN set -eux; \
-    install -d -m 0755 /var/lib/konica206/vendor; \
-    install -d -m 0755 /usr/local/lib; \
-    ln -sTf /var/lib/konica206/vendor /usr/local/lib/konica
-
-COPY --from=printer-builder /out/usr/bin/konica206-native /usr/bin/konica206-native
-COPY --from=printer-builder /out/usr/bin/konica-send     /usr/bin/konica-send
-COPY --from=printer-builder /out/usr/bin/konica-render   /usr/bin/konica-render
-COPY --from=printer-builder /out/usr/bin/konica-native   /usr/bin/konica-native
-COPY --from=printer-builder /src/app-commit              /usr/share/konica206/app-commit
-COPY --from=printer-builder /src/native-commit           /usr/share/konica206/native-commit
-# konica-retrofit integration assets, assembled and patched in the builder
-# stage so this costs a single layer. Docker's overlay2 cannot load an image
-# with more than ~125 layers, and the published image is already near that.
-COPY --from=printer-builder /out/retrofit-root/ /
-
 COPY bootc/90-linux-pc-crash-fixes.toml /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
 COPY modprobe.d/90-linux-pc-crash-fixes.conf /etc/modprobe.d/90-linux-pc-crash-fixes.conf
-COPY modprobe.d/90-konica206-usblp.conf      /etc/modprobe.d/90-konica206-usblp.conf
-COPY systemd/konica206-native.service /usr/lib/systemd/system/konica206-native.service
-COPY systemd/konica206-queue.service  /usr/lib/systemd/system/konica206-queue.service
+COPY modprobe.d/90-usblp-blacklist.conf      /etc/modprobe.d/90-usblp-blacklist.conf
 COPY systemd/epson-l3260-queue.service /usr/lib/systemd/system/epson-l3260-queue.service
-COPY systemd/konica206-classic-queue.service /usr/lib/systemd/system/konica206-classic-queue.service
 COPY systemd/samba-setup.service    /usr/lib/systemd/system/samba-setup.service
 COPY systemd/nmb.service.d/10-wait-for-interface.conf /usr/lib/systemd/system/nmb.service.d/10-wait-for-interface.conf
 COPY systemd/bootc-upgrade.service    /usr/lib/systemd/system/bootc-upgrade.service
@@ -418,7 +194,6 @@ COPY systemd/user/flatpak-update.service /usr/lib/systemd/user/flatpak-update.se
 COPY systemd/user/flatpak-update.timer   /usr/lib/systemd/user/flatpak-update.timer
 COPY systemd/zram-generator.conf      /etc/systemd/zram-generator.conf
 COPY systemd/zram-setup-no-fail-on-stop.conf /usr/lib/systemd/system/systemd-zram-setup@zram0.service.d/10-no-fail-on-stop.conf
-COPY udev/70-konica206.rules          /usr/lib/udev/rules.d/70-konica206.rules
 COPY greetd/config.toml               /etc/greetd/config.toml
 COPY greetd/pam.d/greetd              /etc/pam.d/greetd
 COPY desktop/labwc/autostart          /etc/xdg/labwc/autostart
@@ -441,16 +216,11 @@ COPY scripts/fuzzel-printjobs         /usr/local/bin/fuzzel-printjobs
 COPY desktop/applications/weechat.desktop /usr/share/applications/weechat.desktop
 # sfwbar reads its system-wide default from the XDG *data* dir, not /etc/xdg.
 COPY desktop/sfwbar/sfwbar.config     /usr/share/sfwbar/sfwbar.config
-COPY scripts/install-vendor-data      /usr/libexec/konica206/install-vendor-data
-COPY scripts/ensure-queue             /usr/libexec/konica206/ensure-queue
-COPY scripts/preflight                /usr/libexec/konica206/preflight
 COPY scripts/ensure-epson-queue       /usr/libexec/epson-l3260/ensure-queue
-COPY scripts/ensure-classic-queue     /usr/libexec/konica206/ensure-classic-queue
 COPY scripts/setup-samba              /usr/libexec/setup-samba
 COPY samba/smb.conf                   /etc/samba/smb.conf
 RUN install -d -m 0755 /etc/flatpak/overrides
 COPY flatpak/overrides/com.stremio.Stremio /etc/flatpak/overrides/com.stremio.Stremio
-COPY ppd/konica206.ppd                /usr/share/ppd/konica206/konica206.ppd
 
 # Give the GRUB menu long enough to pick an older deployment by hand. The
 # timeout lives in bootupd's static config, which bootupd concatenates into
@@ -464,25 +234,17 @@ RUN set -eux; \
     grep -qx 'set timeout=10' "$cfg"
 
 RUN set -eux; \
-    chmod 0755 /usr/bin/konica206-native /usr/bin/konica-send /usr/bin/konica-render /usr/bin/konica-native; \
-    chmod 0755 /usr/libexec/konica206/install-vendor-data /usr/libexec/konica206/ensure-queue /usr/libexec/konica206/preflight /usr/libexec/konica206/ensure-legacy-queue; \
-     chmod 0755 /usr/libexec/epson-l3260/ensure-queue; \
-     chmod 0755 /usr/libexec/konica206/ensure-classic-queue; \
-     chmod 0755 /usr/libexec/setup-samba; \
-    chmod 0755 /usr/local/bin/konica-cups-watch.sh \
-                /usr/local/bin/fuzzel-printjobs \
-               /usr/local/sbin/check-wineps-route.sh \
-               /usr/local/libexec/konica-backend/usb; \
+    chmod 0755 /usr/libexec/epson-l3260/ensure-queue; \
+    chmod 0755 /usr/libexec/setup-samba; \
+    chmod 0755 /usr/local/bin/fuzzel-printjobs; \
     chmod 0644 /etc/greetd/config.toml \
         /etc/pam.d/greetd \
         /etc/systemd/zram-generator.conf \
-        /etc/modprobe.d/90-konica206-usblp.conf \
-        /usr/lib/systemd/system/konica206-native.service \
-        /usr/lib/systemd/system/konica206-queue.service \
+        /etc/modprobe.d/90-usblp-blacklist.conf \
         /usr/lib/systemd/system/epson-l3260-queue.service \
         /usr/lib/systemd/system/samba-setup.service \
         /usr/lib/systemd/system/nmb.service.d/10-wait-for-interface.conf \
-         /etc/samba/smb.conf \
+        /etc/samba/smb.conf \
         /etc/flatpak/overrides/com.stremio.Stremio \
         /usr/lib/systemd/system/bootc-upgrade.service \
         /usr/lib/systemd/system/bootc-upgrade.timer \
@@ -490,30 +252,15 @@ RUN set -eux; \
         /usr/lib/systemd/system/flatpak-update.timer \
         /usr/lib/systemd/user/flatpak-update.service \
         /usr/lib/systemd/user/flatpak-update.timer \
-        /usr/lib/udev/rules.d/70-konica206.rules \
         /etc/xdg/labwc/menu.xml \
-        /etc/cups/wineps.convs \
-        /usr/local/share/konica-retrofit/min-ar.ps \
-        /usr/share/konica206/retrofit-commit \
-        /usr/lib/systemd/system/konica-cups-watch.service \
-        /usr/lib/systemd/system/konica-cups-watch.timer \
-        /usr/lib/systemd/system/konica206uri-queue.service \
-        /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf \
-        /usr/lib/tmpfiles.d/konica206uri.conf \
-        /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd \
-        /usr/lib/udev/rules.d/71-konica206-usb-presence.rules \
         /usr/share/sfwbar/sfwbar.config \
         /usr/share/applications/konica206-reboot.desktop \
         /usr/share/applications/konica206-poweroff.desktop \
         /usr/share/applications/fuzzel-printjobs.desktop \
-        /usr/share/applications/weechat.desktop \
-        /usr/share/ppd/konica206/konica206.ppd; \
+        /usr/share/applications/weechat.desktop; \
     update-desktop-database /usr/share/applications; \
     chmod 0755 /etc/xdg/labwc/autostart; \
-    chmod 0644 /etc/xdg/labwc/rc.xml; \
-    ln -sf /usr/libexec/konica206/install-vendor-data /usr/bin/konica206-install-vendor-data; \
-    ln -sf /usr/libexec/konica206/preflight /usr/bin/konica206-preflight; \
-    install -d -m 0755 /usr/share/konica206
+    chmod 0644 /etc/xdg/labwc/rc.xml
 
 # Enable CUPS printer sharing at build time instead of at boot.  cupsd is a
 # systemd on-demand service (cupsd -l); when samba-setup.service called
@@ -573,14 +320,7 @@ RUN set -eux; \
     systemctl --global enable flatpak-update.timer; \
     systemctl enable NetworkManager.service; \
     systemctl enable greetd.service; \
-    systemctl enable konica206-native.service; \
-    systemctl enable konica206-queue.service; \
-    systemctl enable legacy-printer-app.service; \
-    systemctl enable konica206uri-queue.service; \
-    systemctl enable konica-cups-watch.service; \
-    systemctl enable konica-cups-watch.timer; \
     systemctl enable epson-l3260-queue.service; \
-    systemctl enable konica206-classic-queue.service; \
     systemctl enable samba-setup.service; \
     systemctl enable avahi-daemon.service; \
     systemctl enable smb.service nmb.service; \

@@ -9,7 +9,7 @@ artifacts/
 *.tar.xz
 *.zip
 
-# Vendor-owned Konica Minolta runtime data: never commit.
+# Vendor-owned printer runtime data and archives: never commit.
 vendor/
 *.icm
 *.hft

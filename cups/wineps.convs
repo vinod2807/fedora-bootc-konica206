@@ -1,8 +1,0 @@
-# Wine/Acrobat PostScript contains an embedded Adobe block, which CUPS
-# classifies as application/vnd.adobe-reader-postscript. Without a direct
-# rule that type is forced through pstops -> gstoraster -> rastertopwg ->
-# pwgtopdf and the job dies in Ghostscript. Retype it as plain PostScript so
-# the normal gstopdf path is used.
-#
-# Ported from konica-retrofit (see docs-Wine-Adobe-PS-Fix.md there).
-application/vnd.adobe-reader-postscript application/postscript 0 -

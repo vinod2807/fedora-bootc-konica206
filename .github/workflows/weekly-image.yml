@@ -33,32 +33,6 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Resolve upstream printer commit SHAs
-        id: refs
-        shell: bash
-        run: |
-          set -euo pipefail
-          app=$(git ls-remote https://github.com/vinod2807/konica206-native-alpine.git refs/heads/main | awk '{print $1}')
-          native=$(git ls-remote https://github.com/vinod2807/konica-native-musl.git refs/heads/main | awk '{print $1}')
-          retrofit=$(git ls-remote https://github.com/vinod2807/konica-retrofit.git refs/heads/main | awk '{print $1}')
-          for ref in "$app" "$native" "$retrofit"; do
-            if [[ ! $ref =~ ^[0-9a-f]{40}$ ]]; then
-              echo "::error::Could not resolve an upstream commit SHA from git ls-remote"
-              exit 1
-            fi
-          done
-          {
-            echo "app=$app"
-            echo "native=$native"
-            echo "retrofit=$retrofit"
-          } >> "$GITHUB_OUTPUT"
-          {
-            echo "### Printer sources"
-            echo "- konica206-native-alpine: \`$app\`"
-            echo "- konica-native-musl: \`$native\`"
-            echo "- konica-retrofit: \`$retrofit\`"
-          } >> "$GITHUB_STEP_SUMMARY"
-
       - name: Resolve latest ZapFast release
         id: zapfast
         shell: bash
@@ -96,11 +70,8 @@ jobs:
             type=sha,format=long,prefix=sha-
             type=ref,event=branch
           labels: |
-            org.opencontainers.image.title=Fedora bootc - Labwc + Konica bizhub 206
-            org.opencontainers.image.description=Fedora bootc (base follows :latest) linux/amd64 with Labwc, sfwbar, Foot and the Konica Minolta bizhub 206 printer application
-            org.vinod2807.konica.app-ref=${{ steps.refs.outputs.app }}
-            org.vinod2807.konica.native-ref=${{ steps.refs.outputs.native }}
-            org.vinod2807.konica.retrofit-ref=${{ steps.refs.outputs.retrofit }}
+            org.opencontainers.image.title=Fedora bootc - Labwc desktop
+            org.opencontainers.image.description=Fedora bootc (base follows :latest) linux/amd64 with Labwc, sfwbar, Foot and the Epson L3260 network printer
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -130,9 +101,6 @@ jobs:
           pull: true
           build-args: |
             BUILD_EPOCH=${{ github.run_id }}
-            KONICA_APP_REF=${{ steps.refs.outputs.app }}
-            KONICA_NATIVE_REF=${{ steps.refs.outputs.native }}
-            KONICA_RETROFIT_REF=${{ steps.refs.outputs.retrofit }}
             ZAPFAST_VERSION=${{ steps.zapfast.outputs.version }}
           cache-from: type=gha,scope=bootc-image
           cache-to: type=gha,mode=max,scope=bootc-image
@@ -144,7 +112,7 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm --entrypoint /bin/bash localhost/fedora-bootc-konica206:smoke -euo pipefail -x -c '
-             rpm -q labwc foot greetd tuigreet NetworkManager pappl cups ghostscript Thunar gnome-keyring-pam lxpolkit swayidle >/dev/null
+             rpm -q labwc foot greetd tuigreet NetworkManager cups ghostscript Thunar gnome-keyring-pam lxpolkit swayidle >/dev/null
             rpm -q zram-generator >/dev/null
             # The Wine stack was removed from the image; none of it may come back.
             for p in wine wine-core wine-mono winetricks; do
@@ -185,11 +153,14 @@ jobs:
             # Vulkan), which works on GPUs without a Vulkan driver (e.g. Ironlake).
             rpm -q mesa-vulkan-drivers vulkan-loader >/dev/null
             test -f /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
-            for b in /usr/bin/konica206-native /usr/bin/konica-native /usr/bin/konica-send /usr/bin/labwc /usr/bin/foot /usr/bin/tuigreet /usr/bin/zapfast; do
+            for b in /usr/bin/labwc /usr/bin/foot /usr/bin/tuigreet /usr/bin/zapfast; do
               test -x "$b"
             done
-            /usr/bin/konica206-native --version
-            /usr/bin/konica-native --help >/dev/null 2>&1 || true
+            # The Konica printer stack is not built into this image. None of its
+            # binaries may reappear (it runs from a restored Podman container).
+            for b in /usr/bin/konica206-native /usr/bin/konica-native /usr/bin/konica-send /usr/bin/konica-render /usr/bin/legacy-printer-app; do
+              ! test -e "$b"
+            done
             /usr/bin/labwc --version
             /usr/bin/foot --version
             /usr/bin/tuigreet --version
@@ -199,47 +170,34 @@ jobs:
             grep -q "intel_idle.max_cstate=1" /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
             # GRUB menu must pause so an older deployment can be selected.
             grep -qx "set timeout=10" /usr/lib/bootupd/grub2-static/grub-static-pre.cfg
-            systemctl is-enabled greetd.service NetworkManager.service konica206-native.service konica206-queue.service konica206-classic-queue.service konica-cups-watch.service konica-cups-watch.timer ecbd.service
-            # konica-retrofit integration: USB presence watcher covering the
-            # native queue and the legacy konica206uri pair, plus the
-            # Wine/Adobe PS retype rule.
-            test -x /usr/local/bin/konica-cups-watch.sh
-            test -x /usr/local/sbin/check-wineps-route.sh
-            test -f /usr/local/share/konica-retrofit/min-ar.ps
-            test -f /usr/share/konica206/retrofit-commit
-            grep -qx "QUEUES=\"konica206 konica206uri konica206uri-ppd\"" /usr/local/bin/konica-cups-watch.sh
-            grep -qx "application/vnd.adobe-reader-postscript application/postscript 0 -" /etc/cups/wineps.convs
-            test -f /usr/lib/udev/rules.d/71-konica206-usb-presence.rules
-            # Legacy konica206uri stack: pappl-retrofit application, the
-            # retrofit full-bleed PPD driven by the open encoder, the chunked
-            # USB backend, and the runtime queue service.
-            rpm -q legacy-printer-app pappl-retrofit avahi libusb1 >/dev/null
-            test -x /usr/bin/legacy-printer-app
-            test -x /usr/libexec/konica206/ensure-legacy-queue
-            test -x /usr/local/libexec/konica-backend/usb
-            test -f /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
-            grep -qxF "*cupsFilter: \"application/vnd.cups-raster 0 /usr/bin/konica-native\"" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
-            grep -qxF "*DefaultDuplex: None" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
-            ! grep -q "OCM_resourceDir:" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
-            # cupsBackSide must stay Rotated on every PPD. The CUPS pdftoraster (invoked
-            # via the shim PPD raster filter chain) honors cupsBackSide and rotates the
-            # back side for long-edge jobs. The native app reads the same Rotated PPD via
-            # KONICA_PPD so its built-in PDF renderer applies the same rule for direct-IPP
-            # clients. The shim PPD has no PDF filter, forcing CUPS to use the raster path.
-            # Regression guard.
-            grep -qxF "*cupsBackSide: Rotated" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
-            grep -qxF "*cupsBackSide: Rotated" /usr/share/ppd/konica206/konica206.ppd
-            # The native app must read the derived Rotated PPD.
-            test -f /usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd
-            grep -qxF "*cupsBackSide: Rotated" /usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd
-            grep -qx "Environment=KONICA_PPD=/usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd" /usr/lib/systemd/system/konica206-native.service
-            # The shim PPD must not accept PDF (forces CUPS raster path via pdftoraster).
-            ! grep -q "application/vnd.cups-pdf" /usr/share/ppd/konica206/konica206.ppd
-            grep -qx "Environment=PPD_PATHS=/usr/share/konica206/legacy-ppd:/usr/share/cups/model:/usr/lib/cups/driver" /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf
-            grep -q "server-port=8000" /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf
-            ! grep -q "server-port=8001" /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf
-            test -f /usr/lib/tmpfiles.d/konica206uri.conf
-            systemctl is-enabled legacy-printer-app.service konica206uri-queue.service avahi-daemon.service
+            systemctl is-enabled greetd.service NetworkManager.service ecbd.service
+            # Konica printer assets were removed from the image on purpose.
+            # The runtime queue comes from the restored Podman container.
+            for f in \
+              /usr/local/bin/konica-cups-watch.sh \
+              /usr/local/sbin/check-wineps-route.sh \
+              /usr/local/share/konica-retrofit/min-ar.ps \
+              /usr/share/konica206/retrofit-commit \
+              /etc/cups/wineps.convs \
+              /usr/lib/udev/rules.d/70-konica206.rules \
+              /usr/lib/udev/rules.d/71-konica206-usb-presence.rules \
+              /usr/libexec/konica206/ensure-legacy-queue \
+              /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd \
+              /usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd \
+              /usr/share/ppd/konica206/konica206.ppd \
+              /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf \
+              /usr/lib/tmpfiles.d/konica206uri.conf; do
+              ! test -e "$f"
+            done
+            for u in konica206-native.service konica206-queue.service konica206-classic-queue.service konica206uri-queue.service konica-cups-watch.service konica-cups-watch.timer legacy-printer-app.service; do
+              ! test -e "/usr/lib/systemd/system/$u"
+              ! test -e "/etc/systemd/system/$u"
+            done
+            # The usblp blacklist stays: the container libusb backend needs the
+            # interface, so the host kernel driver must not bind it.
+            test -f /etc/modprobe.d/90-usblp-blacklist.conf
+            grep -qx "blacklist usblp" /etc/modprobe.d/90-usblp-blacklist.conf
+            ! rpm -q pappl legacy-printer-app pappl-retrofit >/dev/null 2>&1
             # Suspend/hibernate must stay masked: s2idle hangs on this hardware.
             for t in suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target; do
               test "$(readlink "/etc/systemd/system/$t")" = /dev/null
@@ -255,25 +213,15 @@ jobs:
             ZRAM_GENERATOR_ROOT=/ /usr/lib/systemd/system-generators/zram-generator "$zgen" "$zgen" "$zgen" >/dev/null 2>&1
             test -f "$zgen/dev-zram0.swap"
             rm -rf "$zgen"
-            systemd-analyze verify /usr/lib/systemd/system/konica206-native.service \
-                                   /usr/lib/systemd/system/konica206-queue.service \
-                                   /usr/lib/systemd/system/konica206-classic-queue.service \
-                                   /usr/lib/systemd/system/konica206uri-queue.service \
-                                   /usr/lib/systemd/system/konica-cups-watch.service \
-                                   /usr/lib/systemd/system/konica-cups-watch.timer \
+            systemd-analyze verify /usr/lib/systemd/system/epson-l3260-queue.service \
                                    /usr/lib/systemd/system/bootc-upgrade.service \
                                    /usr/lib/systemd/system/bootc-upgrade.timer
             # nmbd must be allowed to wait for a NIC that appears after boot.
             grep -qx 'TimeoutStartSec=0' /usr/lib/systemd/system/nmb.service.d/10-wait-for-interface.conf
-            # Vendor-owned runtime data must never be baked into the public image.
-            # The encoder fixed /usr/local path must point at writable state.
-            test "$(readlink -f /usr/local/lib/konica)" = "/var/lib/konica206/vendor"
-            test -d /var/lib/konica206/vendor
-            test ! -e /usr/local/lib/konica/KonicaMinolta/245igdi/Halftones/COPA.DEFAULT.600x600.hft
-            test ! -e /var/lib/konica206/vendor/KonicaMinolta/245igdi/Halftones/COPA.DEFAULT.600x600.hft
-            test ! -e /usr/local/lib/konica/KonicaMinolta/245igdi/Profiles/sRGB.icm
-            test ! -e /usr/local/lib/konica/KonicaMinolta/245igdi/Profiles/sGrayInv.icm
-            # Raster jobs use the CUPS pdftoraster filter; PDF jobs use builtin rendering.
+            # Konica vendor runtime data and its fixed /usr/local path are gone.
+            test ! -e /usr/local/lib/konica
+            test ! -e /var/lib/konica206
+            # CUPS needs its raster filter for driverless/local queues.
             test -x /usr/lib/cups/filter/pdftoraster
             echo "smoke test: OK"
           '
@@ -293,9 +241,6 @@ jobs:
           pull: true
           build-args: |
             BUILD_EPOCH=${{ github.run_id }}
-            KONICA_APP_REF=${{ steps.refs.outputs.app }}
-            KONICA_NATIVE_REF=${{ steps.refs.outputs.native }}
-            KONICA_RETROFIT_REF=${{ steps.refs.outputs.retrofit }}
             ZAPFAST_VERSION=${{ steps.zapfast.outputs.version }}
           cache-from: type=gha,scope=bootc-image
           # Build goes to a tar (not directly to the registry) so the next
@@ -420,7 +365,6 @@ jobs:
             echo "${{ steps.meta.outputs.tags }}"
             echo '```'
             echo ""
-            echo "Printer commit SHAs: app \`${{ steps.refs.outputs.app }}\`, native \`${{ steps.refs.outputs.native }}\`, retrofit \`${{ steps.refs.outputs.retrofit }}\`"
             echo ""
             echo "This workflow does not build an ISO. Use the **build-iso** workflow."
           } >> "$GITHUB_STEP_SUMMARY"
