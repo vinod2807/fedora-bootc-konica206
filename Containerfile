@@ -200,10 +200,14 @@ COPY desktop/labwc/rc.xml             /etc/xdg/labwc/rc.xml
 COPY desktop/applications/konica206-reboot.desktop   /usr/share/applications/konica206-reboot.desktop
 COPY desktop/applications/konica206-poweroff.desktop /usr/share/applications/konica206-poweroff.desktop
 COPY desktop/applications/fuzzel-printjobs.desktop  /usr/share/applications/fuzzel-printjobs.desktop
+COPY desktop/applications/konica-scan.desktop       /usr/share/applications/konica-scan.desktop
 # User-facing print-job manager (no service, no privileges beyond the user's
 # own queued jobs). Installed system-wide so every login gets the W-e
 # keybind, the Printing menu, and the fuzzel application entry.
 COPY scripts/fuzzel-printjobs         /usr/local/bin/fuzzel-printjobs
+# Konica scan helper: pauses the Podman CUPS container (which holds the USB
+# interface) while a scan app runs, then restarts it.
+COPY scripts/konica-scan              /usr/local/bin/konica-scan
 # Upstream weechat.desktop uses Exec=weechat with Terminal=true. sfwbar's
 # appmenu (g_app_info_launch) cannot find a terminal emulator for
 # Terminal=true apps ("Unable to find terminal required"), so clicking
@@ -232,6 +236,7 @@ RUN set -eux; \
 RUN set -eux; \
     chmod 0755 /usr/libexec/setup-samba; \
     chmod 0755 /usr/local/bin/fuzzel-printjobs; \
+    chmod 0755 /usr/local/bin/konica-scan; \
     chmod 0644 /etc/greetd/config.toml \
         /etc/pam.d/greetd \
         /etc/systemd/zram-generator.conf \
@@ -251,6 +256,7 @@ RUN set -eux; \
         /usr/share/applications/konica206-reboot.desktop \
         /usr/share/applications/konica206-poweroff.desktop \
         /usr/share/applications/fuzzel-printjobs.desktop \
+        /usr/share/applications/konica-scan.desktop \
         /usr/share/applications/weechat.desktop; \
     update-desktop-database /usr/share/applications; \
     chmod 0755 /etc/xdg/labwc/autostart; \

@@ -197,6 +197,11 @@ jobs:
             # interface, so the host kernel driver must not bind it.
             test -f /etc/modprobe.d/90-usblp-blacklist.conf
             grep -qx "blacklist usblp" /etc/modprobe.d/90-usblp-blacklist.conf
+            # Konica scanner (ar206 SANE backend) is provided for the host.
+            rpm -q sane-ar206 >/dev/null
+            test -f /usr/lib64/sane/libsane-ar206.so.1.0.0
+            test -x /usr/local/bin/konica-scan
+            test -f /usr/share/applications/konica-scan.desktop
             ! rpm -q pappl legacy-printer-app pappl-retrofit >/dev/null 2>&1
             # Suspend/hibernate must stay masked: s2idle hangs on this hardware.
             for t in suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target; do

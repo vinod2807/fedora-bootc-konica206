@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Konica Scan
+Comment=Scan with the Konica Minolta bizhub 206 (pauses printing during scan)
+Exec=/usr/local/bin/konica-scan
+Icon=scanner
+Terminal=false
+Categories=Graphics;Scanning;

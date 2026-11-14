@@ -11,7 +11,7 @@ A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
   task buttons), **Foot** terminal
 - **Flatpak** with the **Flathub** remote preinstalled — browsers, office
   suites and media players are expected as Flatpaks, not RPMs (minimal image)
-- A desktop with **Thunar**, **evince**, **mousepad**,
+- A desktop with **Thunar**, **mousepad**,
   **xarchiver**, **pavucontrol**, GVFS/udisks2, and a right-click menu
 - A print-job manager (**W-e** or the Printing menu) to view, cancel, or
   restart CUPS queues
@@ -390,7 +390,7 @@ internet (it pulls the image, roughly 3.3 GiB compressed, from GHCR).
   menu, built from `/usr/share/applications` (so newly installed and Flatpak
   apps appear automatically). `fuzzel` is still available as a keyboard
   launcher (`fuzzel`, or `fuzzel dmenu` for stdin).
-- **Applications:** `evince` (PDF), `mousepad` (text),
+- **Applications:** `mousepad` (text),
   `xarchiver`, `pavucontrol`, `nm-connection-editor`, `foot` (terminal),
   `weechat` (IRC/IRCv3 client in `foot`: upstream `Terminal=true` cannot be
   launched by gio/sfwbar without a terminal emulator, so
