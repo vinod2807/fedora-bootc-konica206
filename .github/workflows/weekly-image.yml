@@ -220,7 +220,7 @@ jobs:
             test -f /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
             grep -qxF "*cupsFilter: \"application/vnd.cups-raster 0 /usr/bin/konica-native\"" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
             grep -qxF "*DefaultDuplex: None" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
-            grep -L "OCM_resourceDir:" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd >/dev/null
+            ! grep -q "OCM_resourceDir:" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
             # cupsBackSide must stay Rotated on every PPD. The CUPS pdftoraster (invoked
             # via the shim PPD raster filter chain) honors cupsBackSide and rotates the
             # back side for long-edge jobs. The native app reads the same Rotated PPD via
@@ -234,20 +234,20 @@ jobs:
             grep -qxF "*cupsBackSide: Rotated" /usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd
             grep -qx "Environment=KONICA_PPD=/usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd" /usr/lib/systemd/system/konica206-native.service
             # The shim PPD must not accept PDF (forces CUPS raster path via pdftoraster).
-            grep -L "application/vnd.cups-pdf" /usr/share/ppd/konica206/konica206.ppd >/dev/null
+            ! grep -q "application/vnd.cups-pdf" /usr/share/ppd/konica206/konica206.ppd
             grep -qx "Environment=PPD_PATHS=/usr/share/konica206/legacy-ppd:/usr/share/cups/model:/usr/lib/cups/driver" /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf
             grep -q "server-port=8000" /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf
-            grep -L "server-port=8001" /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf >/dev/null
+            ! grep -q "server-port=8001" /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf
             test -f /usr/lib/tmpfiles.d/konica206uri.conf
             systemctl is-enabled legacy-printer-app.service konica206uri-queue.service avahi-daemon.service
             # Suspend/hibernate must stay masked: s2idle hangs on this hardware.
             for t in suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target; do
               test "$(readlink "/etc/systemd/system/$t")" = /dev/null
             done
-            grep -L "systemctl suspend" /etc/xdg/labwc/autostart >/dev/null
+            ! grep -q "systemctl suspend" /etc/xdg/labwc/autostart
             # labwc takes attribute syntax; Openbox child-element form logs red
             # "Invalid action" errors on every login.
-            grep -L -E "name=\"Desktop\"|name=\"MoveResizeTo\"|<edge>|context=\"Menu\"" /etc/xdg/labwc/rc.xml >/dev/null
+            ! grep -qE "name=\"Desktop\"|name=\"MoveResizeTo\"|<edge>|context=\"Menu\"" /etc/xdg/labwc/rc.xml
             # zram: config must produce a swap unit for /dev/zram0.
             test -f /etc/systemd/zram-generator.conf
             grep -qx "zram-size = min(ram / 2, 4096)" /etc/systemd/zram-generator.conf
