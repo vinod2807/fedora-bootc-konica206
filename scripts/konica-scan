@@ -1,0 +1,56 @@
+#!/bin/bash
+# Konica Minolta bizhub 206 scanner helper.
+#
+# The bizhub 206 is served for printing by a restored Podman CUPS container
+# (container-podman-cups-server.service) which claims the USB interface. The
+# host's ar206 SANE backend needs that same interface to scan, so this helper
+# stops the container, runs a scan application, and restarts the container on
+# exit (including Ctrl-C / errors).
+
+set -u
+
+UNIT=container-podman-cups-server.service
+
+# Pick a scan application: explicit arg, else NAPS2, else simple-scan.
+if [ "${1:-}" = "" ]; then
+    if command -v naps2 >/dev/null 2>&1; then
+        APP=naps2
+    elif command -v simple-scan >/dev/null 2>&1; then
+        APP=simple-scan
+    else
+        printf 'No scan application found (naps2 or simple-scan).\n' >&2
+        exit 1
+    fi
+else
+    APP="$1"
+    shift
+fi
+
+stop_container() {
+    sudo systemctl stop "$UNIT" >/dev/null 2>&1 || true
+    # give libusb time to release the interface
+    local i
+    for i in $(seq 1 20); do
+        sudo systemctl is-active --quiet "$UNIT" || break
+        sleep 0.25
+    done
+    sleep 1
+}
+
+start_container() {
+    sudo systemctl start "$UNIT" >/dev/null 2>&1 || true
+}
+
+cleanup() {
+    printf 'Restarting Konica Podman CUPS container...\n'
+    start_container
+}
+trap cleanup EXIT INT TERM HUP
+
+printf 'Stopping Konica Podman CUPS container to free USB for scanning...\n'
+stop_container
+
+printf 'Launching %s...\n' "$APP"
+"$APP" "$@"
+rc=$?
+exit "$rc"

@@ -18,9 +18,6 @@
       <item label="Archive Manager">
         <action name="Execute" command="xarchiver" />
       </item>
-      <item label="Document Viewer">
-        <action name="Execute" command="evince" />
-      </item>
       <item label="Screenshot">
         <action name="Execute" command="grim -g \"$(slurp)\" - | wl-copy" />
       </item>
@@ -89,9 +86,6 @@
       <separator />
       <item label="Flatpak Permissions">
         <action name="Execute" command="flatseal" />
-      </item>
-      <item label="Partition Manager">
-        <action name="Execute" command="gparted" />
       </item>
       <item label="Font Viewer">
         <action name="Execute" command="gnome-font-viewer" />
