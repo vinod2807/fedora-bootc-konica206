@@ -221,8 +221,8 @@ jobs:
             grep -qxF "*cupsFilter: \"application/vnd.cups-raster 0 /usr/bin/konica-native\"" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
             grep -qxF "*DefaultDuplex: None" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
             grep -L "OCM_resourceDir:" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd >/dev/null
-            # cupsBackSide must stay Rotated on every PPD. CUPS's pdftoraster (invoked
-            # via the shim PPD's raster filter chain) honors cupsBackSide and rotates the
+            # cupsBackSide must stay Rotated on every PPD. The CUPS pdftoraster (invoked
+            # via the shim PPD raster filter chain) honors cupsBackSide and rotates the
             # back side for long-edge jobs. The native app reads the same Rotated PPD via
             # KONICA_PPD so its built-in PDF renderer applies the same rule for direct-IPP
             # clients. The shim PPD has no PDF filter, forcing CUPS to use the raster path.
