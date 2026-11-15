@@ -285,26 +285,38 @@ does **not** install or redistribute a vendor PPD.
 
 **Both chains must use `*cupsBackSide: Rotated`.** The bizhub 206's duplexer
 binds the short edge; for long-edge output the back side must be pre-rotated
-180°. CUPS's `pdftoraster` (used for the raster path that the shim PPD forces)
-honors `cupsBackSide` and performs this rotation. The native app also renders
+180°. CUPS's `gstoraster`/`pdftopdf` honor `cupsBackSide` and perform this
+rotation (see below). The native app also renders
 PDF directly for direct-IPP clients (Papers, Evince, etc.); it reads the same
 Rotated PPD via `KONICA_PPD` so its built-in renderer applies the identical
 back-side rule.
 
-The shim PPD (`/usr/share/ppd/konica206/konica206.ppd`) has **no PDF filter**
-(`cupsFilter2` for `application/vnd.cups-pdf` is omitted). This forces CUPS to
-use the raster path: PDF → `pdftoraster` (which reads `cupsBackSide: Rotated`
-and rotates page 2 for long-edge) → raster → `konica-native` encoder. The
-legacy chain (`konica206uri` on port 8000) uses the same Rotated PPD under
-`/usr/share/konica206/legacy-ppd/`.
+CUPS renders PDF to Apple Raster before relaying it to the Legacy Printer
+Application (PDF → `pdftopdf` → `gstoraster` → `image/urf` → PAPPL). The back
+side is rotated by `pdftopdf`, but only when the job carries the IPP attribute
+`sides=two-sided-*`; cupsd does not translate a PPD option
+`Duplex=DuplexNoTumble` into `sides`. PPD-only clients (Papers, Document
+Viewer) therefore used to print an upside-down back side while IPP clients
+(pdfcraft) were correct.
+
+The two legacy proxy queues install a PPD variant,
+`/usr/share/ppd/konica206/konica206-app.ppd`, which adds
+`/usr/libexec/konica206/pdf-duplex-shim` as the cheapest `application/pdf`
+conversion (`*cupsFilter2`). The shim appends the matching `sides=` value and
+then runs `pdftopdf` → `gstoraster`, so both request styles produce identical
+Apple Raster. Simplex and `sides=` jobs are passed through unchanged.
+
+The classic USB queue keeps the base PPD without the shim. There `gstoraster`
+receives `-scupsBackSideOrientation=Rotated` from the PPD and rotates the back
+side itself; adding `sides=` would rotate it a second time.
 
 Measured end-to-end on a 2-page A4 portrait marker PDF
 (`-o sides=two-sided-long-edge`, ink centroid relative to the page):
 
 | Path | `*cupsBackSide` | page 2 centroid | effect |
 |---|---|---|---|
-| CUPS raster (pdftoraster) | `Rotated` | `(0.707, 0.419)` | exactly 180° rotated ✓ |
-| CUPS raster (pdftoraster) | `Normal` | `(0.288, 0.581)` | not rotated ✗ |
+| CUPS raster (gstoraster) | `Rotated` | `(0.707, 0.419)` | exactly 180° rotated ✓ |
+| CUPS raster (gstoraster) | `Normal` | `(0.288, 0.581)` | not rotated ✗ |
 | Native PDF (direct IPP) | `Rotated` | `(0.707, 0.419)` | exactly 180° rotated ✓ |
 | Native PDF (direct IPP) | `Normal` | `(0.288, 0.581)` | not rotated ✗ |
 
@@ -314,9 +326,10 @@ describes the ten media sizes the application itself advertises (A3, A4, A5,
 A6, ISO B4, ISO B5, Letter, Legal, Executive, Statement) with realistic
 4.2 mm margins, and simplex + long-edge/short-edge duplex. The alternatives are
 the CUPS-generated `*.Borderless` names, which the hardware does not support.
-Crucially, this PPD **omits the PDF `cupsFilter2`**, so CUPS cannot pass PDF
-through and must convert to raster via `pdftoraster`, which correctly applies
-the `cupsBackSide: Rotated` rule.
+It deliberately has **no PDF→PDF passthrough filter**, so CUPS always renders
+the pages itself instead of forwarding PDF to the application. The legacy
+proxy queues use the derived `konica206-app.ppd`, which adds only the duplex
+shim described above.
 
 If the runtime data is missing:
 

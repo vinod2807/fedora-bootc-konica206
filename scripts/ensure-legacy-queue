@@ -20,7 +20,11 @@ PRODUCT=232b
 STATE_DIR=/var/lib/legacy-printer-app
 SPOOL_DIR=/var/spool/legacy-printer-app
 IPP="ipp://localhost:${PORT}/ipp/print/${QUEUE}"
-CUPS_PPD=/usr/share/ppd/konica206/konica206.ppd
+# Proxy queues use the variant that routes PDF through the duplex shim, so
+# that a PPD-only client's "Duplex=DuplexNoTumble" gets the same verso
+# rotation as an IPP client's "sides=two-sided-long-edge".  The classic queue
+# keeps the base PPD (there gstoraster performs the rotation).
+CUPS_PPD=/usr/share/ppd/konica206/konica206-app.ppd
 
 log() { printf 'konica206uri-queue: %s\n' "$*"; }
 
@@ -149,8 +153,9 @@ if ! printer_present; then
     ((added)) || { log "could not add printer '$QUEUE'"; exit 1; }
 fi
 
-# CUPS proxy queues. They reuse the pass-through shim PPD of the native queue,
-# so every real media size stays visible without the runtime driverless tool.
+# CUPS proxy queues. They reuse the shim PPD of the native queue (plus the
+# PDF duplex shim filter), so every real media size stays visible without the
+# runtime driverless tool.
 [[ -r $CUPS_PPD ]] || { log "no shim PPD at $CUPS_PPD; skipping CUPS queues"; exit 0; }
 systemctl start cups.socket >/dev/null 2>&1 || true
 

@@ -1,0 +1,37 @@
+#!/bin/bash
+# konica206 PDF duplex shim: make PPD-style duplex jobs render like IPP-style
+# ones before they reach the Legacy Printer Application.
+#
+# cupsd does not translate the PPD option "Duplex=DuplexNoTumble" into the IPP
+# attribute "sides=two-sided-long-edge" (scheduler/ipp.c deliberately skips
+# adding sides when Duplex is present).  pdftopdf rotates the back side of a
+# duplex sheet only when the "sides" option is present, so PDF jobs from
+# PPD-only clients (Papers, Evince/Document Viewer) otherwise reach the
+# printer with an upside-down back side, while IPP clients (pdfcraft) are fine.
+#
+# The legacy proxy queues install this shim as the cheapest application/pdf
+# conversion in their PPD (*cupsFilter2 in konica206-app.ppd).  It appends the
+# equivalent sides= value and then runs the normal PDF -> Apple Raster chain:
+#
+#     pdftopdf -> gstoraster (image/urf) -> ipp backend -> PAPPL app
+#
+# The classic queue keeps using konica206.ppd without this shim: there
+# gstoraster is handed "-scupsBackSideOrientation=Rotated" from the PPD and
+# performs the back-side rotation itself, so adding sides= would rotate twice.
+set -o pipefail
+
+job=${1-} user=${2-} title=${3-} copies=${4-} opts=${5-} file=${6--}
+
+case " $opts " in
+    *" sides="*)
+        # Already an IPP-style request; keep the client's choice verbatim.
+        ;;
+    *" Duplex=DuplexNoTumble "*)
+        opts="$opts sides=two-sided-long-edge" ;;
+    *" Duplex=DuplexTumble "*)
+        opts="$opts sides=two-sided-short-edge" ;;
+esac
+
+/usr/lib/cups/filter/pdftopdf "$job" "$user" "$title" "$copies" "$opts" "$file" |
+    CONTENT_TYPE=application/vnd.cups-pdf \
+    /usr/lib/cups/filter/gstoraster "$job" "$user" "$title" "$copies" "$opts"
