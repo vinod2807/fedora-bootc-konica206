@@ -35,7 +35,7 @@ UMask=0022
 
 # Writable state: PAPPL keeps its queues/state under $HOME.
 StateDirectory=konica206
-StateDirectoryMode=0750
+StateDirectoryMode=0755
 RuntimeDirectory=konica206
 RuntimeDirectoryMode=0750
 
