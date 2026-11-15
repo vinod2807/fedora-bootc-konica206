@@ -511,7 +511,6 @@ RUN set -eux; \
         /usr/share/applications/konica206-reboot.desktop \
         /usr/share/applications/konica206-poweroff.desktop \
         /usr/share/applications/fuzzel-printjobs.desktop \
-<<<<<<< HEAD
         /usr/share/applications/weechat.desktop \
         /usr/share/applications/konica-scan.desktop \
         /usr/share/ppd/konica206/konica206.ppd; \
