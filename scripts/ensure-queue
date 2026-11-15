@@ -17,8 +17,10 @@ log() { printf 'konica206-queue: %s\n' "$*"; }
 # but CUPS needs a local queue with a PPD before anything can print through it.
 # The shipped PPD is a shim: it declares the ten real page sizes of the device
 # (no CUPS-generated ".Borderless" entries) and offers simplex and duplex.
+# The app PPD adds a PDF duplex shim so PPD-only clients (Duplex=) work, while
+# the PAPPL (IPP) backend receives image/urf.
 CUPS_QUEUE=${KONICA_CUPS_QUEUE:-konica206}
-PPD=/usr/share/ppd/konica206/konica206.ppd
+PPD=/usr/share/ppd/konica206/konica206-app.ppd
 
 # True when the queue's installed PPD is byte-identical to the image PPD.
 ppd_current() {
@@ -38,7 +40,21 @@ ensure_cups_queue() {
 
     systemctl start cups.socket >/dev/null 2>&1 || true
 
+    local want_uri="ipp://127.0.0.1:${PORT}/ipp/print/${QUEUE}"
+
     if lpstat -p "$CUPS_QUEUE" >/dev/null 2>&1; then
+        # Repair a misconfigured queue (e.g. file:///dev/null, not accepting).
+        local cur_uri
+        cur_uri=$(lpstat -v "$CUPS_QUEUE" 2>/dev/null | sed 's/^[^:]*: //')
+        if [[ $cur_uri != "$want_uri" ]]; then
+            lpadmin -p "$CUPS_QUEUE" -v "$want_uri" \
+                -D "KONICA MINOLTA bizhub 206" -L "Local USB" \
+                -o printer-error-policy=retry-job >/dev/null 2>&1 \
+                && log "CUPS queue '$CUPS_QUEUE' device set to $want_uri"
+        fi
+        cupsenable "$CUPS_QUEUE" >/dev/null 2>&1 || true
+        cupsaccept "$CUPS_QUEUE" >/dev/null 2>&1 || true
+
         # Never reload an unchanged PPD. udev runs this script on every USB
         # re-enumeration, including the printer waking up in the middle of a
         # job, and CUPS restarts the active job whenever a printer's PPD
