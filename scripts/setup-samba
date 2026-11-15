@@ -6,13 +6,20 @@ set -euo pipefail
 install -d -m 2770 -o root -g users /srv/samba/shared
 install -d -m 1777 /var/spool/samba
 
+# The local account that owns the share must be able to read/write it.
+if id vinod >/dev/null 2>&1; then
+    usermod -aG users vinod
+fi
+
 # Permit Samba to serve home directories and label the extra share for SELinux.
+# /srv is a symlink to /var/srv on this image, so label the real path; otherwise
+# restorecon resolves the symlink and reverts the context to var_t.
 if command -v setsebool >/dev/null 2>&1; then
     setsebool -P samba_enable_home_dirs on
 fi
 if command -v semanage >/dev/null 2>&1; then
-    semanage fcontext -a -t samba_share_t '/srv/samba(/.*)?' 2>/dev/null || \
-        semanage fcontext -m -t samba_share_t '/srv/samba(/.*)?'
+    semanage fcontext -a -t samba_share_t '/var/srv/samba(/.*)?' 2>/dev/null || \
+        semanage fcontext -m -t samba_share_t '/var/srv/samba(/.*)?'
     restorecon -RF /srv/samba
 fi
 
