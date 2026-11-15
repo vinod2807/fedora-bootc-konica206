@@ -130,6 +130,9 @@ install -d -m 0755 "$DEST/Halftones" "$DEST/Profiles"
 install -m 0644 "$ROOT/Halftones/$HFT" "$DEST/Halftones/$HFT"
 install -m 0644 "$ROOT/Profiles/$SRGB" "$DEST/Profiles/$SRGB"
 install -m 0644 "$ROOT/Profiles/$GRAY" "$DEST/Profiles/$GRAY"
+# CUPS filters may run as lp; ensure the runtime data is traversable/readable.
+chmod 0755 /var/lib/konica206 /var/lib/konica206/vendor 2>/dev/null || true
+chmod -R a+rX /var/lib/konica206/vendor 2>/dev/null || true
 
 # The 1200x600 screen and the other profiles are optional for the native
 # encoder; copy them only when the user supplied them.

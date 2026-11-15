@@ -16,7 +16,10 @@ log() { logger -t konica206-vendor-data -- "$*" 2>/dev/null || printf '%s\n' "$*
 warn() { log "WARN: $*"; }
 
 if "$INSTALL" --check >/dev/null 2>&1; then
-    log "vendor runtime data already present; nothing to do"
+    # CUPS filters may run unprivileged; keep runtime data traversable/readable.
+    chmod 0755 /var/lib/konica206 /var/lib/konica206/vendor 2>/dev/null || true
+    chmod -R a+rX /var/lib/konica206/vendor 2>/dev/null || true
+    log "vendor runtime data already present; permissions ensured"
     exit 0
 fi
 
