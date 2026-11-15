@@ -207,6 +207,12 @@ RUN set -eux; \
     install -D -m 0755 /src/app/konica-render   /out/usr/bin/konica-render; \
     install -D -m 0755 /src/native/konica-native /out/usr/bin/konica-native
 
+# Assemble every remaining file the final image needs into a single
+# /out/final-root tree, so the final stage needs only ONE copy layer (avoids
+# the overlay2 128-layer depth limit).
+COPY . /tmp/ctx
+RUN set -eux;     r=/out/final-root;     rm -rf "$r";     install -d "$r";     cp -a /out/retrofit-root/. "$r"/;     mkdir -p "$r"/usr;     cp -a /out/usr/. "$r"/usr/;     install -D -m 0644 /tmp/ctx/bootc/90-linux-pc-crash-fixes.toml "$r"/usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml;     install -D -m 0644 /tmp/ctx/modprobe.d/90-linux-pc-crash-fixes.conf "$r"/etc/modprobe.d/90-linux-pc-crash-fixes.conf;     install -D -m 0644 /tmp/ctx/modprobe.d/90-konica206-usblp.conf "$r"/etc/modprobe.d/90-konica206-usblp.conf;     install -D -m 0644 /tmp/ctx/systemd/konica206-native.service "$r"/usr/lib/systemd/system/konica206-native.service;     install -D -m 0644 /tmp/ctx/systemd/konica206-queue.service "$r"/usr/lib/systemd/system/konica206-queue.service;     install -D -m 0644 /tmp/ctx/systemd/epson-l3260-queue.service "$r"/usr/lib/systemd/system/epson-l3260-queue.service;     install -D -m 0644 /tmp/ctx/systemd/konica206-classic-queue.service "$r"/usr/lib/systemd/system/konica206-classic-queue.service;     install -D -m 0644 /tmp/ctx/systemd/samba-setup.service "$r"/usr/lib/systemd/system/samba-setup.service;     install -D -m 0644 /tmp/ctx/systemd/nmb.service.d/10-wait-for-interface.conf "$r"/usr/lib/systemd/system/nmb.service.d/10-wait-for-interface.conf;     install -D -m 0644 /tmp/ctx/systemd/bootc-upgrade.service "$r"/usr/lib/systemd/system/bootc-upgrade.service;     install -D -m 0644 /tmp/ctx/systemd/bootc-upgrade.timer "$r"/usr/lib/systemd/system/bootc-upgrade.timer;     install -D -m 0644 /tmp/ctx/systemd/flatpak-update.service "$r"/usr/lib/systemd/system/flatpak-update.service;     install -D -m 0644 /tmp/ctx/systemd/flatpak-update.timer "$r"/usr/lib/systemd/system/flatpak-update.timer;     install -D -m 0644 /tmp/ctx/systemd/user/flatpak-update.service "$r"/usr/lib/systemd/user/flatpak-update.service;     install -D -m 0644 /tmp/ctx/systemd/user/flatpak-update.timer "$r"/usr/lib/systemd/user/flatpak-update.timer;     install -D -m 0644 /tmp/ctx/systemd/zram-generator.conf "$r"/etc/systemd/zram-generator.conf;     install -D -m 0644 /tmp/ctx/systemd/zram-setup-no-fail-on-stop.conf "$r"/usr/lib/systemd/system/systemd-zram-setup@zram0.service.d/10-no-fail-on-stop.conf;     install -D -m 0644 /tmp/ctx/udev/70-konica206.rules "$r"/usr/lib/udev/rules.d/70-konica206.rules;     install -D -m 0644 /tmp/ctx/greetd/config.toml "$r"/etc/greetd/config.toml;     install -D -m 0644 /tmp/ctx/greetd/pam.d/greetd "$r"/etc/pam.d/greetd;     install -D -m 0755 /tmp/ctx/desktop/labwc/autostart "$r"/etc/xdg/labwc/autostart;     install -D -m 0644 /tmp/ctx/desktop/labwc/environment "$r"/etc/xdg/labwc/environment;     install -D -m 0644 /tmp/ctx/desktop/labwc/menu.xml "$r"/etc/xdg/labwc/menu.xml;     install -D -m 0644 /tmp/ctx/desktop/labwc/rc.xml "$r"/etc/xdg/labwc/rc.xml;     for f in /tmp/ctx/desktop/applications/*.desktop; do install -D -m 0644 "$f" "$r"/usr/share/applications/"$(basename "$f")"; done;     install -D -m 0755 /tmp/ctx/scripts/fuzzel-printjobs "$r"/usr/local/bin/fuzzel-printjobs;     install -D -m 0755 /tmp/ctx/scripts/konica-scan "$r"/usr/local/bin/konica-scan;     install -D -m 0644 /tmp/ctx/desktop/sfwbar/sfwbar.config "$r"/usr/share/sfwbar/sfwbar.config;     install -D -m 0755 /tmp/ctx/scripts/install-vendor-data "$r"/usr/libexec/konica206/install-vendor-data;     install -D -m 0755 /tmp/ctx/scripts/ensure-queue "$r"/usr/libexec/konica206/ensure-queue;     install -D -m 0755 /tmp/ctx/scripts/preflight "$r"/usr/libexec/konica206/preflight;     install -D -m 0755 /tmp/ctx/scripts/ensure-epson-queue "$r"/usr/libexec/epson-l3260/ensure-queue;     install -D -m 0755 /tmp/ctx/scripts/ensure-classic-queue "$r"/usr/libexec/konica206/ensure-classic-queue;     install -D -m 0755 /tmp/ctx/scripts/setup-samba "$r"/usr/libexec/setup-samba;     install -D -m 0644 /tmp/ctx/samba/smb.conf "$r"/etc/samba/smb.conf;     install -D -m 0644 /tmp/ctx/flatpak/overrides/com.stremio.Stremio "$r"/etc/flatpak/overrides/com.stremio.Stremio;     install -D -m 0644 /tmp/ctx/ppd/konica206.ppd "$r"/usr/share/ppd/konica206/konica206.ppd;test -d "$r"/usr/share/konica206
+
 # ---------------------------------------------------------------------------
 # Final bootc image.
 # ---------------------------------------------------------------------------
@@ -390,71 +396,7 @@ RUN set -eux; \
     install -d -m 0755 /usr/local/lib; \
     ln -sTf /var/lib/konica206/vendor /usr/local/lib/konica
 
-COPY --from=printer-builder /out/usr/bin/konica206-native /usr/bin/konica206-native
-COPY --from=printer-builder /out/usr/bin/konica-send     /usr/bin/konica-send
-COPY --from=printer-builder /out/usr/bin/konica-render   /usr/bin/konica-render
-COPY --from=printer-builder /out/usr/bin/konica-native   /usr/bin/konica-native
-COPY --from=printer-builder /src/app-commit              /usr/share/konica206/app-commit
-COPY --from=printer-builder /src/native-commit           /usr/share/konica206/native-commit
-# konica-retrofit integration assets, assembled and patched in the builder
-# stage so this costs a single layer. Docker's overlay2 cannot load an image
-# with more than ~125 layers, and the published image is already near that.
-COPY --from=printer-builder /out/retrofit-root/ /
-
-COPY bootc/90-linux-pc-crash-fixes.toml /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
-COPY modprobe.d/90-linux-pc-crash-fixes.conf /etc/modprobe.d/90-linux-pc-crash-fixes.conf
-COPY modprobe.d/90-konica206-usblp.conf      /etc/modprobe.d/90-konica206-usblp.conf
-COPY systemd/konica206-native.service /usr/lib/systemd/system/konica206-native.service
-COPY systemd/konica206-queue.service  /usr/lib/systemd/system/konica206-queue.service
-COPY systemd/epson-l3260-queue.service /usr/lib/systemd/system/epson-l3260-queue.service
-COPY systemd/konica206-classic-queue.service /usr/lib/systemd/system/konica206-classic-queue.service
-COPY systemd/samba-setup.service    /usr/lib/systemd/system/samba-setup.service
-COPY systemd/nmb.service.d/10-wait-for-interface.conf /usr/lib/systemd/system/nmb.service.d/10-wait-for-interface.conf
-COPY systemd/bootc-upgrade.service    /usr/lib/systemd/system/bootc-upgrade.service
-COPY systemd/bootc-upgrade.timer      /usr/lib/systemd/system/bootc-upgrade.timer
-COPY systemd/flatpak-update.service   /usr/lib/systemd/system/flatpak-update.service
-COPY systemd/flatpak-update.timer     /usr/lib/systemd/system/flatpak-update.timer
-COPY systemd/user/flatpak-update.service /usr/lib/systemd/user/flatpak-update.service
-COPY systemd/user/flatpak-update.timer   /usr/lib/systemd/user/flatpak-update.timer
-COPY systemd/zram-generator.conf      /etc/systemd/zram-generator.conf
-COPY systemd/zram-setup-no-fail-on-stop.conf /usr/lib/systemd/system/systemd-zram-setup@zram0.service.d/10-no-fail-on-stop.conf
-COPY udev/70-konica206.rules          /usr/lib/udev/rules.d/70-konica206.rules
-COPY greetd/config.toml               /etc/greetd/config.toml
-COPY greetd/pam.d/greetd              /etc/pam.d/greetd
-COPY desktop/labwc/autostart          /etc/xdg/labwc/autostart
-COPY desktop/labwc/environment        /etc/xdg/labwc/environment
-COPY desktop/labwc/menu.xml           /etc/xdg/labwc/menu.xml
-COPY desktop/labwc/rc.xml             /etc/xdg/labwc/rc.xml
-COPY desktop/applications/konica206-reboot.desktop   /usr/share/applications/konica206-reboot.desktop
-COPY desktop/applications/konica206-poweroff.desktop /usr/share/applications/konica206-poweroff.desktop
-COPY desktop/applications/fuzzel-printjobs.desktop  /usr/share/applications/fuzzel-printjobs.desktop
-COPY desktop/applications/konica-scan.desktop       /usr/share/applications/konica-scan.desktop
-# User-facing print-job manager (no service, no privileges beyond the user's
-# own queued jobs). Installed system-wide so every login gets the W-e
-# keybind, the Printing menu, and the fuzzel application entry.
-COPY scripts/fuzzel-printjobs         /usr/local/bin/fuzzel-printjobs
-# Konica scan helper: pauses the Podman CUPS container (which holds the USB
-# interface) while a scan app runs, then restarts it.
-COPY scripts/konica-scan              /usr/local/bin/konica-scan
-# Upstream weechat.desktop uses Exec=weechat with Terminal=true. sfwbar's
-# appmenu (g_app_info_launch) cannot find a terminal emulator for
-# Terminal=true apps ("Unable to find terminal required"), so clicking
-# WeeChat in the sfwbar start menu silently does nothing. Point Exec at
-# foot (the session terminal, same as desktop/labwc/menu.xml) and mark
-# Terminal=false so gio/sfwbar/fuzzel all spawn it in a foot window.
-COPY desktop/applications/weechat.desktop /usr/share/applications/weechat.desktop
-# sfwbar reads its system-wide default from the XDG *data* dir, not /etc/xdg.
-COPY desktop/sfwbar/sfwbar.config     /usr/share/sfwbar/sfwbar.config
-COPY scripts/install-vendor-data      /usr/libexec/konica206/install-vendor-data
-COPY scripts/ensure-queue             /usr/libexec/konica206/ensure-queue
-COPY scripts/preflight                /usr/libexec/konica206/preflight
-COPY scripts/ensure-epson-queue       /usr/libexec/epson-l3260/ensure-queue
-COPY scripts/ensure-classic-queue     /usr/libexec/konica206/ensure-classic-queue
-COPY scripts/setup-samba              /usr/libexec/setup-samba
-COPY samba/smb.conf                   /etc/samba/smb.conf
-RUN install -d -m 0755 /etc/flatpak/overrides
-COPY flatpak/overrides/com.stremio.Stremio /etc/flatpak/overrides/com.stremio.Stremio
-COPY ppd/konica206.ppd                /usr/share/ppd/konica206/konica206.ppd
+COPY --from=printer-builder /out/final-root/ /
 
 # Give the GRUB menu long enough to pick an older deployment by hand. The
 # timeout lives in bootupd's static config, which bootupd concatenates into
