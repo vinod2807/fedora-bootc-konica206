@@ -6,6 +6,14 @@ set -euo pipefail
 install -d -m 2770 -o root -g users /srv/samba/shared
 install -d -m 1777 /var/spool/samba
 
+# Samba caches its discovered CUPS printer list under /var, which persists
+# across bootc upgrades. A queue that was removed in a newer image (for
+# example the retired Konica_Via_Podman container queue) would otherwise keep
+# being advertised. Drop the cache so Samba rediscovers the current queues.
+rm -f /var/lib/samba/lock/printer_list.tdb \
+      /var/cache/samba/printing/printers.tdb \
+      /var/cache/samba/browse.dat
+
 # The local account that owns the share must be able to read/write it.
 if id vinod >/dev/null 2>&1; then
     usermod -aG users vinod
