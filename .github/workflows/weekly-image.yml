@@ -200,6 +200,12 @@ jobs:
             # GRUB menu must pause so an older deployment can be selected.
             grep -qx "set timeout=10" /usr/lib/bootupd/grub2-static/grub-static-pre.cfg
             systemctl is-enabled greetd.service NetworkManager.service konica206-native.service konica206-queue.service konica206-classic-queue.service konica-cups-watch.service konica-cups-watch.timer ecbd.service
+            # Vendor runtime data is installed at boot from a configured
+            # licensed source, never baked into the image.
+            systemctl is-enabled konica206-vendor-data.service
+            test -x /usr/libexec/konica206/install-vendor-data-onboot
+            test -f /etc/konica206/vendor-data.conf
+            test ! -e /var/lib/konica206/vendor/KonicaMinolta/245igdi/Halftones/COPA.DEFAULT.600x600.hft
             # Konica scanner (ar206 SANE backend) is provided for the host.
             rpm -q sane-ar206 >/dev/null
             test -f /usr/lib64/sane/libsane-ar206.so.1.0.0

@@ -1,0 +1,20 @@
+[Unit]
+Description=Install Konica Minolta 245igdi vendor runtime data (if configured)
+Documentation=https://github.com/vinod2807/fedora-bootc-konica206
+# Vendor data is stored on persistent local storage; when the source is a URL
+# we need the network too.
+After=local-fs.target network-online.target
+Wants=network-online.target
+# Run before anything that can submit a print job.
+Before=konica206-native.service konica206-queue.service konica206uri-queue.service konica206-classic-queue.service legacy-printer-app.service
+ConditionPathExists=/etc/konica206/vendor-data.conf
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/konica206/install-vendor-data-onboot
+RemainAfterExit=yes
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=multi-user.target

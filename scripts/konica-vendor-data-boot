@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# First-boot / post-upgrade install of the Konica Minolta 245igdi vendor runtime
+# data (halftone screen + ICC profiles). The data is proprietary and is not
+# baked into the image; this oneshot installs it from a licensed copy configured
+# in /etc/konica206/vendor-data.conf.
+#
+# The service is idempotent: if the runtime data is already present it exits 0
+# without touching anything, so it self-heals after an upgrade that wiped /var
+# or on a fresh install when a source is configured.
+set -euo pipefail
+
+CONF=/etc/konica206/vendor-data.conf
+INSTALL=/usr/bin/konica206-install-vendor-data
+
+log() { logger -t konica206-vendor-data -- "$*" 2>/dev/null || printf '%s\n' "$*"; }
+warn() { log "WARN: $*"; }
+
+if "$INSTALL" --check >/dev/null 2>&1; then
+    log "vendor runtime data already present; nothing to do"
+    exit 0
+fi
+
+if [[ ! -r $CONF ]]; then
+    warn "vendor runtime data missing and $CONF not found; skipping"
+    exit 0
+fi
+
+# shellcheck disable=SC1090
+. "$CONF"
+SRC=${KONICA_VENDOR_SOURCE:-}
+if [[ -z $SRC ]]; then
+    warn "KONICA_VENDOR_SOURCE is empty in $CONF; skipping"
+    exit 0
+fi
+
+tmp=""
+cleanup() { [[ -n $tmp ]] && rm -rf "$tmp"; }
+trap cleanup EXIT
+
+case "$SRC" in
+    http://*|https://*)
+        command -v curl >/dev/null 2>&1 || { warn "curl not available; cannot download $SRC"; exit 1; }
+        tmp=$(mktemp -d)
+        # Keep the archive suffix so install-vendor-data can detect the format.
+        base=${SRC%%\?*}
+        base=${base##*/}
+        [[ -n $base ]] || base=vendor.tar.gz
+        log "downloading vendor data from $SRC"
+        curl --retry 3 --retry-delay 5 -fsSL -o "$tmp/$base" "$SRC" \
+            || { warn "download failed: $SRC"; exit 1; }
+        SRC="$tmp/$base"
+        ;;
+esac
+
+if [[ ! -e $SRC ]]; then
+    warn "vendor data source does not exist: $SRC"
+    exit 1
+fi
+
+log "installing vendor runtime data from $SRC"
+if "$INSTALL" --no-restart "$SRC"; then
+    log "vendor runtime data installed"
+else
+    warn "vendor data install failed (source: $SRC)"
+    exit 1
+fi
