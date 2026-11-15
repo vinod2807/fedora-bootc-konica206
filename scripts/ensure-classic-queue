@@ -5,16 +5,16 @@
 # Safe to run at every boot and from udev: it exits 0 when no printer is
 # attached or the queue already exists. No paper is used.
 #
-# The queue reuses the same shim PPD as the PAPPL queues, so real page sizes
-# (not borderless) are advertised and defaults are A4 + simplex. Duplex is
-# available (off / long-edge / short-edge) but defaults to off.
+# The queue uses a dedicated PPD that routes CUPS raster to konica-native for
+# direct USB output, so real page sizes (not borderless) are advertised and
+# defaults are A4 + simplex. Duplex is available but defaults to off.
 set -euo pipefail
 
 QUEUE=${KONICA_CLASSIC_QUEUE:-konica206-classic}
 VENDOR=132b
 PRODUCT=232b
 INTERFACE=1
-PPD=/usr/share/ppd/konica206/konica206.ppd
+PPD=/usr/share/ppd/konica206/konica206-classic.ppd
 
 log() { printf 'konica206-classic-queue: %s\n' "$*"; }
 
@@ -84,8 +84,8 @@ if lpstat -p "$QUEUE" >/dev/null 2>&1; then
     exit 0
 fi
 
-# Create the queue. The device URI is the direct USB path; the shim PPD
-# advertises the ten real page sizes and offers simplex + duplex.
+# Create the queue. The device URI is the direct USB path; the classic PPD
+# advertises the ten real page sizes and routes raster to konica-native.
 if lpadmin -p "$QUEUE" -E \
         -v "$uri" \
         -P "$PPD" \
