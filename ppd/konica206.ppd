@@ -128,7 +128,7 @@
 *DefaultcupsPrintQuality: Normal
 *cupsPrintQuality Draft: "<</HWResolution[300 150]>>setpagedevice"
 *en_US.cupsPrintQuality Draft/Draft: ""
-*cupsPrintQuality Normal: "<</HWResolution[300 300]>>setpagedevice"
+*cupsPrintQuality Normal: "<</HWResolution[600 600]>>setpagedevice"
 *en_US.cupsPrintQuality Normal/Normal: ""
 *cupsPrintQuality High: "<</HWResolution[600 600]>>setpagedevice"
 *en_US.cupsPrintQuality High/High: ""
