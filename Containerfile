@@ -36,7 +36,7 @@ ARG BUILDER_IMAGE=quay.io/fedora/fedora:latest
 ARG KONICA_APP_REPO=https://github.com/vinod2807/konica206-native-alpine.git
 ARG KONICA_NATIVE_REPO=https://github.com/vinod2807/konica-native-musl.git
 ARG KONICA_RETROFIT_REPO=https://github.com/vinod2807/konica-retrofit.git
-ARG KONICA_APP_REF=main
+ARG KONICA_APP_REF=3ea1c42c27fa2fe30564b135b7d1bfa972fa6ea4
 ARG KONICA_NATIVE_REF=main
 ARG KONICA_RETROFIT_REF=main
 
@@ -218,7 +218,7 @@ RUN set -eux;     r=/out/final-root;     rm -rf "$r";     install -d "$r";     c
 # ---------------------------------------------------------------------------
 FROM ${BASE_IMAGE}
 
-ARG KONICA_APP_REF=main
+ARG KONICA_APP_REF=3ea1c42c27fa2fe30564b135b7d1bfa972fa6ea4
 ARG KONICA_NATIVE_REF=main
 ARG KONICA_RETROFIT_REF=main
 
