@@ -38,8 +38,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Pinned to konica206-native-alpine with fatal listener-bind handling.
-          app=287ad50bb6f6e31b5124473b116eb87b214b6435
+          app=$(git ls-remote https://github.com/vinod2807/konica206-native-alpine.git refs/heads/main | awk '{print $1}')
           native=$(git ls-remote https://github.com/vinod2807/konica-native-musl.git refs/heads/main | awk '{print $1}')
           retrofit=$(git ls-remote https://github.com/vinod2807/konica-retrofit.git refs/heads/main | awk '{print $1}')
           for ref in "$app" "$native" "$retrofit"; do
