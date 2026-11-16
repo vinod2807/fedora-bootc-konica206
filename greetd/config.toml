@@ -4,7 +4,13 @@
 vt = 1
 
 [default_session]
-# tuigreet is a console greeter; it authenticates via PAM and then execs labwc
-# as the logged-in user. No password or user is baked into this image.
-command = "tuigreet --time --remember --cmd /usr/bin/labwc"
+# tuigreet is a console greeter; it authenticates via PAM and then execs the
+# LXQt Wayland session (labwc compositor) as the logged-in user.
+command = "tuigreet --time --remember --cmd /usr/bin/startlxqtwayland"
 user = "greetd"
+
+[initial_session]
+# Autologin: greetd starts the LXQt Wayland session (labwc compositor) at boot
+# for vinod. When the session ends, greetd returns to tuigreet for a normal login.
+command = "/usr/bin/startlxqtwayland"
+user = "vinod"
