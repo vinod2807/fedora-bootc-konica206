@@ -26,7 +26,11 @@ Environment=KONICA_PPD=/usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rota
 Environment=KONICA_PDF_RENDERER=builtin
 Environment=KONICA_LISTEN=localhost
 Environment=KONICA_SPOOLDIR=/var/tmp
-ExecStart=/usr/bin/konica206-native server -o server-port=8001
+ExecStart=/usr/bin/konica206-native server -o server-port=8001 -o listen=localhost
+# PAPPL may start without binding its TCP listeners (e.g. transient bind failure at
+# boot) yet keep running, leaving no IPP backend for CUPS. Verify port 8001 is
+# listening; fail the start so systemd restarts the service.
+ExecStartPost=/bin/sh -c 'for i in $(seq 1 30); do ss -H -ltn 2>/dev/null | grep -Eq ":(8001)[[:space:]]" && exit 0; sleep 1; done; exit 1'
 # Always: PAPPL exits cleanly when its Avahi connection goes away, and a clean
 # exit would otherwise leave the printer offline until the next boot.
 Restart=always
