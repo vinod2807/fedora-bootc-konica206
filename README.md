@@ -127,6 +127,7 @@ smbclient -L localhost -U vinod
 | `systemd/tmpfiles.d/konica206uri.conf` | Seeds the legacy application's `/var` state and spool at boot |
 | `scripts/ensure-epson-queue` | Creates the driverless Epson L3260 network queue |
 | `scripts/install-naps2-flatpak` | Sideloads the NAPS2 Flatpak from the official GitHub release and restores the scan profiles |
+| `scripts/update-naps2-flatpak`, `systemd/naps2-flatpak-update.*` | Weekly check of the latest NAPS2 release; installs a new version only when the tag changes |
 | `flatpak/naps2/profiles.xml` | Saved Epson L3260 and Konica bizhub 206 NAPS2 scan profiles |
 | `scripts/preflight` | Read-only diagnostic (`sudo konica206-preflight`) |
 | `ppd/konica206.ppd` | Hand-written PPD shim: real media sizes, duplex, A4/simplex defaults |
@@ -313,8 +314,9 @@ idempotent and safe to re-run after an image update.
 
 `BUILD_EPOCH` is still accepted by the `Containerfile` so the weekly workflow's
 build arg stays valid, but it no longer controls any baked-in RPM. Flatpaks are
-updated daily by `flatpak-update.timer`; to move NAPS2 to a new release, re-run
-`scripts/install-naps2-flatpak` with the new version.
+updated daily by `flatpak-update.timer`; NAPS2 has its own weekly
+`naps2-flatpak-update.timer` (see *Automatic Flatpak updates*), and you can also
+move it manually with `scripts/install-naps2-flatpak <version>`.
 
 ---
 
@@ -601,6 +603,23 @@ Update immediately instead of waiting:
 ```bash
 sudo systemctl start flatpak-update.service
 systemctl --user start flatpak-update.service
+```
+
+**NAPS2 is the exception.** It is sideloaded from a GitHub release bundle, so
+its `naps2-origin` remote has no URL and the generic `flatpak update` cannot
+find new versions. A separate weekly timer covers it:
+
+| Unit | Scope | Runs |
+|---|---|---|
+| `naps2-flatpak-update.timer` (`/usr/lib/systemd/system/`) | system installation | `scripts/update-naps2-flatpak`: resolves `cyanfish/naps2/releases/latest`, compares it with the installed version, and calls `install-naps2-flatpak <version>` only when they differ |
+
+The unit runs as `vinod` (passwordless sudo handles the system Flatpak install)
+so profile files stay owned by the desktop user. Check or force it with:
+
+```bash
+systemctl list-timers naps2-flatpak-update.timer
+journalctl -u naps2-flatpak-update.service
+sudo systemctl start naps2-flatpak-update.service
 ```
 
 ### Registry access

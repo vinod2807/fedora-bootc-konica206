@@ -1,0 +1,33 @@
+#!/bin/bash
+# Weekly autoupdate check for the NAPS2 Flatpak.
+#
+# NAPS2 is sideloaded from a GitHub release bundle, so the generic
+# flatpak-update.timer cannot see new versions (the sideload remote has no URL).
+# This script checks the latest cyanfish/naps2 release tag and hands off to
+# install-naps2-flatpak when a different version is published.
+set -euo pipefail
+
+APP_ID=com.naps2.Naps2
+API=https://api.github.com/repos/cyanfish/naps2/releases/latest
+
+latest=$(curl -fsSL --retry 3 --retry-delay 5 \
+    -H 'Accept: application/vnd.github+json' "$API" \
+    | python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])')
+version=${latest#v}
+if [[ ! $version =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+    printf 'Unexpected NAPS2 release tag: %s\n' "$latest" >&2
+    exit 1
+fi
+
+installed=$(flatpak list --app --columns=application,version 2>/dev/null \
+    | awk -F '\t' -v id="$APP_ID" '$1 == id { print $2 }')
+if [ "$installed" = "$version" ]; then
+    printf 'NAPS2 %s is already the latest release.\n' "$version"
+    exit 0
+fi
+
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+installer="$SCRIPT_DIR/install-naps2-flatpak"
+[ -x "$installer" ] || installer=/usr/libexec/naps2/install-naps2-flatpak
+printf 'NAPS2 %s -> %s: installing new release.\n' "${installed:-none}" "$version"
+exec "$installer" "$version"

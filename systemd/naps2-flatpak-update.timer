@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly NAPS2 Flatpak release check
+Documentation=https://github.com/vinod2807/fedora-bootc-konica206#automatic-flatpak-updates
+
+[Timer]
+OnCalendar=weekly
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
