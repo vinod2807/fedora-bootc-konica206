@@ -46,9 +46,6 @@ fi
 # and also into the app's private config dir as a fallback in case that
 # permission is ever dropped upstream.
 PROFILES_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/flatpak/naps2/profiles.xml"
-# The image installs the same fixture under /usr/share/naps2.
-[ -f "$PROFILES_SRC" ] || PROFILES_SRC=/usr/share/naps2/profiles.xml
-test -f "$PROFILES_SRC" || { printf 'profiles.xml not found\n' >&2; exit 1; }
 install -D -m 0644 "$PROFILES_SRC" "$HOME/.config/naps2/profiles.xml"
 install -D -m 0644 "$PROFILES_SRC" "$HOME/.var/app/${APP_ID}/config/naps2/profiles.xml"
 
