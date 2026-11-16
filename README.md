@@ -1,4 +1,4 @@
-# Fedora bootc — Labwc desktop + Konica Minolta bizhub 206
+# Fedora bootc — GNOME desktop + Konica Minolta bizhub 206
 
 A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
 (the target is an Intel Core i5 650). It provides:
@@ -7,21 +7,19 @@ A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
   `quay.io/fedora/fedora-bootc:latest`, so the image follows the current Fedora
   release and crosses major versions on its own (see
   [Fedora major version](#fedora-major-version-follows-latest))
-- **Labwc** Wayland compositor, **sfwbar** panel (openbox-style start menu and
-  task buttons), **Foot** terminal
-- **Flatpak** with the **Flathub** remote preinstalled — browsers, office
-  suites and media players are expected as Flatpaks, not RPMs (minimal image)
-- A desktop with **Thunar**, **mousepad**,
-  **xarchiver**, **pavucontrol**, GVFS/udisks2, and a right-click menu
-- A print-job manager (**W-e** or the Printing menu) to view, cancel, or
-  restart CUPS queues
-- **NAPS2** scanning front-end plus **simple-scan**, with **sane-airscan** for
-  driverless (eSCL/AirScan) network scanners
-- **ZapFast** native WhatsApp client (official GitHub release RPM)
-- **Flatpak** with the **Flathub** remote preinstalled (xdg-desktop-portal
-  GTK/wlr portals for file choosers and screen sharing)
-- A real graphical login path: **greetd** on VT1 → **tuigreet** → **labwc**
-- NetworkManager, PipeWire/WirePlumber, portals, polkit, XWayland
+- **Full GNOME desktop (Wayland)** with **GDM autologin** for `vinod`,
+  `gnome-tweaks`, and a system-wide Adwaita dark theme
+- **Flatpak** with the **Flathub** remote preconfigured, plus daily system and
+  per-user `flatpak-update.timer`s. Browsers, office suites, media players,
+  **ZapFast** (WhatsApp) and **NAPS2** are Flatpaks, not RPMs
+- **NAPS2** scanning front-end sideloaded from the official GitHub release with
+  the Epson/Konica scan profiles restored, plus **simple-scan** and
+  **sane-airscan** for driverless (eSCL/AirScan) network scanners
+- **fuzzel** launcher, `fuzzel-printjobs` (view/cancel/restart CUPS jobs),
+  `weechat`, `mpv`, and a `konica-scan` desktop helper that frees the Konica USB
+  interface before scanning
+- NetworkManager, PipeWire/WirePlumber (GNOME portals for file choosers and
+  screen sharing), polkit, XWayland
 - The **Konica Minolta bizhub 206** PAPPL printer application
   ([konica206-native-alpine](https://github.com/vinod2807/konica206-native-alpine))
   built for Fedora, with the
@@ -53,6 +51,25 @@ layers whose content changed — see
 
 The installed machine tracks that reference and updates with `bootc upgrade`.
 **A new ISO is not needed for routine updates.**
+
+## Recent changes
+
+- **Full GNOME desktop:** replaced the labwc/LXQt/tuigreet stack with the
+  `gnome-desktop` group, GDM autologin for `vinod`, `gnome-tweaks`,
+  `gnome-keyring`/`libsecret` and a system-wide Adwaita dark theme. The old
+  compositor, panel and greetd configs were removed from the image.
+- **Apps as Flatpaks:** ZapFast and NAPS2 are no longer installed as RPMs.
+  NAPS2 is sideloaded from its official GitHub release by
+  `scripts/install-naps2-flatpak`, which also restores the Epson and Konica
+  scan profiles from `flatpak/naps2/profiles.xml`. The Epson Printer Utility
+  stays a vendored RPM because Epson only distributes it that way.
+- **Printers:** the Konica bizhub 206 PAPPL application, its native C11 encoder
+  and legacy `konica206uri` proxy queues, plus the driverless Epson L3260
+  network queue, are enabled and self-heal at boot. Licensed Konica runtime
+  data is installed after installation and never baked into the image.
+- **Updates:** daily Flatpak update timers (system + user) and a stage-only
+  bootc upgrade timer that never reboots on its own. Published images are
+  rechunked with chunkah for smaller incremental downloads.
 
 ## LAN file and printer sharing
 
@@ -101,14 +118,16 @@ smbclient -L localhost -U vinod
 | `.github/iso/iso.yaml` | GRUB/ISO label and kernel command line for the installer media |
 | `systemd/` | Printer/queue units, the stage-only (never reboots) bootc update timer, and the daily Flatpak update timers (system + user) |
 | `udev/70-konica206.rules` | USB permissions for `132b:232b` (group `lp`, `uaccess`) |
-| `greetd/config.toml` | tuigreet → LXQt Wayland session (labwc compositor), with autologin for vinod |
-| `desktop/` | labwc autostart/environment/menu, sfwbar panel config |
+| `desktop/applications/` | Custom launchers: `konica-scan`, `fuzzel-printjobs`, `weechat`, `mpv` |
+| `cups/`, `ppd/`, `samba/` | CUPS filter rule, hand-written Konica PPDs, and the Samba share config |
 | `scripts/install-vendor-data` | Post-install installer for the licensed Konica runtime data |
 | `scripts/ensure-queue` | Creates the PAPPL queue and the local CUPS queue with the PPD shim |
 | `scripts/ensure-legacy-queue` | Creates the legacy `konica206uri` printer and its two CUPS proxy queues |
 | `systemd/legacy-printer-app.service.d/90-konica206uri.conf` | Legacy Printer Application on port 8000, with the retrofit PPD path |
 | `systemd/tmpfiles.d/konica206uri.conf` | Seeds the legacy application's `/var` state and spool at boot |
 | `scripts/ensure-epson-queue` | Creates the driverless Epson L3260 network queue |
+| `scripts/install-naps2-flatpak` | Sideloads the NAPS2 Flatpak from the official GitHub release and restores the scan profiles |
+| `flatpak/naps2/profiles.xml` | Saved Epson L3260 and Konica bizhub 206 NAPS2 scan profiles |
 | `scripts/preflight` | Read-only diagnostic (`sudo konica206-preflight`) |
 | `ppd/konica206.ppd` | Hand-written PPD shim: real media sizes, duplex, A4/simplex defaults |
 | `local-rpms/` | Vendored vendor RPMs installed at build time (Epson Printer Utility) |
@@ -190,7 +209,7 @@ Two details matter:
   setuid/setgid bits and `security.capability` xattrs. `docker export` does not
   emit capabilities, and extracting its tar as a non-root user rewrites every
   file to the runner UID and strips setuid. Either mistake produces an image
-  that boots to greetd but cannot start a session (autologin dies,
+  that boots to GDM but cannot start a session (autologin dies,
   `sudo`/`passwd` lose setuid, `ping`/`newuidmap` lose capabilities). The
   workflow mounts the image with buildah and asserts the metadata before
   rechunking.
@@ -268,44 +287,34 @@ podman build --pull=always --platform linux/amd64 -t localhost/fedora-bootc-koni
 `--pull=always` matters because the base is a moving tag (`:latest`); CI passes
 `pull: true` for the same reason.
 
-### Third-party app versions and the layer cache
+### Third-party apps (Flatpak)
 
-NAPS2 is installed from an official GitHub release asset so its version is
-whatever is current **when the image is built**. The instruction that installs
-it never changes, which means BuildKit would replay it from cache and keep the
-old RPM. To prevent that, the `Containerfile` takes a `BUILD_EPOCH` build arg
-that is only used to change this layer's cache key, and `weekly-image.yml`
-passes the workflow run id:
-
-```dockerfile
-ARG BUILD_EPOCH=local
-...
-RUN set -eux; \
-    echo "resolving third-party apps (cache epoch: ${BUILD_EPOCH})"; \
-    dnf install -y <naps2-rpm>; ...
-```
-
-For a local build that must fetch the current RPM instead of reusing your local
-cache, pass your own value (anything that differs from the previous build):
+Third-party desktop apps are installed as Flatpaks on the **installed machine**,
+not baked into the image. Flatpak's system state lives under `/var/lib/flatpak`,
+which bootc excludes from the image (it behaves like a Docker `VOLUME` and is
+seeded only at first install), so a `flatpak install` in the `Containerfile`
+would silently disappear. The Flathub remote is preconfigured through
+`/etc/flatpak/remotes.d`; NAPS2 is not on Flathub, so its release `.flatpak`
+bundle is sideloaded from the official
+[cyanfish/naps2 releases](https://github.com/cyanfish/naps2/releases):
 
 ```bash
-podman build --platform linux/amd64 \
-  --build-arg BUILD_EPOCH="$(date +%s)" \
-  -t localhost/fedora-bootc-konica206 .
+./scripts/install-naps2-flatpak          # defaults to v8.6.0
+./scripts/install-naps2-flatpak 8.5.1    # or pin a specific release
 ```
 
-NAPS2 is deliberately different: it is pinned to an exact release tag, so it
-only changes when that pin is edited in the `Containerfile`.
+The script installs the bundle system-wide and then restores the two saved scan
+profiles — **Epson L3260 Series** and **Konica bizhub 206** — from
+`flatpak/naps2/profiles.xml`. The NAPS2 Flatpak declares
+`--filesystem=xdg-config/naps2`, so it reads the host's
+`~/.config/naps2/profiles.xml`; the script also writes a fallback copy into the
+app's private config dir (`~/.var/app/com.naps2.Naps2/config/naps2/`). It is
+idempotent and safe to re-run after an image update.
 
-ZapFast is tracked automatically: the weekly workflow resolves the latest
-GitHub release tag (`crmne/zapfast/releases/latest`) and passes it as
-`ZAPFAST_VERSION`. To pin a specific version, set the arg in `Containerfile`
-or override it in the workflow dispatch.
-
-On an installed system this is the *only* update path for NAPS2 and
-ZapFast: `/` is read-only, so `dnf upgrade zapfast` cannot change them.
-A new version arrives when a new image is published, is staged by
-`bootc-upgrade.timer`, and takes effect on the next reboot.
+`BUILD_EPOCH` is still accepted by the `Containerfile` so the weekly workflow's
+build arg stays valid, but it no longer controls any baked-in RPM. Flatpaks are
+updated daily by `flatpak-update.timer`; to move NAPS2 to a new release, re-run
+`scripts/install-naps2-flatpak` with the new version.
 
 ---
 
@@ -332,7 +341,9 @@ A new version arrives when a new image is published, is staged by
 5. Anaconda installs the bootc image referenced by the ISO. Create your own
    user (admin/wheel) and **set the root password** in the installer. **No user
    or password is baked into the image.**
-6. Reboot. greetd/tuigreet appears on VT1; log in with the user you created.
+6. Reboot. GDM appears and autologs into the GNOME Wayland session as `vinod`
+   (the image configures autologin for that user, so create the account with
+   that name in step 5).
 
 The installer pulls the image from GHCR. The GHCR package must be **public**
 for an unauthenticated install, or you must provide registry credentials in the
@@ -355,8 +366,9 @@ internet (it pulls the image, roughly 3.3 GiB compressed, from GHCR).
 5. **Install:** the payload is pulled by digest from
    `ghcr.io/vinod2807/fedora-bootc-konica206`; the installed system tracks
    `:latest` for `bootc upgrade`.
-6. **First boot:** log in at tuigreet (VT1) → labwc. Text fallback is
-   `Ctrl+Alt+F2` with the same user (or `root` + the root password you set).
+6. **First boot:** GDM autologs straight into GNOME (Wayland) as `vinod`. Text
+   fallback is `Ctrl+Alt+F2` with the same user (or `root` + the root password
+   you set).
    If the user account is unexpectedly missing, log in as `root` on that text
    console and run `useradd -m -G wheel -s /bin/bash <name>` then
    `passwd <name>`.
@@ -388,50 +400,29 @@ internet (it pulls the image, roughly 3.3 GiB compressed, from GHCR).
 
 ## First boot and login
 
-- **Graphical:** greetd starts on VT1, tuigreet asks for the user/password you
-  created during installation, then launches `labwc`.
-- **Panel:** **sfwbar** autostarts (`/usr/share/sfwbar/sfwbar.config`), in
-  openbox/tint2 style: an **Applications** button with a grid icon that opens a
-  categorised application
-  menu generated from the installed `.desktop` files, terminal and files
-  buttons, a window list (click = focus/minimise, middle-click = close,
-  right-click = window menu), tray, network, volume, battery and clock.
-  Window buttons and the window menu use the compositor's foreign-toplevel
-  protocol, so they track labwc windows directly.
-  The packaged sfwbar (1.0~beta16.1) has no `edge` setting: the bar is placed
-  at the bottom by `window { -GtkWidget-direction: bottom; }` in the CSS
-  section. Sizing/layout notes that matter when
-  editing `desktop/sfwbar/sfwbar.config`:
-  - comments inside the `#CSS` section must use slash-star form; a `#` comment
-    is an ID selector and makes GTK reject the whole stylesheet (the panel then
-    falls back to the light GTK theme);
-  - never put `-GtkWidget-hexpand: true` on the taskbar: the flow grid gives the
-    freed width to the window buttons and one window stretches across the bar.
-    A spacer label does the right-side alignment instead.
-- **Desktop menu:** right-click the desktop for Files, Terminal,
-  Text editor, Archive manager, Document viewer, a **Scanning** submenu, Volume,
-  Network and Session actions (`/etc/xdg/labwc/menu.xml`).
-- **Application menu:** the **Applications** button opens sfwbar's `app_menu_system`
-  menu, built from `/usr/share/applications` (so newly installed and Flatpak
-  apps appear automatically). `fuzzel` is still available as a keyboard
-  launcher (`fuzzel`, or `fuzzel dmenu` for stdin).
-- **Applications:** `mousepad` (text),
-  `xarchiver`, `pavucontrol`, `nm-connection-editor`, `foot` (terminal),
-  `weechat` (IRC/IRCv3 client in `foot`: upstream `Terminal=true` cannot be
-  launched by gio/sfwbar without a terminal emulator, so
-  `desktop/applications/weechat.desktop` overrides it to
-  `Exec=foot -e weechat %u, Terminal=false`).
-  Browsers, office suites and media players are Flatpaks (minimal bootc image).
-- **Scanning:** `simple-scan` and **NAPS2**, both backed by `sane-airscan` for
-  driverless eSCL/AirScan devices (the Epson L3260 scanner and most modern
-  network MFPs).
+- **Graphical:** GDM starts on VT1 and autologs into the GNOME Wayland session
+  as `vinod` (configured in `/etc/gdm/custom.conf`). The system-wide Adwaita
+  dark theme is applied through dconf.
+- **Shell:** the GNOME top bar and Activities overview provide the app grid,
+  window switching and the system menu (network, volume, power). `fuzzel`
+  remains available as a lightweight keyboard launcher (`fuzzel`, or
+  `fuzzel dmenu` for stdin).
+- **Applications:** GNOME Files, Text Editor, Archive Manager and the usual GNOME
+  utilities come from the `gnome-desktop` group. Custom launchers in
+  `desktop/applications/` add `konica-scan`, `fuzzel-printjobs`, `weechat` and
+  `mpv`. Browsers, office suites, media players, ZapFast and NAPS2 are Flatpaks.
+- **Scanning:** `simple-scan` and **NAPS2** (Flatpak), both backed by
+  `sane-airscan` for driverless eSCL/AirScan devices (the Epson L3260 scanner
+  and most modern network MFPs). The NAPS2 Flatpak cannot load third-party
+  SANE backends, so use `simple-scan` for the Konica `ar206` USB scanner.
 - **Flatpak:** `flatpak` and the Flathub remote are ready; install apps with
-  `flatpak install flathub <app-id>` and run them from the launcher. Installed
-  Flatpaks update themselves daily (see *Automatic Flatpak updates*).
+  `flatpak install flathub <app-id>` and run them from the launcher. NAPS2 is
+  sideloaded with `./scripts/install-naps2-flatpak`. Installed Flatpaks update
+  themselves daily (see *Automatic Flatpak updates*).
 - **GitHub CLI:** `gh` is installed (`gh auth login`, `gh repo clone …`,
   `gh workflow run …`).
-- **Text fallback:** `Ctrl+Alt+F2` gives a text login. From there, run `labwc`
-  to start the Wayland session manually.
+- **Text fallback:** `Ctrl+Alt+F2` gives a text login with the same user or
+  `root`; GNOME can be started manually from there with `systemctl start gdm`.
 - **Audio:** PipeWire, WirePlumber and `pipewire-pulseaudio` are enabled for
   users. Use `wpctl status` / `wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+`.
 - **Networking:** NetworkManager is enabled. Use `nmcli device status` and
@@ -892,13 +883,21 @@ lpadmin -d EPSON_L3260
 ### Scanner (L3260 and other network MFPs)
 
 `sane-airscan` talks to the scanner over eSCL/AirScan without a vendor driver;
-`simple-scan` and NAPS2 are the front-ends. The L3260 exposes scanning on the
-same host as printing:
+`simple-scan` and the NAPS2 Flatpak are the front-ends. The L3260 exposes
+scanning on the same host as printing:
 
 ```bash
 scanimage -L                  # should list eSCL/AirScan devices
 simple-scan                   # or launch NAPS2 from the menu
 ```
+
+The two saved profiles (**Epson L3260 Series**, **Konica bizhub 206**) are
+restored by `scripts/install-naps2-flatpak` and live in
+`~/.config/naps2/profiles.xml`, which the Flatpak reads through its
+`--filesystem=xdg-config/naps2` permission. The Epson profile uses the bundled
+`airscan` backend and works in the Flatpak; the Konica profile uses the
+third-party `ar206` backend, which the Flatpak sandbox cannot load — use
+`simple-scan` (or the Konica Scan desktop helper) for that device.
 
 If nothing is listed, check that `avahi-daemon` is running (mDNS discovery) and
 that the printer is on the same L2 network; `scanimage --test` then verifies a
@@ -1008,7 +1007,7 @@ machine. It is updated after workflow runs.
 | ISO El Torito BIOS metadata | **Passed** — `build-iso` run [40688027094](https://github.com/vinod2807/fedora-bootc-konica206/actions/runs/40688027094): `-b '/images/eltorito.img'`, `Boot record: El Torito, grub2-mbr, GPT` |
 | ISO boots under QEMU SeaBIOS to Linux userspace | **Passed** — same run; serial log reaches the Anaconda installer UI |
 | Full BIOS installation on real hardware | **Passed** — installed on the i5-650 desktop (BIOS boot, NTFS partition preserved) |
-| Graphical login (greetd → labwc → sfwbar) on real hardware | **Passed** — graphical session in daily use |
+| Graphical login (GDM autologin → GNOME Wayland) on real hardware | **Passed** — graphical session in daily use |
 | Real USB printing on bizhub 206 | **Passed** — real A4 simplex job printed from the `konica206` queue (2026-10-28) |
 | Printer works with vendor assets installed | **Passed** — same job, licensed runtime data installed |
 | Duplex, A3 and other media sizes on real paper | **Not tested** — options are present and selectable, but only A4 simplex has been printed |

@@ -1,0 +1,52 @@
+#!/bin/bash
+# Install the NAPS2 scanning front-end as a Flatpak from the official
+# cyanfish/naps2 GitHub release, then restore the Epson and Konica scan
+# profiles.
+#
+# NAPS2 is not published on Flathub, so the release's .flatpak bundle is
+# sideloaded. Flatpak's system state lives under /var/lib/flatpak, which bootc
+# does not bake into the image, so this runs on the installed machine rather
+# than at image build time.
+#
+# Usage: ./scripts/install-naps2-flatpak [VERSION]   (default: 8.6.0)
+# sudo is used only for the system-wide Flatpak install/uninstall.
+set -euo pipefail
+
+APP_ID=com.naps2.Naps2
+VERSION=${1:-8.6.0}
+
+case "$(uname -m)" in
+    x86_64)  FLATPAK_ARCH=x64 ;;
+    aarch64) FLATPAK_ARCH=arm64 ;;
+    *) printf 'Unsupported architecture: %s\n' "$(uname -m)" >&2; exit 1 ;;
+esac
+
+# flatpak install fails with "already installed", so skip when the pinned
+# version is already present and replace it cleanly when it differs. Re-running
+# after an image update is safe and does not need a writable sideload origin.
+INSTALLED_VERSION=$(flatpak list --app --columns=application,version 2>/dev/null \
+    | awk -F '\t' -v id="$APP_ID" '$1 == id { print $2 }')
+
+if [ "$INSTALLED_VERSION" != "$VERSION" ]; then
+    URL="https://github.com/cyanfish/naps2/releases/download/v${VERSION}/naps2-${VERSION}-linux-${FLATPAK_ARCH}.flatpak"
+    BUNDLE=$(mktemp --suffix=.flatpak)
+    trap 'rm -f "$BUNDLE"' EXIT
+    curl -fL --retry 3 --retry-delay 5 -o "$BUNDLE" "$URL"
+
+    if [ -n "$INSTALLED_VERSION" ]; then
+        sudo flatpak uninstall --system -y --noninteractive "$APP_ID"
+    fi
+    sudo flatpak install --system --noninteractive "$BUNDLE"
+else
+    printf 'NAPS2 %s already installed; skipping Flatpak install.\n' "$VERSION"
+fi
+
+# The NAPS2 Flatpak declares --filesystem=xdg-config/naps2, so it reads the
+# host's ~/.config/naps2 as its config directory. Restore the profiles there,
+# and also into the app's private config dir as a fallback in case that
+# permission is ever dropped upstream.
+PROFILES_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/flatpak/naps2/profiles.xml"
+install -D -m 0644 "$PROFILES_SRC" "$HOME/.config/naps2/profiles.xml"
+install -D -m 0644 "$PROFILES_SRC" "$HOME/.var/app/${APP_ID}/config/naps2/profiles.xml"
+
+printf 'NAPS2 %s ready; Epson L3260 and Konica bizhub 206 profiles restored.\n' "$VERSION"

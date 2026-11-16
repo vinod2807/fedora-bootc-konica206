@@ -40,7 +40,7 @@ ARG KONICA_APP_REF=main
 ARG KONICA_NATIVE_REF=main
 ARG KONICA_RETROFIT_REF=main
 
-# (ZapFast intentionally not installed as RPM; prefer Flatpak if/when available.)
+# (ZapFast and NAPS2 are intentionally not installed as RPMs; use Flatpak.)
 
 # ---------------------------------------------------------------------------
 # Build the printer application and the native encoder.
@@ -220,12 +220,11 @@ ARG KONICA_APP_REF=main
 ARG KONICA_NATIVE_REF=main
 ARG KONICA_RETROFIT_REF=main
 
-# (ZapFast intentionally not installed as RPM; prefer Flatpak if/when available.)
+# (ZapFast and NAPS2 are intentionally not installed as RPMs; use Flatpak.)
 
-# Buys a fresh resolution of the third-party app layer below (see the
-# "Third-party desktop applications" section). Bump it for a local rebuild that
-# must fetch the current ONLYOFFICE RPM; the weekly workflow passes a unique
-# value per run.
+# Retained so the weekly workflow's build arg stays valid. Third-party apps are
+# now installed as Flatpaks at runtime (see "Third-party desktop applications"
+# below), so this no longer needs bumping to refresh a baked-in RPM.
 ARG BUILD_EPOCH=local
 
 LABEL org.opencontainers.image.title="Fedora bootc - GNOME + Konica bizhub 206" \
@@ -272,17 +271,14 @@ RUN set -eux; \
         libsecret \
     && dnf clean all
 
-# Third-party desktop applications, from their vendor repository / official
-# release assets. Kept in their own layer so a failure is isolated:
-#   - NAPS2: official GitHub release asset, pinned to an exact version.
-#
-# BUILD_EPOCH busts this layer's cache: the weekly workflow passes the run id,
-# so NAPS2 is re-resolved from GitHub on every published image.
-# --refresh additionally expires any metadata that survived into a partial cache.
+# Third-party desktop applications are installed as Flatpaks at runtime, not
+# baked into this image: Flatpak's system state lives under /var/lib/flatpak,
+# which bootc excludes from the image (it behaves like a Docker VOLUME and is
+# seeded only at first install). NAPS2 in particular is sideloaded from the
+# official GitHub release asset by scripts/install-naps2-flatpak; that script
+# also restores the Epson and Konica scan profiles. See README.md.
 RUN set -eux; \
-    echo "resolving third-party apps (cache epoch: ${BUILD_EPOCH})"; \
-    dnf install -y \
-        https://github.com/cyanfish/naps2/releases/download/v8.6.0/naps2-8.6.0-linux-x64.rpm; \
+    echo "no RPM-based third-party apps (cache epoch: ${BUILD_EPOCH})"; \
     dnf clean all
 
 # Epson Printer Utility for Linux is only distributed through Epson's download

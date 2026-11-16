@@ -11,18 +11,21 @@ set -u
 
 UNIT=container-podman-cups-server.service
 
-# Pick a scan application: explicit arg, else NAPS2, else simple-scan.
+# Pick a scan application: explicit arg, else the NAPS2 Flatpak, the legacy
+# naps2 binary (older images), else simple-scan.
 if [ "${1:-}" = "" ]; then
-    if command -v naps2 >/dev/null 2>&1; then
-        APP=naps2
+    if flatpak info com.naps2.Naps2 >/dev/null 2>&1; then
+        APP=(flatpak run com.naps2.Naps2)
+    elif command -v naps2 >/dev/null 2>&1; then
+        APP=(naps2)
     elif command -v simple-scan >/dev/null 2>&1; then
-        APP=simple-scan
+        APP=(simple-scan)
     else
-        printf 'No scan application found (naps2 or simple-scan).\n' >&2
+        printf 'No scan application found (naps2 flatpak or simple-scan).\n' >&2
         exit 1
     fi
 else
-    APP="$1"
+    APP=("$1")
     shift
 fi
 
@@ -50,7 +53,7 @@ trap cleanup EXIT INT TERM HUP
 printf 'Stopping Konica Podman CUPS container to free USB for scanning...\n'
 stop_container
 
-printf 'Launching %s...\n' "$APP"
-"$APP" "$@"
+printf 'Launching %s...\n' "${APP[*]}"
+"${APP[@]}" "$@"
 rc=$?
 exit "$rc"
