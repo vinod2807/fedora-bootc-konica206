@@ -273,6 +273,17 @@ RUN set -eux; \
         gvfs-smb \
         hicolor-icon-theme \
         labwc \
+        lxqt-wayland-session \
+        lxqt-session \
+        lxqt-panel \
+        lxqt-config \
+        lxqt-qtplugin \
+        lxqt-notificationd \
+        lxqt-policykit \
+        lxqt-runner \
+        lxqt-powermanagement \
+        pcmanfm-qt \
+        qterminal \
         legacy-printer-app \
         libusb1 \
         lxpolkit \
@@ -463,6 +474,10 @@ RUN set -eux; \
     update-desktop-database /usr/share/applications; \
     chmod 0755 /etc/xdg/labwc/autostart; \
     chmod 0644 /etc/xdg/labwc/rc.xml; \
+    # LXQt Wayland session: prefer labwc as the compositor.
+    install -d -m 0755 /etc/xdg/lxqt-wayland; \
+    printf '%s\n' '[General]' 'compositor=labwc' > /etc/xdg/lxqt-wayland/session.conf; \
+    chmod 0644 /etc/xdg/lxqt-wayland/session.conf; \
     ln -sf /usr/libexec/konica206/install-vendor-data /usr/bin/konica206-install-vendor-data; \
     ln -sf /usr/libexec/konica206/preflight /usr/bin/konica206-preflight; \
     install -d -m 0755 /usr/share/konica206
