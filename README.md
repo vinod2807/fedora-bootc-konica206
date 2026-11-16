@@ -101,7 +101,7 @@ smbclient -L localhost -U vinod
 | `.github/iso/iso.yaml` | GRUB/ISO label and kernel command line for the installer media |
 | `systemd/` | Printer/queue units, the stage-only (never reboots) bootc update timer, and the daily Flatpak update timers (system + user) |
 | `udev/70-konica206.rules` | USB permissions for `132b:232b` (group `lp`, `uaccess`) |
-| `greetd/config.toml` | tuigreet → labwc login session |
+| `greetd/config.toml` | tuigreet → LXQt Wayland session (labwc compositor), with autologin for vinod |
 | `desktop/` | labwc autostart/environment/menu, sfwbar panel config |
 | `scripts/install-vendor-data` | Post-install installer for the licensed Konica runtime data |
 | `scripts/ensure-queue` | Creates the PAPPL queue and the local CUPS queue with the PPD shim |

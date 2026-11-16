@@ -194,7 +194,8 @@ jobs:
             /usr/bin/foot --version
             /usr/bin/tuigreet --version
             test -f /etc/greetd/config.toml
-            grep -q "tuigreet --time --remember --cmd /usr/bin/labwc" /etc/greetd/config.toml
+            grep -q "tuigreet --time --remember --cmd /usr/bin/startlxqtwayland" /etc/greetd/config.toml
+            test -x /usr/bin/startlxqtwayland
             test -f /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
             grep -q "intel_idle.max_cstate=1" /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
             # GRUB menu must pause so an older deployment can be selected.
