@@ -59,29 +59,6 @@ jobs:
             echo "- konica-retrofit: \`$retrofit\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Resolve latest ZapFast release
-        id: zapfast
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          # Get the latest release tag (not pre-release) from GitHub API
-          tag=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" \
-            "https://api.github.com/repos/crmne/zapfast/releases/latest" \
-            | jq -r '.tag_name')
-          if [[ ! $tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Could not resolve ZapFast release tag (got '$tag')"
-            exit 1
-          fi
-          {
-            echo "version=$tag"
-          } >> "$GITHUB_OUTPUT"
-          {
-            echo "### ZapFast"
-            echo "- version: \`$tag\`"
-          } >> "$GITHUB_STEP_SUMMARY"
-
       - name: Set lower-case image name
         shell: bash
         run: echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
@@ -133,7 +110,6 @@ jobs:
             KONICA_APP_REF=${{ steps.refs.outputs.app }}
             KONICA_NATIVE_REF=${{ steps.refs.outputs.native }}
             KONICA_RETROFIT_REF=${{ steps.refs.outputs.retrofit }}
-            ZAPFAST_VERSION=${{ steps.zapfast.outputs.version }}
           cache-from: type=gha,scope=bootc-image
           cache-to: type=gha,mode=max,scope=bootc-image
           provenance: false
@@ -159,9 +135,8 @@ jobs:
             # fuzzel-printjobs desktop helper remains available.
             grep -qx "Terminal=false" /usr/share/applications/weechat.desktop
             desktop-file-validate /usr/share/applications/weechat.desktop
-            rpm -q zapfast >/dev/null
             test -f /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
-            for b in /usr/bin/konica206-native /usr/bin/konica-native /usr/bin/konica-send /usr/bin/zapfast /usr/bin/gnome-shell; do
+            for b in /usr/bin/konica206-native /usr/bin/konica-native /usr/bin/konica-send /usr/bin/gnome-shell; do
               test -x "$b"
             done
             /usr/bin/konica206-native --version
@@ -277,7 +252,6 @@ jobs:
             KONICA_APP_REF=${{ steps.refs.outputs.app }}
             KONICA_NATIVE_REF=${{ steps.refs.outputs.native }}
             KONICA_RETROFIT_REF=${{ steps.refs.outputs.retrofit }}
-            ZAPFAST_VERSION=${{ steps.zapfast.outputs.version }}
           cache-from: type=gha,scope=bootc-image
           # Build goes to a tar (not directly to the registry) so the next
           # step can rechunk it. Only the rechunked image is published.

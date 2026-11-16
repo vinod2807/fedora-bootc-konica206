@@ -40,9 +40,7 @@ ARG KONICA_APP_REF=main
 ARG KONICA_NATIVE_REF=main
 ARG KONICA_RETROFIT_REF=main
 
-# ZapFast version to install from GitHub releases. Bump for a new release; the
-# weekly workflow resolves the latest tag automatically.
-ARG ZAPFAST_VERSION=v0.20.1
+# (ZapFast intentionally not installed as RPM; prefer Flatpak if/when available.)
 
 # ---------------------------------------------------------------------------
 # Build the printer application and the native encoder.
@@ -222,9 +220,7 @@ ARG KONICA_APP_REF=main
 ARG KONICA_NATIVE_REF=main
 ARG KONICA_RETROFIT_REF=main
 
-# ZapFast version to install from GitHub releases. Bump for a new release; the
-# weekly workflow can resolve the latest tag automatically.
-ARG ZAPFAST_VERSION=v0.20.1
+# (ZapFast intentionally not installed as RPM; prefer Flatpak if/when available.)
 
 # Buys a fresh resolution of the third-party app layer below (see the
 # "Third-party desktop applications" section). Bump it for a local rebuild that
@@ -269,23 +265,24 @@ RUN set -eux; \
         zram-generator \
         weechat \
     && dnf group install -y --setopt=install_weak_deps=False gnome-desktop \
-    && dnf install -y --setopt=install_weak_deps=False gnome-tweaks \
+    && dnf install -y --setopt=install_weak_deps=False \
+        gnome-tweaks \
+        gnome-keyring \
+        gnome-keyring-pam \
+        libsecret \
     && dnf clean all
 
 # Third-party desktop applications, from their vendor repository / official
 # release assets. Kept in their own layer so a failure is isolated:
 #   - NAPS2: official GitHub release asset, pinned to an exact version.
-#   - ZapFast: official GitHub release asset, version from ZAPFAST_VERSION arg.
 #
 # BUILD_EPOCH busts this layer's cache: the weekly workflow passes the run id,
-# so NAPS2/ZapFast are re-resolved from GitHub on every published image.
+# so NAPS2 is re-resolved from GitHub on every published image.
 # --refresh additionally expires any metadata that survived into a partial cache.
 RUN set -eux; \
     echo "resolving third-party apps (cache epoch: ${BUILD_EPOCH})"; \
     dnf install -y \
         https://github.com/cyanfish/naps2/releases/download/v8.6.0/naps2-8.6.0-linux-x64.rpm; \
-    dnf install -y \
-        https://github.com/crmne/zapfast/releases/download/${ZAPFAST_VERSION}/zapfast-${ZAPFAST_VERSION#v}-1.x86_64.rpm; \
     dnf clean all
 
 # Epson Printer Utility for Linux is only distributed through Epson's download
