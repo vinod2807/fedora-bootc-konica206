@@ -410,6 +410,26 @@ RUN set -eux; \
         '[debug]' \
         > /etc/gdm/custom.conf; \
     chmod 0644 /etc/gdm/custom.conf; \
+    # System-wide dark theme default (GNOME/Adwaita).
+    install -d -m 0755 /etc/dconf/db/local.d /etc/dconf/db/local.d/locks; \
+    printf '%s\n' \
+        '[org/gnome/desktop/interface]' \
+        "color-scheme='prefer-dark'" \
+        > /etc/dconf/db/local.d/00-dark-theme; \
+    printf '%s\n' \
+        '/org/gnome/desktop/interface/color-scheme' \
+        > /etc/dconf/db/local.d/locks/00-dark-theme-lock; \
+    chmod 0644 /etc/dconf/db/local.d/00-dark-theme /etc/dconf/db/local.d/locks/00-dark-theme-lock; \
+    # GTK theme defaults for non-GNOME apps.
+    printf '%s\n' 'gtk-theme-name=Adwaita-dark' > /etc/gtk-3.0/settings.ini 2>/dev/null || true; \
+    install -d -m 0755 /etc/gtk-3.0; \
+    printf '%s\n' \
+        '[Settings]' \
+        'gtk-theme-name=Adwaita-dark' \
+        'gtk-icon-theme-name=Adwaita' \
+        > /etc/gtk-3.0/settings.ini; \
+    chmod 0644 /etc/gtk-3.0/settings.ini; \
+    dconf update; \
     ln -sf /usr/libexec/konica206/install-vendor-data /usr/bin/konica206-install-vendor-data; \
     ln -sf /usr/libexec/konica206/preflight /usr/bin/konica206-preflight; \
     install -d -m 0755 /usr/share/konica206
