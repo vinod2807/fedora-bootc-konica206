@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1.7
 #
 # Fedora bootc image with:
-#   - Labwc / Waybar / Foot Wayland desktop + greetd/tuigreet login
-#   - fuzzel-printjobs desktop helper (CUPS job cancel/restart, W-e)
+#   - Full GNOME desktop (Wayland) with GDM login (autologin configured)
+#   - fuzzel-printjobs desktop helper (CUPS job cancel/restart)
 #   - Konica Minolta bizhub 206 PAPPL printer application
 #   - konica-native (C11) device-stream encoder
 #   - konica-retrofit CUPS integration assets (USB queue-presence watcher and
@@ -211,7 +211,7 @@ RUN set -eux; \
 # /out/final-root tree, so the final stage needs only ONE copy layer (avoids
 # the overlay2 128-layer depth limit).
 COPY . /tmp/ctx
-RUN set -eux;     r=/out/final-root;     rm -rf "$r";     install -d "$r";     cp -a /out/retrofit-root/. "$r"/;     mkdir -p "$r"/usr;     cp -a /out/usr/. "$r"/usr/;     install -D -m 0644 /tmp/ctx/bootc/90-linux-pc-crash-fixes.toml "$r"/usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml;     install -D -m 0644 /tmp/ctx/modprobe.d/90-linux-pc-crash-fixes.conf "$r"/etc/modprobe.d/90-linux-pc-crash-fixes.conf;     install -D -m 0644 /tmp/ctx/modprobe.d/90-konica206-usblp.conf "$r"/etc/modprobe.d/90-konica206-usblp.conf;     install -D -m 0644 /tmp/ctx/systemd/konica206-native.service "$r"/usr/lib/systemd/system/konica206-native.service;     install -D -m 0644 /tmp/ctx/systemd/konica206-queue.service "$r"/usr/lib/systemd/system/konica206-queue.service;     install -D -m 0644 /tmp/ctx/systemd/epson-l3260-queue.service "$r"/usr/lib/systemd/system/epson-l3260-queue.service;     install -D -m 0644 /tmp/ctx/systemd/konica206-classic-queue.service "$r"/usr/lib/systemd/system/konica206-classic-queue.service;     install -D -m 0644 /tmp/ctx/systemd/samba-setup.service "$r"/usr/lib/systemd/system/samba-setup.service;     install -D -m 0644 /tmp/ctx/systemd/nmb.service.d/10-wait-for-interface.conf "$r"/usr/lib/systemd/system/nmb.service.d/10-wait-for-interface.conf;     install -D -m 0644 /tmp/ctx/systemd/bootc-upgrade.service "$r"/usr/lib/systemd/system/bootc-upgrade.service;     install -D -m 0644 /tmp/ctx/systemd/bootc-upgrade.timer "$r"/usr/lib/systemd/system/bootc-upgrade.timer;     install -D -m 0644 /tmp/ctx/systemd/flatpak-update.service "$r"/usr/lib/systemd/system/flatpak-update.service;     install -D -m 0644 /tmp/ctx/systemd/flatpak-update.timer "$r"/usr/lib/systemd/system/flatpak-update.timer;     install -D -m 0644 /tmp/ctx/systemd/user/flatpak-update.service "$r"/usr/lib/systemd/user/flatpak-update.service;     install -D -m 0644 /tmp/ctx/systemd/user/flatpak-update.timer "$r"/usr/lib/systemd/user/flatpak-update.timer;     install -D -m 0644 /tmp/ctx/systemd/zram-generator.conf "$r"/etc/systemd/zram-generator.conf;     install -D -m 0644 /tmp/ctx/systemd/zram-setup-no-fail-on-stop.conf "$r"/usr/lib/systemd/system/systemd-zram-setup@zram0.service.d/10-no-fail-on-stop.conf;     install -D -m 0644 /tmp/ctx/udev/70-konica206.rules "$r"/usr/lib/udev/rules.d/70-konica206.rules;     install -D -m 0644 /tmp/ctx/greetd/config.toml "$r"/etc/greetd/config.toml;     install -D -m 0644 /tmp/ctx/greetd/pam.d/greetd "$r"/etc/pam.d/greetd;     install -D -m 0755 /tmp/ctx/desktop/labwc/autostart "$r"/etc/xdg/labwc/autostart;     install -D -m 0644 /tmp/ctx/desktop/labwc/environment "$r"/etc/xdg/labwc/environment;     install -D -m 0644 /tmp/ctx/desktop/labwc/menu.xml "$r"/etc/xdg/labwc/menu.xml;     install -D -m 0644 /tmp/ctx/desktop/labwc/rc.xml "$r"/etc/xdg/labwc/rc.xml;     for f in /tmp/ctx/desktop/applications/*.desktop; do install -D -m 0644 "$f" "$r"/usr/share/applications/"$(basename "$f")"; done;     install -D -m 0755 /tmp/ctx/scripts/fuzzel-printjobs "$r"/usr/local/bin/fuzzel-printjobs;     install -D -m 0755 /tmp/ctx/scripts/konica-scan "$r"/usr/local/bin/konica-scan;     install -D -m 0644 /tmp/ctx/desktop/sfwbar/sfwbar.config "$r"/usr/share/sfwbar/sfwbar.config;     install -D -m 0755 /tmp/ctx/scripts/install-vendor-data "$r"/usr/libexec/konica206/install-vendor-data;     install -D -m 0755 /tmp/ctx/scripts/ensure-queue "$r"/usr/libexec/konica206/ensure-queue;     install -D -m 0755 /tmp/ctx/scripts/preflight "$r"/usr/libexec/konica206/preflight;     install -D -m 0755 /tmp/ctx/scripts/ensure-epson-queue "$r"/usr/libexec/epson-l3260/ensure-queue;     install -D -m 0755 /tmp/ctx/scripts/ensure-classic-queue "$r"/usr/libexec/konica206/ensure-classic-queue;     install -D -m 0755 /tmp/ctx/scripts/setup-samba "$r"/usr/libexec/setup-samba;     install -D -m 0644 /tmp/ctx/samba/smb.conf "$r"/etc/samba/smb.conf;     install -D -m 0644 /tmp/ctx/flatpak/overrides/com.stremio.Stremio "$r"/etc/flatpak/overrides/com.stremio.Stremio;     install -D -m 0644 /tmp/ctx/ppd/konica206.ppd "$r"/usr/share/ppd/konica206/konica206.ppd; install -D -m 0644 /tmp/ctx/ppd/konica206-classic.ppd "$r"/usr/share/ppd/konica206/konica206-classic.ppd; { cat /tmp/ctx/ppd/konica206.ppd; printf '\n*cupsFilter2: "application/pdf image/urf 5 /usr/libexec/konica206/pdf-duplex-shim"\n'; } > "$r"/usr/share/ppd/konica206/konica206-app.ppd; grep -qxF '*cupsFilter2: "application/pdf image/urf 5 /usr/libexec/konica206/pdf-duplex-shim"' "$r"/usr/share/ppd/konica206/konica206-app.ppd; install -D -m 0755 /tmp/ctx/scripts/pdf-duplex-shim "$r"/usr/libexec/konica206/pdf-duplex-shim; install -D -m 0755 /tmp/ctx/scripts/konica-vendor-data-boot "$r"/usr/libexec/konica206/install-vendor-data-onboot; install -D -m 0644 /tmp/ctx/systemd/konica206-vendor-data.service "$r"/usr/lib/systemd/system/konica206-vendor-data.service; install -D -m 0644 /tmp/ctx/systemd/konica206-vendor-data.conf "$r"/etc/konica206/vendor-data.conf; test -d "$r"/usr/share/konica206
+RUN set -eux;     r=/out/final-root;     rm -rf "$r";     install -d "$r";     cp -a /out/retrofit-root/. "$r"/;     mkdir -p "$r"/usr;     cp -a /out/usr/. "$r"/usr/;     install -D -m 0644 /tmp/ctx/bootc/90-linux-pc-crash-fixes.toml "$r"/usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml;     install -D -m 0644 /tmp/ctx/modprobe.d/90-linux-pc-crash-fixes.conf "$r"/etc/modprobe.d/90-linux-pc-crash-fixes.conf;     install -D -m 0644 /tmp/ctx/modprobe.d/90-konica206-usblp.conf "$r"/etc/modprobe.d/90-konica206-usblp.conf;     install -D -m 0644 /tmp/ctx/systemd/konica206-native.service "$r"/usr/lib/systemd/system/konica206-native.service;     install -D -m 0644 /tmp/ctx/systemd/konica206-queue.service "$r"/usr/lib/systemd/system/konica206-queue.service;     install -D -m 0644 /tmp/ctx/systemd/epson-l3260-queue.service "$r"/usr/lib/systemd/system/epson-l3260-queue.service;     install -D -m 0644 /tmp/ctx/systemd/konica206-classic-queue.service "$r"/usr/lib/systemd/system/konica206-classic-queue.service;     install -D -m 0644 /tmp/ctx/systemd/samba-setup.service "$r"/usr/lib/systemd/system/samba-setup.service;     install -D -m 0644 /tmp/ctx/systemd/nmb.service.d/10-wait-for-interface.conf "$r"/usr/lib/systemd/system/nmb.service.d/10-wait-for-interface.conf;     install -D -m 0644 /tmp/ctx/systemd/bootc-upgrade.service "$r"/usr/lib/systemd/system/bootc-upgrade.service;     install -D -m 0644 /tmp/ctx/systemd/bootc-upgrade.timer "$r"/usr/lib/systemd/system/bootc-upgrade.timer;     install -D -m 0644 /tmp/ctx/systemd/flatpak-update.service "$r"/usr/lib/systemd/system/flatpak-update.service;     install -D -m 0644 /tmp/ctx/systemd/flatpak-update.timer "$r"/usr/lib/systemd/system/flatpak-update.timer;     install -D -m 0644 /tmp/ctx/systemd/user/flatpak-update.service "$r"/usr/lib/systemd/user/flatpak-update.service;     install -D -m 0644 /tmp/ctx/systemd/user/flatpak-update.timer "$r"/usr/lib/systemd/user/flatpak-update.timer;     install -D -m 0644 /tmp/ctx/systemd/zram-generator.conf "$r"/etc/systemd/zram-generator.conf;     install -D -m 0644 /tmp/ctx/systemd/zram-setup-no-fail-on-stop.conf "$r"/usr/lib/systemd/system/systemd-zram-setup@zram0.service.d/10-no-fail-on-stop.conf;     install -D -m 0644 /tmp/ctx/udev/70-konica206.rules "$r"/usr/lib/udev/rules.d/70-konica206.rules;     for f in /tmp/ctx/desktop/applications/*.desktop; do install -D -m 0644 "$f" "$r"/usr/share/applications/"$(basename "$f")"; done;     install -D -m 0755 /tmp/ctx/scripts/fuzzel-printjobs "$r"/usr/local/bin/fuzzel-printjobs;     install -D -m 0755 /tmp/ctx/scripts/konica-scan "$r"/usr/local/bin/konica-scan;     install -D -m 0755 /tmp/ctx/scripts/install-vendor-data "$r"/usr/libexec/konica206/install-vendor-data;     install -D -m 0755 /tmp/ctx/scripts/ensure-queue "$r"/usr/libexec/konica206/ensure-queue;     install -D -m 0755 /tmp/ctx/scripts/preflight "$r"/usr/libexec/konica206/preflight;     install -D -m 0755 /tmp/ctx/scripts/ensure-epson-queue "$r"/usr/libexec/epson-l3260/ensure-queue;     install -D -m 0755 /tmp/ctx/scripts/ensure-classic-queue "$r"/usr/libexec/konica206/ensure-classic-queue;     install -D -m 0755 /tmp/ctx/scripts/setup-samba "$r"/usr/libexec/setup-samba;     install -D -m 0644 /tmp/ctx/samba/smb.conf "$r"/etc/samba/smb.conf;     install -D -m 0644 /tmp/ctx/flatpak/overrides/com.stremio.Stremio "$r"/etc/flatpak/overrides/com.stremio.Stremio;     install -D -m 0644 /tmp/ctx/ppd/konica206.ppd "$r"/usr/share/ppd/konica206/konica206.ppd; install -D -m 0644 /tmp/ctx/ppd/konica206-classic.ppd "$r"/usr/share/ppd/konica206/konica206-classic.ppd; { cat /tmp/ctx/ppd/konica206.ppd; printf '\n*cupsFilter2: "application/pdf image/urf 5 /usr/libexec/konica206/pdf-duplex-shim"\n'; } > "$r"/usr/share/ppd/konica206/konica206-app.ppd; grep -qxF '*cupsFilter2: "application/pdf image/urf 5 /usr/libexec/konica206/pdf-duplex-shim"' "$r"/usr/share/ppd/konica206/konica206-app.ppd; install -D -m 0755 /tmp/ctx/scripts/pdf-duplex-shim "$r"/usr/libexec/konica206/pdf-duplex-shim; install -D -m 0755 /tmp/ctx/scripts/konica-vendor-data-boot "$r"/usr/libexec/konica206/install-vendor-data-onboot; install -D -m 0644 /tmp/ctx/systemd/konica206-vendor-data.service "$r"/usr/lib/systemd/system/konica206-vendor-data.service; install -D -m 0644 /tmp/ctx/systemd/konica206-vendor-data.conf "$r"/etc/konica206/vendor-data.conf; test -d "$r"/usr/share/konica206
 
 # ---------------------------------------------------------------------------
 # Final bootc image.
@@ -232,8 +232,8 @@ ARG ZAPFAST_VERSION=v0.20.1
 # value per run.
 ARG BUILD_EPOCH=local
 
-LABEL org.opencontainers.image.title="Fedora bootc - Labwc + Konica bizhub 206" \
-      org.opencontainers.image.description="Fedora bootc (base follows :latest), Linux/amd64, Labwc/Waybar/Foot desktop, PAPPL printer application with the konica-native C11 encoder" \
+LABEL org.opencontainers.image.title="Fedora bootc - GNOME + Konica bizhub 206" \
+      org.opencontainers.image.description="Fedora bootc (base follows :latest), Linux/amd64, full GNOME desktop (GDM), PAPPL printer application with the konica-native C11 encoder" \
       org.opencontainers.image.source="https://github.com/vinod2807/fedora-bootc-konica206" \
       org.opencontainers.image.licenses="NOASSERTION" \
       org.vinod2807.konica.app-ref="${KONICA_APP_REF}" \
@@ -244,103 +244,31 @@ LABEL org.opencontainers.image.title="Fedora bootc - Labwc + Konica bizhub 206" 
 RUN set -eux; \
     dnf -y upgrade --refresh; \
     dnf install -y --setopt=install_weak_deps=False \
-        adwaita-cursor-theme \
-        adwaita-icon-theme \
         avahi \
         cups \
         cups-filters \
         dbus-daemon \
-        default-fonts \
         desktop-file-utils \
         flatpak \
         gh \
-        gh \
-        foot \
-        fuse \
-        fuse-libs \
-        fuzzel \
         fastfetch \
         ghostscript \
-        gnome-keyring \
-        gnome-keyring-pam \
-        greetd \
-        grim \
-        gvfs \
-        gvfs-fuse \
-        gvfs-gphoto2 \
-        gvfs-mtp \
-        gvfs-smb \
-        hicolor-icon-theme \
-        labwc \
-        lxqt-wayland-session \
-        lxqt-session \
-        lxqt-panel \
-        lxqt-config \
-        lxqt-qtplugin \
-        lxqt-notificationd \
-        lxqt-policykit \
-        lxqt-runner \
-        lxqt-powermanagement \
-        pcmanfm-qt \
-        qterminal \
-        lxqt-themes \
-        papirus-icon-theme \
-        kvantum \
+        fuzzel \
         legacy-printer-app \
         libusb1 \
-        lxpolkit \
         mesa-dri-drivers \
         mesa-libEGL \
         mesa-vulkan-drivers \
-        alsa-lib \
-        libxkbcommon \
-        vulkan-loader \
-        mousepad \
-        NetworkManager-wifi \
-        nm-connection-editor \
         pappl \
-        pavucontrol \
-        Thunar \
-        pipewire \
-        pipewire-pulseaudio \
         policycoreutils-python-utils \
-        qt5-qtbase-gui \
         sane-airscan \
         samba \
         samba-client \
-        sfwbar \
-        simple-scan \
-        slurp \
-        swaybg \
-        tuigreet \
-        udiskie \
         usbutils \
-        wdisplays \
-        weechat \
-        wl-clipboard \
-        wob \
-        wpa_supplicant \
-        xarchiver \
-        xdg-desktop-portal \
-        xdg-desktop-portal-gtk \
-        xdg-desktop-portal-wlr \
-        xdg-user-dirs \
-        xdg-utils \
         xorg-x11-server-Xwayland \
-        zip \
         zram-generator \
-        mako \
-        swayidle \
-        brightnessctl \
-        flatseal \
-        network-manager-applet \
-        NetworkManager-openconnect \
-        NetworkManager-openvpn \
-    # xfce4-panel ships with Thunar's libxfce4panel dep; hide its
-    # Settings entries (Panel) that labwc/sfwbar ignore. The package
-    # itself must stay, only the menu entries go.
-    && rm -f /usr/share/applications/panel-preferences.desktop \
-             /usr/share/applications/panel-desktop-handler.desktop \
+        weechat \
+    && dnf group install -y --setopt=install_weak_deps=False gnome-desktop \
     && dnf clean all
 
 # Third-party desktop applications, from their vendor repository / official
@@ -431,9 +359,7 @@ RUN set -eux; \
                 /usr/local/bin/konica-scan \
                /usr/local/sbin/check-wineps-route.sh \
                /usr/local/libexec/konica-backend/usb; \
-    chmod 0644 /etc/greetd/config.toml \
-        /etc/pam.d/greetd \
-        /etc/systemd/zram-generator.conf \
+    chmod 0644 /etc/systemd/zram-generator.conf \
         /etc/modprobe.d/90-konica206-usblp.conf \
         /usr/lib/systemd/system/konica206-native.service \
         /usr/lib/systemd/system/konica206-queue.service \
@@ -451,7 +377,6 @@ RUN set -eux; \
         /usr/lib/systemd/user/flatpak-update.service \
         /usr/lib/systemd/user/flatpak-update.timer \
         /usr/lib/udev/rules.d/70-konica206.rules \
-        /etc/xdg/labwc/menu.xml \
         /etc/cups/wineps.convs \
         /usr/local/share/konica-retrofit/min-ar.ps \
         /usr/share/konica206/retrofit-commit \
@@ -462,7 +387,6 @@ RUN set -eux; \
         /usr/lib/tmpfiles.d/konica206uri.conf \
         /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd \
         /usr/lib/udev/rules.d/71-konica206-usb-presence.rules \
-        /usr/share/sfwbar/sfwbar.config \
         /usr/share/applications/fuzzel-printjobs.desktop \
         /usr/share/applications/weechat.desktop \
         /usr/share/applications/konica-scan.desktop \
@@ -470,32 +394,22 @@ RUN set -eux; \
         /usr/share/ppd/konica206/konica206-classic.ppd \
         /usr/share/ppd/konica206/konica206-app.ppd; \
     update-desktop-database /usr/share/applications; \
-    chmod 0755 /etc/xdg/labwc/autostart; \
-    chmod 0644 /etc/xdg/labwc/rc.xml; \
-    # LXQt Wayland session: prefer labwc as the compositor.
-    install -d -m 0755 /etc/xdg/lxqt-wayland; \
-    printf '%s\n' '[General]' 'compositor=labwc' > /etc/xdg/lxqt-wayland/session.conf; \
-    chmod 0644 /etc/xdg/lxqt-wayland/session.conf; \
-    # System-wide LXQt defaults: clean, modern dark theme (Kvantum + Papirus icons).
-    install -d -m 0755 /etc/xdg/lxqt /etc/xdg/Kvantum; \
+    # GDM autologin to GNOME Wayland session for vinod.
+    install -d -m 0755 /etc/gdm; \
     printf '%s\n' \
-        '[General]' \
-        'theme=And-Dark' \
-        'icon_theme=Papirus-Dark' \
-        '[Qt]' \
-        'style=kvantum' \
-        > /etc/xdg/lxqt/lxqt.conf; \
-    printf '%s\n' \
-        '[General]' \
-        'window_manager=labwc' \
-        '[Environment]' \
-        'QT_STYLE_OVERRIDE=kvantum' \
-        > /etc/xdg/lxqt/session.conf; \
-    printf '%s\n' \
-        '[General]' \
-        'theme=KvArcDark' \
-        > /etc/xdg/Kvantum/kvantum.kvconfig; \
-    chmod 0644 /etc/xdg/lxqt/lxqt.conf /etc/xdg/lxqt/session.conf /etc/xdg/Kvantum/kvantum.kvconfig; \
+        '[daemon]' \
+        'AutomaticLoginEnable=True' \
+        'AutomaticLogin=vinod' \
+        '' \
+        '[security]' \
+        '' \
+        '[xdmcp]' \
+        '' \
+        '[chooser]' \
+        '' \
+        '[debug]' \
+        > /etc/gdm/custom.conf; \
+    chmod 0644 /etc/gdm/custom.conf; \
     ln -sf /usr/libexec/konica206/install-vendor-data /usr/bin/konica206-install-vendor-data; \
     ln -sf /usr/libexec/konica206/preflight /usr/bin/konica206-preflight; \
     install -d -m 0755 /usr/share/konica206
@@ -538,7 +452,8 @@ RUN set -eux; \
         -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
         https://dl.flathub.org/repo/flathub.flatpakrepo
 
-# Graphical login by default (greetd on VT1 -> tuigreet -> labwc).
+# Graphical login by default via GDM (GNOME Wayland). Autologin for vinod is
+# configured in /etc/gdm/custom.conf.
 # Updates: the base image enables bootc-fetch-apply-updates.timer, which runs
 # "bootc upgrade --apply" and REBOOTS into the new image. This machine must only
 # reboot when the user says so, so that timer is masked and the repository's own
@@ -557,7 +472,7 @@ RUN set -eux; \
     systemctl enable flatpak-update.timer; \
     systemctl --global enable flatpak-update.timer; \
     systemctl enable NetworkManager.service; \
-    systemctl enable greetd.service; \
+    systemctl enable gdm.service; \
     systemctl enable konica206-native.service; \
     systemctl enable konica206-vendor-data.service;     systemctl enable konica206-queue.service; \
     systemctl enable legacy-printer-app.service; \
