@@ -252,7 +252,6 @@ RUN set -eux; \
         dbus-daemon \
         default-fonts \
         desktop-file-utils \
-        evince \
         flatpak \
         gh \
         gh \
