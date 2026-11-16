@@ -485,7 +485,7 @@ RUN set -eux; \
     install -d -m 0755 /etc/xdg/lxqt /etc/xdg/Kvantum; \
     printf '%s\n' \
         '[General]' \
-        'theme=Frost' \
+        'theme=And-Dark' \
         'icon_theme=Papirus-Dark' \
         '[Qt]' \
         'style=kvantum' \
