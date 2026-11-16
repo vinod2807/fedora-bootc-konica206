@@ -466,8 +466,6 @@ RUN set -eux; \
         /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd \
         /usr/lib/udev/rules.d/71-konica206-usb-presence.rules \
         /usr/share/sfwbar/sfwbar.config \
-        /usr/share/applications/konica206-reboot.desktop \
-        /usr/share/applications/konica206-poweroff.desktop \
         /usr/share/applications/fuzzel-printjobs.desktop \
         /usr/share/applications/weechat.desktop \
         /usr/share/applications/konica-scan.desktop \
