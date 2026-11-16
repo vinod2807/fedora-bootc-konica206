@@ -284,6 +284,9 @@ RUN set -eux; \
         lxqt-powermanagement \
         pcmanfm-qt \
         qterminal \
+        lxqt-themes \
+        papirus-icon-theme \
+        kvantum \
         legacy-printer-app \
         libusb1 \
         lxpolkit \
@@ -478,6 +481,26 @@ RUN set -eux; \
     install -d -m 0755 /etc/xdg/lxqt-wayland; \
     printf '%s\n' '[General]' 'compositor=labwc' > /etc/xdg/lxqt-wayland/session.conf; \
     chmod 0644 /etc/xdg/lxqt-wayland/session.conf; \
+    # System-wide LXQt defaults: clean, modern theme (Kvantum + Papirus icons).
+    install -d -m 0755 /etc/xdg/lxqt /etc/xdg/Kvantum; \
+    printf '%s\n' \
+        '[General]' \
+        'theme=Frost' \
+        'icon_theme=Papirus' \
+        '[Qt]' \
+        'style=kvantum' \
+        > /etc/xdg/lxqt/lxqt.conf; \
+    printf '%s\n' \
+        '[General]' \
+        'window_manager=labwc' \
+        '[Environment]' \
+        'QT_STYLE_OVERRIDE=kvantum' \
+        > /etc/xdg/lxqt/session.conf; \
+    printf '%s\n' \
+        '[General]' \
+        'theme=KvArc' \
+        > /etc/xdg/Kvantum/kvantum.kvconfig; \
+    chmod 0644 /etc/xdg/lxqt/lxqt.conf /etc/xdg/lxqt/session.conf /etc/xdg/Kvantum/kvantum.kvconfig; \
     ln -sf /usr/libexec/konica206/install-vendor-data /usr/bin/konica206-install-vendor-data; \
     ln -sf /usr/libexec/konica206/preflight /usr/bin/konica206-preflight; \
     install -d -m 0755 /usr/share/konica206
