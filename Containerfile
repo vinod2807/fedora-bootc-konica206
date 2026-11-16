@@ -269,6 +269,7 @@ RUN set -eux; \
         zram-generator \
         weechat \
     && dnf group install -y --setopt=install_weak_deps=False gnome-desktop \
+    && dnf install -y --setopt=install_weak_deps=False gnome-tweaks \
     && dnf clean all
 
 # Third-party desktop applications, from their vendor repository / official
