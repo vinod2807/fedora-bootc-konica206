@@ -89,10 +89,11 @@ ensure_cups_queue() {
         && log "defaults applied: PageSize=A4 Duplex=None"
 }
 
-# Wait briefly for the PAPPL server socket after boot.
+# Wait briefly for the PAPPL server socket after boot. Bound each probe so a
+# hung PAPPL client cannot stall the whole oneshot past its systemd timeout.
 ready=0
-for _ in $(seq 1 30); do
-    if /usr/bin/konica206-native printers -u "$URI_BASE" >/dev/null 2>&1; then
+for _ in $(seq 1 5); do
+    if timeout 5 /usr/bin/konica206-native printers -u "$URI_BASE" >/dev/null 2>&1; then
         ready=1
         break
     fi
@@ -131,7 +132,7 @@ fi
 # The client lists one printer per line; match the first field so both a bare
 # name and a decorated line ("konica206 (KONICA ...)") count as present.
 queue_present() {
-    /usr/bin/konica206-native printers -u "$URI_BASE" 2>/dev/null \
+    timeout 10 /usr/bin/konica206-native printers -u "$URI_BASE" 2>/dev/null \
         | awk '{print $1}' | grep -Fxq "$QUEUE"
 }
 
@@ -145,7 +146,7 @@ log "creating queue '$QUEUE' for serial $serial"
 # udev re-triggers this unit whenever the USB device is re-enumerated, and the
 # server may already have the queue by the time we get here. Treat the
 # resulting "already exists" as success instead of failing the unit.
-if ! out=$(/usr/bin/konica206-native add \
+if ! out=$(timeout 30 /usr/bin/konica206-native add \
         -d "$QUEUE" \
         -u "$URI_BASE" \
         -m konica-bizhub-206 \
