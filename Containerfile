@@ -481,12 +481,12 @@ RUN set -eux; \
     install -d -m 0755 /etc/xdg/lxqt-wayland; \
     printf '%s\n' '[General]' 'compositor=labwc' > /etc/xdg/lxqt-wayland/session.conf; \
     chmod 0644 /etc/xdg/lxqt-wayland/session.conf; \
-    # System-wide LXQt defaults: clean, modern theme (Kvantum + Papirus icons).
+    # System-wide LXQt defaults: clean, modern dark theme (Kvantum + Papirus icons).
     install -d -m 0755 /etc/xdg/lxqt /etc/xdg/Kvantum; \
     printf '%s\n' \
         '[General]' \
         'theme=Frost' \
-        'icon_theme=Papirus' \
+        'icon_theme=Papirus-Dark' \
         '[Qt]' \
         'style=kvantum' \
         > /etc/xdg/lxqt/lxqt.conf; \
@@ -498,7 +498,7 @@ RUN set -eux; \
         > /etc/xdg/lxqt/session.conf; \
     printf '%s\n' \
         '[General]' \
-        'theme=KvArc' \
+        'theme=KvArcDark' \
         > /etc/xdg/Kvantum/kvantum.kvconfig; \
     chmod 0644 /etc/xdg/lxqt/lxqt.conf /etc/xdg/lxqt/session.conf /etc/xdg/Kvantum/kvantum.kvconfig; \
     ln -sf /usr/libexec/konica206/install-vendor-data /usr/bin/konica206-install-vendor-data; \
