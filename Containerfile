@@ -336,7 +336,6 @@ RUN set -eux; \
         network-manager-applet \
         NetworkManager-openconnect \
         NetworkManager-openvpn \
-        gnome-font-viewer \
     # xfce4-panel ships with Thunar's libxfce4panel dep; hide its
     # Settings entries (Panel) that labwc/sfwbar ignore. The package
     # itself must stay, only the menu entries go.
