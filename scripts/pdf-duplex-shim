@@ -32,6 +32,16 @@ case " $opts " in
         opts="$opts sides=two-sided-short-edge" ;;
 esac
 
-/usr/lib/cups/filter/pdftopdf "$job" "$user" "$title" "$copies" "$opts" "$file" |
+# libppd's ppdFilterCUPSWrapper() treats a 7th argument as a filename and
+# open()s it literally.  CUPS passes "-" for piped (stdin) input, which would
+# make pdftopdf try to open a file named "-" and fail.  Omit the 6th argument
+# in that case so the wrapper reads stdin.
+if [ "$file" = "-" ]; then
+    set -- "$job" "$user" "$title" "$copies" "$opts"
+else
+    set -- "$job" "$user" "$title" "$copies" "$opts" "$file"
+fi
+
+/usr/lib/cups/filter/pdftopdf "$@" |
     CONTENT_TYPE=application/vnd.cups-pdf \
     /usr/lib/cups/filter/gstoraster "$job" "$user" "$title" "$copies" "$opts"
