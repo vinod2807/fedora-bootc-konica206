@@ -402,6 +402,29 @@ RUN set -eux; \
         'user-session=cinnamon-wayland' \
         > /etc/lightdm/lightdm.conf.d/50-cinnamon-autologin.conf; \
     chmod 0644 /etc/lightdm/lightdm.conf.d/50-cinnamon-autologin.conf; \
+    # Fedora's lightdm-autologin PAM stack makes "pam_selinux.so open" required,
+    # but LightDM sets PAM_TTY=/dev/tty/7 (not a device path), so pam_selinux
+    # fails with ENOTDIR and aborts the autologin session. Make it non-fatal.
+    sed -i -E 's/^(session[[:space:]]+)required([[:space:]]+pam_selinux\.so open)$/\1optional\2/' \
+        /usr/lib/pam.d/lightdm-autologin; \
+    grep -qE '^session[[:space:]]+optional[[:space:]]+pam_selinux\.so open$' \
+        /usr/lib/pam.d/lightdm-autologin; \
+    # bootc images carry no SELinux xattrs, so /var/cache can end up labelled
+    # var_t and slick-greeter's missing home (/var/lib/lightdm) makes it exit
+    # 25 with "chdir: No such file or directory". Create the dirs at boot and
+    # relabel them before the display manager starts.
+    install -d -m 0755 /usr/lib/tmpfiles.d; \
+    printf '%s\n' \
+        '# LightDM runtime directories (bootc images have no SELinux xattrs)' \
+        'z /var/cache' \
+        'd /var/cache/lightdm 0755 lightdm lightdm -' \
+        'Z /var/cache/lightdm' \
+        'd /var/lib/lightdm 0700 lightdm lightdm -' \
+        'd /var/lib/lightdm-data 0755 lightdm lightdm -' \
+        'Z /var/lib/lightdm' \
+        'Z /var/lib/lightdm-data' \
+        > /usr/lib/tmpfiles.d/50-cinnamon-lightdm.conf; \
+    chmod 0644 /usr/lib/tmpfiles.d/50-cinnamon-lightdm.conf; \
     # System-wide dark theme defaults: Cinnamon (Mint-Y-Dark) + GTK4/libadwaita.
     install -d -m 0755 /etc/dconf/db/local.d /etc/dconf/db/local.d/locks; \
     printf '%s\n' \
