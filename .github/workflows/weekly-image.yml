@@ -125,6 +125,8 @@ jobs:
             for p in gdm gnome-shell gnome-tweaks gnome-shell-extension-common; do
               ! rpm -q "$p" >/dev/null 2>&1
             done
+            # Firefox is not shipped (browsers are Flatpaks).
+            ! rpm -q firefox >/dev/null 2>&1
             # Old labwc/LXQt/greetd stack must not be present.
             for p in greetd tuigreet labwc sfwbar lxqt-session lxqt-panel lxpolkit; do
               ! rpm -q "$p" >/dev/null 2>&1

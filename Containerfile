@@ -236,6 +236,8 @@ LABEL org.opencontainers.image.title="Fedora bootc - Cinnamon + Konica bizhub 20
       org.vinod2807.konica.retrofit-ref="${KONICA_RETROFIT_REF}"
 
 # Weekly builds update the base packages as well as the two printer sources.
+# Firefox is a mandatory package of the cinnamon-desktop group, but browsers
+# are installed as Flatpaks in this image, so it is removed again below.
 RUN set -eux; \
     dnf -y upgrade --refresh; \
     dnf install -y --setopt=install_weak_deps=False \
@@ -266,6 +268,7 @@ RUN set -eux; \
         zram-generator \
         weechat \
     && dnf group install -y --setopt=install_weak_deps=False cinnamon-desktop \
+    && dnf -y remove --no-autoremove firefox \
     && dnf install -y --setopt=install_weak_deps=False \
         lightdm \
         gnome-keyring \
