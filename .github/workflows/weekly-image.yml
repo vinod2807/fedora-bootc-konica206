@@ -120,7 +120,8 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm --entrypoint /bin/bash localhost/fedora-bootc-konica206:smoke -euo pipefail -x -c '
-            rpm -q cinnamon cinnamon-session lightdm slick-greeter NetworkManager pappl cups ghostscript zram-generator mesa-vulkan-drivers vulkan-loader >/dev/null
+            rpm -q cinnamon cinnamon-session lightdm slick-greeter xdg-desktop-portal-gtk NetworkManager pappl cups ghostscript zram-generator mesa-vulkan-drivers vulkan-loader >/dev/null
+            test -f /usr/share/xdg-desktop-portal/portals/gtk.portal
             # GNOME 51 desktop must be gone.
             for p in gdm gnome-shell gnome-tweaks gnome-shell-extension-common; do
               ! rpm -q "$p" >/dev/null 2>&1

@@ -247,6 +247,7 @@ RUN set -eux; \
         cups-filters \
         dbus-daemon \
         desktop-file-utils \
+        xdg-desktop-portal-gtk \
         flatpak \
         gh \
         fastfetch \
