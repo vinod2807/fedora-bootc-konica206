@@ -255,6 +255,8 @@ RUN set -eux; \
         mesa-libEGL \
         mesa-vulkan-drivers \
         pappl \
+        pipewire \
+        wireplumber \
         policycoreutils-python-utils \
         sane-airscan \
         samba \
