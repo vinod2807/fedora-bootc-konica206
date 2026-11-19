@@ -407,12 +407,14 @@ RUN set -eux; \
         'user-session=cinnamon-wayland' \
         > /etc/lightdm/lightdm.conf.d/50-cinnamon-autologin.conf; \
     chmod 0644 /etc/lightdm/lightdm.conf.d/50-cinnamon-autologin.conf; \
-    # Fedora's lightdm-autologin PAM stack makes "pam_selinux.so open" required,
-    # but LightDM sets PAM_TTY=/dev/tty/7 (not a device path), so pam_selinux
-    # fails with ENOTDIR and aborts the autologin session. Make it non-fatal.
-    sed -i -E 's/^(session[[:space:]]+)required([[:space:]]+pam_selinux\.so open)$/\1optional\2/' \
+    # LightDM sets PAM_TTY=/dev/tty/7 (not a device path), so pam_selinux's
+    # tty lookup fails with ENOTDIR. Without a user context the autologin
+    # session runs as xdm_t and Xsession's ssh-agent cannot create its socket
+    # in ~/.ssh, so the session exits 255 and LightDM falls back to the greeter.
+    # "nottys" makes pam_selinux use the user's default context instead.
+    sed -i -E 's/^(session[[:space:]]+required[[:space:]]+pam_selinux\.so open)$/\1 nottys/' \
         /usr/lib/pam.d/lightdm-autologin; \
-    grep -qE '^session[[:space:]]+optional[[:space:]]+pam_selinux\.so open$' \
+    grep -qE '^session[[:space:]]+required[[:space:]]+pam_selinux\.so open nottys$' \
         /usr/lib/pam.d/lightdm-autologin; \
     # bootc images carry no SELinux xattrs, so /var/cache can end up labelled
     # var_t and slick-greeter's missing home (/var/lib/lightdm) makes it exit

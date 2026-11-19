@@ -154,7 +154,7 @@ jobs:
             test -f /etc/lightdm/lightdm.conf.d/50-cinnamon-autologin.conf
             grep -qx "autologin-user=vinod" /etc/lightdm/lightdm.conf.d/50-cinnamon-autologin.conf
             grep -qx "autologin-session=cinnamon-wayland" /etc/lightdm/lightdm.conf.d/50-cinnamon-autologin.conf
-            grep -qE "^session[[:space:]]+optional[[:space:]]+pam_selinux\.so open$" /usr/lib/pam.d/lightdm-autologin
+            grep -qE "^session[[:space:]]+required[[:space:]]+pam_selinux\.so open nottys$" /usr/lib/pam.d/lightdm-autologin
             test -f /usr/lib/tmpfiles.d/50-cinnamon-lightdm.conf
             grep -qx "d /var/lib/lightdm 0700 lightdm lightdm -" /usr/lib/tmpfiles.d/50-cinnamon-lightdm.conf
             test -f /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
