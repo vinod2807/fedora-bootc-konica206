@@ -73,8 +73,8 @@ jobs:
             type=sha,format=long,prefix=sha-
             type=ref,event=branch
           labels: |
-            org.opencontainers.image.title=Fedora bootc - GNOME + Konica bizhub 206
-            org.opencontainers.image.description=Fedora bootc (base follows :latest) linux/amd64 with full GNOME desktop (GDM) and the Konica Minolta bizhub 206 printer application
+            org.opencontainers.image.title=Fedora bootc - Cinnamon + Konica bizhub 206
+            org.opencontainers.image.description=Fedora bootc (base follows :latest) linux/amd64 with full Cinnamon desktop (Wayland + X11, Slick Greeter autologin) and the Konica Minolta bizhub 206 printer application
             org.vinod2807.konica.app-ref=${{ steps.refs.outputs.app }}
             org.vinod2807.konica.native-ref=${{ steps.refs.outputs.native }}
             org.vinod2807.konica.retrofit-ref=${{ steps.refs.outputs.retrofit }}
@@ -120,7 +120,11 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm --entrypoint /bin/bash localhost/fedora-bootc-konica206:smoke -euo pipefail -x -c '
-            rpm -q gdm gnome-shell NetworkManager pappl cups ghostscript zram-generator mesa-vulkan-drivers vulkan-loader >/dev/null
+            rpm -q cinnamon cinnamon-session lightdm slick-greeter NetworkManager pappl cups ghostscript zram-generator mesa-vulkan-drivers vulkan-loader >/dev/null
+            # GNOME 51 desktop must be gone.
+            for p in gdm gnome-shell gnome-tweaks gnome-shell-extension-common; do
+              ! rpm -q "$p" >/dev/null 2>&1
+            done
             # Old labwc/LXQt/greetd stack must not be present.
             for p in greetd tuigreet labwc sfwbar lxqt-session lxqt-panel lxpolkit; do
               ! rpm -q "$p" >/dev/null 2>&1
@@ -136,19 +140,20 @@ jobs:
             grep -qx "Terminal=false" /usr/share/applications/weechat.desktop
             desktop-file-validate /usr/share/applications/weechat.desktop
             test -f /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
-            for b in /usr/bin/konica206-native /usr/bin/konica-native /usr/bin/konica-send /usr/bin/gnome-shell; do
+            for b in /usr/bin/konica206-native /usr/bin/konica-native /usr/bin/konica-send /usr/bin/cinnamon; do
               test -x "$b"
             done
             /usr/bin/konica206-native --version
             /usr/bin/konica-native --help >/dev/null 2>&1 || true
-            test -f /etc/gdm/custom.conf
-            grep -qx "AutomaticLoginEnable=True" /etc/gdm/custom.conf
-            grep -qx "AutomaticLogin=vinod" /etc/gdm/custom.conf
+            test -f /usr/share/wayland-sessions/cinnamon-wayland.desktop
+            test -f /etc/lightdm/lightdm.conf.d/50-cinnamon-autologin.conf
+            grep -qx "autologin-user=vinod" /etc/lightdm/lightdm.conf.d/50-cinnamon-autologin.conf
+            grep -qx "autologin-session=cinnamon-wayland" /etc/lightdm/lightdm.conf.d/50-cinnamon-autologin.conf
             test -f /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
             grep -q "intel_idle.max_cstate=1" /usr/lib/bootc/kargs.d/90-linux-pc-crash-fixes.toml
             # GRUB menu must pause so an older deployment can be selected.
             grep -qx "set timeout=10" /usr/lib/bootupd/grub2-static/grub-static-pre.cfg
-            systemctl is-enabled gdm.service NetworkManager.service konica206-native.service konica206-queue.service konica206-classic-queue.service konica-cups-watch.service konica-cups-watch.timer ecbd.service
+            systemctl is-enabled lightdm.service NetworkManager.service konica206-native.service konica206-queue.service konica206-classic-queue.service konica-cups-watch.service konica-cups-watch.timer ecbd.service
             # Vendor runtime data is installed at boot from a configured
             # licensed source, never baked into the image.
             systemctl is-enabled konica206-vendor-data.service

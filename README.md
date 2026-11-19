@@ -1,4 +1,4 @@
-# Fedora bootc — GNOME desktop + Konica Minolta bizhub 206
+# Fedora bootc — Cinnamon desktop + Konica Minolta bizhub 206
 
 A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
 (the target is an Intel Core i5 650). It provides:
@@ -7,8 +7,9 @@ A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
   `quay.io/fedora/fedora-bootc:latest`, so the image follows the current Fedora
   release and crosses major versions on its own (see
   [Fedora major version](#fedora-major-version-follows-latest))
-- **Full GNOME desktop (Wayland)** with **GDM autologin** for `vinod`,
-  `gnome-tweaks`, and a system-wide Adwaita dark theme
+- **Full Cinnamon desktop (Wayland + X11)** with **LightDM/Slick Greeter
+  autologin** into the Wayland session for `vinod`, and a system-wide dark
+  theme (Cinnamon Mint-Y-Dark + Adwaita for GTK apps)
 - **Flatpak** with the **Flathub** remote preconfigured, plus daily system and
   per-user `flatpak-update.timer`s. Browsers, office suites, media players,
   **ZapFast** (WhatsApp) and **NAPS2** are Flatpaks, not RPMs
@@ -18,7 +19,7 @@ A custom [Fedora bootc](https://bootc.dev/) image for an older x86_64 Intel PC
 - **fuzzel** launcher, `fuzzel-printjobs` (view/cancel/restart CUPS jobs),
   `weechat`, `mpv`, and a `konica-scan` desktop helper that frees the Konica USB
   interface before scanning
-- NetworkManager, PipeWire/WirePlumber (GNOME portals for file choosers and
+- NetworkManager, PipeWire/WirePlumber (GTK portals for file choosers and
   screen sharing), polkit, XWayland
 - The **Konica Minolta bizhub 206** PAPPL printer application
   ([konica206-native-alpine](https://github.com/vinod2807/konica206-native-alpine))
@@ -54,10 +55,11 @@ The installed machine tracks that reference and updates with `bootc upgrade`.
 
 ## Recent changes
 
-- **Full GNOME desktop:** replaced the labwc/LXQt/tuigreet stack with the
-  `gnome-desktop` group, GDM autologin for `vinod`, `gnome-tweaks`,
-  `gnome-keyring`/`libsecret` and a system-wide Adwaita dark theme. The old
-  compositor, panel and greetd configs were removed from the image.
+- **Full Cinnamon desktop:** replaced the GNOME 51 stack with the
+  `cinnamon-desktop` group (Cinnamon 6.8, whose Wayland session is no longer
+  experimental), LightDM + Slick Greeter autologin into `cinnamon-wayland` for
+  `vinod`, `gnome-keyring`/`libsecret` and a system-wide dark theme. GNOME
+  Shell, GDM and `gnome-tweaks` are no longer part of the image.
 - **Apps as Flatpaks:** ZapFast and NAPS2 are no longer installed as RPMs.
   NAPS2 is sideloaded from its official GitHub release by
   `scripts/install-naps2-flatpak`, which also restores the Epson and Konica
@@ -209,7 +211,7 @@ Two details matter:
   setuid/setgid bits and `security.capability` xattrs. `docker export` does not
   emit capabilities, and extracting its tar as a non-root user rewrites every
   file to the runner UID and strips setuid. Either mistake produces an image
-  that boots to GDM but cannot start a session (autologin dies,
+  that boots to LightDM but cannot start a session (autologin dies,
   `sudo`/`passwd` lose setuid, `ping`/`newuidmap` lose capabilities). The
   workflow mounts the image with buildah and asserts the metadata before
   rechunking.
@@ -341,9 +343,9 @@ updated daily by `flatpak-update.timer`; to move NAPS2 to a new release, re-run
 5. Anaconda installs the bootc image referenced by the ISO. Create your own
    user (admin/wheel) and **set the root password** in the installer. **No user
    or password is baked into the image.**
-6. Reboot. GDM appears and autologs into the GNOME Wayland session as `vinod`
-   (the image configures autologin for that user, so create the account with
-   that name in step 5).
+6. Reboot. Slick Greeter appears and autologs into the Cinnamon Wayland
+   session as `vinod` (the image configures autologin for that user, so create
+   the account with that name in step 5).
 
 The installer pulls the image from GHCR. The GHCR package must be **public**
 for an unauthenticated install, or you must provide registry credentials in the
@@ -366,7 +368,8 @@ internet (it pulls the image, roughly 3.3 GiB compressed, from GHCR).
 5. **Install:** the payload is pulled by digest from
    `ghcr.io/vinod2807/fedora-bootc-konica206`; the installed system tracks
    `:latest` for `bootc upgrade`.
-6. **First boot:** GDM autologs straight into GNOME (Wayland) as `vinod`. Text
+6. **First boot:** Slick Greeter autologs straight into Cinnamon (Wayland) as
+   `vinod`. Text
    fallback is `Ctrl+Alt+F2` with the same user (or `root` + the root password
    you set).
    If the user account is unexpectedly missing, log in as `root` on that text
@@ -400,15 +403,17 @@ internet (it pulls the image, roughly 3.3 GiB compressed, from GHCR).
 
 ## First boot and login
 
-- **Graphical:** GDM starts on VT1 and autologs into the GNOME Wayland session
-  as `vinod` (configured in `/etc/gdm/custom.conf`). The system-wide Adwaita
-  dark theme is applied through dconf.
-- **Shell:** the GNOME top bar and Activities overview provide the app grid,
+- **Graphical:** LightDM + Slick Greeter start on VT1 and autolog into the
+  `cinnamon-wayland` session as `vinod` (configured in
+  `/etc/lightdm/lightdm.conf.d/50-cinnamon-autologin.conf`). The Cinnamon
+  Mint-Y-Dark theme and Adwaita dark setting are applied through dconf. The
+  X11 `cinnamon` session stays available from the greeter's session menu.
+- **Shell:** the Cinnamon panel, menu and Overview provide the app grid,
   window switching and the system menu (network, volume, power). `fuzzel`
   remains available as a lightweight keyboard launcher (`fuzzel`, or
   `fuzzel dmenu` for stdin).
-- **Applications:** GNOME Files, Text Editor, Archive Manager and the usual GNOME
-  utilities come from the `gnome-desktop` group. Custom launchers in
+- **Applications:** Nemo, Xed, Xreader, Archive Manager and the usual Cinnamon
+  utilities come from the `cinnamon-desktop` group. Custom launchers in
   `desktop/applications/` add `konica-scan`, `fuzzel-printjobs`, `weechat` and
   `mpv`. Browsers, office suites, media players, ZapFast and NAPS2 are Flatpaks.
 - **Scanning:** `simple-scan` and **NAPS2** (Flatpak), both backed by
@@ -422,7 +427,8 @@ internet (it pulls the image, roughly 3.3 GiB compressed, from GHCR).
 - **GitHub CLI:** `gh` is installed (`gh auth login`, `gh repo clone …`,
   `gh workflow run …`).
 - **Text fallback:** `Ctrl+Alt+F2` gives a text login with the same user or
-  `root`; GNOME can be started manually from there with `systemctl start gdm`.
+  `root`; Cinnamon can be started manually from there with
+  `systemctl start lightdm`.
 - **Audio:** PipeWire, WirePlumber and `pipewire-pulseaudio` are enabled for
   users. Use `wpctl status` / `wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+`.
 - **Networking:** NetworkManager is enabled. Use `nmcli device status` and
@@ -1007,7 +1013,7 @@ machine. It is updated after workflow runs.
 | ISO El Torito BIOS metadata | **Passed** — `build-iso` run [40688027094](https://github.com/vinod2807/fedora-bootc-konica206/actions/runs/40688027094): `-b '/images/eltorito.img'`, `Boot record: El Torito, grub2-mbr, GPT` |
 | ISO boots under QEMU SeaBIOS to Linux userspace | **Passed** — same run; serial log reaches the Anaconda installer UI |
 | Full BIOS installation on real hardware | **Passed** — installed on the i5-650 desktop (BIOS boot, NTFS partition preserved) |
-| Graphical login (GDM autologin → GNOME Wayland) on real hardware | **Passed** — graphical session in daily use |
+| Graphical login (Slick Greeter autologin → Cinnamon Wayland) on real hardware | **Passed** — graphical session in daily use |
 | Real USB printing on bizhub 206 | **Passed** — real A4 simplex job printed from the `konica206` queue (2026-10-28) |
 | Printer works with vendor assets installed | **Passed** — same job, licensed runtime data installed |
 | Duplex, A3 and other media sizes on real paper | **Not tested** — options are present and selectable, but only A4 simplex has been printed |
