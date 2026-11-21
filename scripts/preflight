@@ -79,8 +79,36 @@ else
 fi
 
 section "queues"
-if /usr/bin/konica206-native printers -u ipp://localhost:8001 2>/dev/null; then
-    :
+# PAPPL 1.4.x ignores `-u` for the `printers` sub-command: it starts a *local*
+# server instead, which fails with "Address already in use" while the real
+# server is running (surfacing as "Unable to start server"). Query the live
+# server over IPP instead - CUPS-Get-Printers is read-only and lists the queues.
+if command -v ipptool >/dev/null 2>&1; then
+    if ipp_out=$(ipptool -tv ipp://localhost:8001/ <(cat <<'IPP'
+{
+  NAME "List PAPPL printers"
+  OPERATION CUPS-Get-Printers
+  GROUP operation-attributes-tag
+  ATTR charset attributes-charset utf-8
+  ATTR naturalLanguage attributes-natural-language en
+  STATUS successful-ok
+  DISPLAY printer-name
+}
+IPP
+) 2>/dev/null); then
+        names=$(printf '%s\n' "$ipp_out" \
+                | sed -n 's/^[[:space:]]*printer-name ([^)]*) = //p' | sort -u)
+        if [[ -n $names ]]; then
+            printf 'OK   PAPPL server on localhost:8001 answers; printers:\n'
+            printf '%s\n' "$names" | sed 's/^/     /'
+        else
+            printf 'WARN PAPPL server answered but advertises no printers\n'
+        fi
+    else
+        printf 'WARN PAPPL server is not answering on localhost:8001\n'
+    fi
+elif /usr/bin/konica206-native status -u ipp://localhost:8001 >/dev/null 2>&1; then
+    printf 'OK   PAPPL server on localhost:8001 answers (ipptool not installed; queue list skipped)\n'
 else
     printf 'WARN PAPPL server is not answering on localhost:8001\n'
 fi
