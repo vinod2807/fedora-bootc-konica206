@@ -89,11 +89,43 @@ ensure_cups_queue() {
         && log "defaults applied: PageSize=A4 Duplex=None"
 }
 
+# PAPPL 1.4.x ignores `-u` for the `printers` sub-command: it starts a second
+# local server on port 8001, which fails with "Address already in use" while
+# the real server is running. That made this helper exit early on every USB
+# event, so the PPD below was never refreshed and PPD-only duplex jobs printed
+# an upside-down back page. Query the live server over IPP instead;
+# CUPS-Get-Printers is read-only.
+pappl_printers() {
+    if command -v ipptool >/dev/null 2>&1; then
+        local out
+        out=$(timeout 10 ipptool -tv "$URI_BASE/" <(cat <<'IPP'
+{
+  NAME "List PAPPL printers"
+  OPERATION CUPS-Get-Printers
+  GROUP operation-attributes-tag
+  ATTR charset attributes-charset utf-8
+  ATTR naturalLanguage attributes-natural-language en
+  STATUS successful-ok
+  DISPLAY printer-name
+}
+IPP
+) 2>/dev/null) || return 1
+        printf '%s\n' "$out" \
+            | sed -n 's/^[[:space:]]*printer-name ([^)]*) = //p' | sort -u
+        return 0
+    fi
+    # No ipptool: status -u still proves the server is alive. PAPPL creates
+    # the queue from the USB serial at startup, so report it as present.
+    timeout 10 /usr/bin/konica206-native status -u "$URI_BASE" >/dev/null 2>&1 \
+        || return 1
+    printf '%s\n' "$QUEUE"
+}
+
 # Wait briefly for the PAPPL server socket after boot. Bound each probe so a
 # hung PAPPL client cannot stall the whole oneshot past its systemd timeout.
 ready=0
 for _ in $(seq 1 5); do
-    if timeout 5 /usr/bin/konica206-native printers -u "$URI_BASE" >/dev/null 2>&1; then
+    if pappl_printers >/dev/null 2>&1; then
         ready=1
         break
     fi
@@ -129,11 +161,9 @@ if [[ ! $serial =~ ^[A-Za-z0-9._-]+$ ]]; then
     exit 1
 fi
 
-# The client lists one printer per line; match the first field so both a bare
-# name and a decorated line ("konica206 (KONICA ...)") count as present.
+# Match the exact PAPPL printer name from the IPP query.
 queue_present() {
-    timeout 10 /usr/bin/konica206-native printers -u "$URI_BASE" 2>/dev/null \
-        | awk '{print $1}' | grep -Fxq "$QUEUE"
+    pappl_printers 2>/dev/null | grep -Fxq "$QUEUE"
 }
 
 if queue_present; then

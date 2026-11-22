@@ -172,6 +172,11 @@ RUN set -eux; \
         "$root/usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd"; \
     grep -qxF '*cupsBackSide: Rotated' \
         "$root/usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd"; \
+    sed 's/^\*cupsBackSide:.*/*cupsBackSide: Normal/' \
+        "$root/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd" \
+        > "$root/usr/share/konica206/ppd/KonicaMinolta-206-native-normal.ppd"; \
+    grep -qxF '*cupsBackSide: Normal' \
+        "$root/usr/share/konica206/ppd/KonicaMinolta-206-native-normal.ppd"; \
     gcc -O2 -std=gnu17 -Wall -Wextra \
         -o "$root/usr/local/libexec/konica-backend/usb" \
         retrofit/backup/source/konica-usb-backend/konica-usb-backend.c \
@@ -393,7 +398,8 @@ RUN set -eux; \
         /usr/share/applications/konica-scan.desktop \
         /usr/share/ppd/konica206/konica206.ppd \
         /usr/share/ppd/konica206/konica206-classic.ppd \
-        /usr/share/ppd/konica206/konica206-app.ppd; \
+        /usr/share/ppd/konica206/konica206-app.ppd \
+        /usr/share/konica206/ppd/KonicaMinolta-206-native-normal.ppd; \
     update-desktop-database /usr/share/applications; \
     # LightDM autologin to Cinnamon's Wayland session for vinod. Slick Greeter
     # comes from the cinnamon-desktop group; the drop-in wins over the packaged

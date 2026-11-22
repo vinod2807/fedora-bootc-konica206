@@ -139,6 +139,25 @@ interface 1, but only when printing: each opens the device per job, so one job
 at a time drives the printer. Do not run both queues concurrently in a way
 that interleaves jobs on the same physical sheet stack.
 
+## Duplex back sides
+
+Back-side rotation is path-specific and must not be unified:
+
+- CUPS (`konica206`, raster path) and the legacy queues need PPDs with
+  `*cupsBackSide: Rotated`. The `konica206-app.ppd` shim also appends `sides=`
+  for PPD-only clients (`Duplex=DuplexNoTumble`); without that shim their back
+  page is not rotated and prints upside down. `ensure-queue` queries PAPPL over
+  IPP (`CUPS-Get-Printers`) so the PPD really gets refreshed on USB events —
+  PAPPL 1.4.x ignores `-u` for `printers` and starts a second server instead.
+- The app's builtin PDF renderer reads `KONICA_PPD`. Since the encoder switched
+  to `konica-native`, the 206's duplexer binds long edge by itself, so the app
+  must not pre-rotate backs. Its PPD is therefore a derived
+  `*cupsBackSide: Normal` copy at
+  `/usr/share/konica206/ppd/KonicaMinolta-206-native-normal.ppd`. A Rotated app
+  PPD prints long-edge backs upside down; this was proven by the 2026-11-13
+  A/B test, reproduced again on 2026-11-22, and fixed by re-applying upstream
+  konica206-native-alpine commit `30c0739`.
+
 ## Legacy konica206uri stack
 
 The image also installs the legacy stack from
