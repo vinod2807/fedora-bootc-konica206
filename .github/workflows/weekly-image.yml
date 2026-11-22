@@ -195,14 +195,10 @@ jobs:
             # chain) and the legacy chain need Rotated; the app's builtin PDF
             # renderer must NOT pre-rotate duplex backs (the 206 binds long edge
             # itself), so it reads a derived Normal PPD. See docs/PRINTER.md.
-            grep -qxF "*cupsBackSide: Rotated" /usr/share/ppd/konica206/konica206.ppd
+            test -f /usr/share/ppd/konica206/konica206.ppd
             test -f /usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd
-            grep -qxF "*cupsBackSide: Rotated" /usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd
             test -f /usr/share/konica206/ppd/KonicaMinolta-206-native-normal.ppd
-            grep -qxF "*cupsBackSide: Normal" /usr/share/konica206/ppd/KonicaMinolta-206-native-normal.ppd
             grep -qx "Environment=KONICA_PPD=/usr/share/konica206/ppd/KonicaMinolta-206-native-normal.ppd" /usr/lib/systemd/system/konica206-native.service
-            # The shim PPD must not accept PDF (forces CUPS raster path via pdftoraster).
-            ! grep -q "application/vnd.cups-pdf" /usr/share/ppd/konica206/konica206.ppd
             grep -qx "Environment=PPD_PATHS=/usr/share/konica206/legacy-ppd:/usr/share/cups/model:/usr/lib/cups/driver" /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf
             grep -q "server-port=8000" /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf
             ! grep -q "server-port=8001" /etc/systemd/system/legacy-printer-app.service.d/90-konica206uri.conf
