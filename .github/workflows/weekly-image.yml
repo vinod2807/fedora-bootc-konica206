@@ -194,9 +194,9 @@ jobs:
             test -f "$legacy_ppd"
             grep -qxF "*cupsFilter: \"application/vnd.cups-raster 0 /usr/bin/konica-native\"" "$legacy_ppd"
             grep -qxF "*DefaultDuplex: None" "$legacy_ppd"
-            # Avoid '! grep -q': a missing file makes grep exit 2, which is
-            # easy to misread as a failed assertion in a -e script.
-            test "$(grep -c 'OCM_resourceDir:' "$legacy_ppd" || true)" = 0
+            # Avoid the ! grep -q form: a missing file makes grep exit 2,
+            # which is easy to misread as a failed assertion in a -e script.
+            test "$(grep -c OCM_resourceDir: "$legacy_ppd" || true)" = 0
             grep -qxF "*cupsBackSide: Rotated" "$legacy_ppd"
             # cupsBackSide is path-specific. CUPS pdftoraster (shim PPD raster
             # chain) and the legacy chain need Rotated; the app's builtin PDF
