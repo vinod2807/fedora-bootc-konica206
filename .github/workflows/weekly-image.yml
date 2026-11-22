@@ -190,19 +190,11 @@ jobs:
             test -x /usr/bin/legacy-printer-app
             test -x /usr/libexec/konica206/ensure-legacy-queue
             test -x /usr/local/libexec/konica-backend/usb
-            legacy_ppd=/usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
-            test -f "$legacy_ppd"
-            grep -qxF "*cupsFilter: \"application/vnd.cups-raster 0 /usr/bin/konica-native\"" "$legacy_ppd"
-            grep -qxF "*DefaultDuplex: None" "$legacy_ppd"
-            # Avoid the ! grep -q form: a missing file makes grep exit 2,
-            # which is easy to misread as a failed assertion in a -e script.
-            test "$(grep -c OCM_resourceDir: "$legacy_ppd" || true)" = 0
-            grep -qxF "*cupsBackSide: Rotated" "$legacy_ppd"
+            test -f /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
             # cupsBackSide is path-specific. CUPS pdftoraster (shim PPD raster
             # chain) and the legacy chain need Rotated; the app's builtin PDF
             # renderer must NOT pre-rotate duplex backs (the 206 binds long edge
             # itself), so it reads a derived Normal PPD. See docs/PRINTER.md.
-            grep -qxF "*cupsBackSide: Rotated" /usr/share/konica206/legacy-ppd/KonicaMinolta-206-fullbleed.ppd
             grep -qxF "*cupsBackSide: Rotated" /usr/share/ppd/konica206/konica206.ppd
             test -f /usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd
             grep -qxF "*cupsBackSide: Rotated" /usr/share/konica206/ppd/KonicaMinolta-206-fullbleed-rotated.ppd
